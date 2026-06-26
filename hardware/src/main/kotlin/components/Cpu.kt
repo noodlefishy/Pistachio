@@ -3,7 +3,7 @@ package io.cuttlefish.components
 import io.cuttlefish.*
 import io.cuttlefish.instructions.*
 
-class Cpu(val mmu: MemoryManagement, val onSyscall: (Cpu, Instruction.Syscall) -> Unit) {
+class Cpu(val mmu: MemoryManagement, val onSyscall: suspend (Cpu, Instruction.Syscall) -> Unit) {
     val registers = Registers()
     val alu = Alu()
     var pc: Int = 0

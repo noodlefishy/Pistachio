@@ -2,14 +2,27 @@ package io.cuttlefish.linking
 
 import java.io.*
 
-class Linker(vararg objectFiles: ObjectFile, val base: UShort = 0x3000u) {
+class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     private val objects = objectFiles.toList()
+    private var currentAddress = baseAddress
 
     init {
         checkDuplicates()
     }
 
+    val groupedByFile = objects.groupBy { File(it.header.fileName) }.map { it.key to it.value.first() }.toMap()
     val mainF = getMainFile()
+
+    fun assignLayout(): Map<File, UShort> {
+        val fileBaseAddresses = mutableMapOf<File, UShort>()
+        for (file in groupedByFile) {
+//            println("${file.key.nameWithoutExtension} lives at $currentAddress")
+            fileBaseAddresses[file.key] = currentAddress
+            currentAddress = (currentAddress + file.value.payload.size.toUShort()).toUShort()
+        }
+        return fileBaseAddresses
+    }
+
 
     private fun checkDuplicates() {
         val combined = mutableSetOf<String>()
@@ -29,7 +42,7 @@ class Linker(vararg objectFiles: ObjectFile, val base: UShort = 0x3000u) {
     }
 
     fun getMainFile(): File {
-        val grouped = objects.groupBy { File(it.header.fileName) }.map { it.key to it.value.first() }.toMap()
+        val grouped = groupedByFile
 
         for ((file, objectFile) in grouped.entries) {
             objectFile.symbolTables.forEach { symbol ->
@@ -48,5 +61,5 @@ fun main() {
     val linker = Linker(
         ObjectExcreter(testLinkMainFile).generate(), ObjectExcreter(testLinkMathsFile).generate()
     )
-    println(linker.getMainFile())
+    println(linker.assignLayout())
 }

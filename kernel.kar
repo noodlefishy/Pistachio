@@ -3,13 +3,16 @@ beq r0, r0, interrupt_handler // 1
 
 
 .fill syscall_char // 2
-.space 13 // for future vectors
+.space 61 // for future vectors
 
 boot:
-    movi r6, 0x2FFF // Stack pointer (end of kernel)
+    p_sp: .space 30
+    movi r6 p_sp
+    addi r6 r6 30
 
     movi r1, 0x3000 // context switch
-    jalr r7, r1, 0
+
+    jalr r0, r1, 0
 
 interrupt_handler:
     // TODO

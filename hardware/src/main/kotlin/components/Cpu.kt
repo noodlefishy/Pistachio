@@ -7,7 +7,8 @@ import io.cuttlefish.instructions.*
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
     val alu = Alu()
-    var pc: Short = 0 // Starts at 0
+
+    //    var pc: Short = 0 // Starts at 0
     var isHalted = false
     private val backend = Backend()
 
@@ -18,12 +19,15 @@ class Cpu(val mmu: MemoryBus) {
         registers.write(RegisterType.RZ, 0)
 
         // 1. FETCH
+        val pc = registers.read(RegisterType.PC)
         val rawInstruction = mmu.read(pc)
+        registers.write(RegisterType.PC, (pc + 1).toShort())
 
-        pc++
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
+
+        println("INST = $instruction | STATE = $registers")
 
 
         if (instruction is Instruction.Jalr &&
@@ -48,7 +52,6 @@ class Cpu(val mmu: MemoryBus) {
         }
 
         registers.write(RegisterType.RZ, 0)
-
 
 
     }

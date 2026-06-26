@@ -11,8 +11,8 @@ suspend fun main() {
 
     val backend = Backend()
     val machineCode = backend.encode(instructions)
-//    println(machineCode)
-//    println(backend.decode(machineCode).joinToString())
+    println(machineCode)
+    println(backend.decode(machineCode).joinToString())
 
 
     val memory = MemoryBus(

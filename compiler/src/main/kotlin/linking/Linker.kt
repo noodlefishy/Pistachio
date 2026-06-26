@@ -59,70 +59,6 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         }
     }
 
-
-
-    fun link(): List<UShort> {
-        currentAddress = initialBaseAddress
-        val layout = assignLayout()
-        val absoluteSymbols = generateSymbolTable(layout)
-        val finalMainMachineCode = mutableListOf<UShort>()
-
-        for (payload in objects) { // 2a
-            finalMainMachineCode.addAll(payload.payload)
-        }
-        for ((file, objectFile) in groupedByFile) {
-            val fileBase = layout[file]!!
-
-            for (relocatedSymbol in objectFile.relocationTable) {
-                val targetAddress = absoluteSymbols[relocatedSymbol.name]
-                    ?: throw IllegalStateException("Unresolved Symbol ${relocatedSymbol.name}")
-
-                val instructionAddress = (fileBase + relocatedSymbol.offset).toUShort()
-                val outputIndex = (instructionAddress - initialBaseAddress).toInt()
-
-                val unpatchedInstructionAddress = finalMainMachineCode[outputIndex]
-                finalMainMachineCode[outputIndex] = applyRelocation(
-                    instruction = unpatchedInstructionAddress,
-                    type = relocatedSymbol.type,
-                    targetAddress = targetAddress,
-                    instructionAddress = instructionAddress
-                )
-            }
-        }
-        return finalMainMachineCode
-
-    }
-
-
-    private fun applyRelocation(
-        instruction: UShort, type: RelocationType, targetAddress: UShort, instructionAddress: UShort
-    ): UShort {
-        when (type) {
-            RelocationType.ABS_16 -> return targetAddress
-            RelocationType.ABS_LUI -> {
-                val upper10 = (targetAddress.toInt() shr 6) and 0x3FF
-                val maskedInst = instruction.toInt() and 0xFC00
-                return (maskedInst or upper10).toUShort()
-            }
-
-            RelocationType.ABS_LLI -> {
-                val lower6 = targetAddress.toInt() and 0x3F
-                val maskedInst = instruction.toInt() and 0xFF80
-                return (maskedInst or lower6).toUShort()
-            }
-
-            RelocationType.REL_7 -> {
-                val offset = targetAddress.toInt() - (instructionAddress.toInt() + 1)
-                if (offset !in -64..63) {
-                    throw IllegalStateException("Linker Error: Branch target out of range. Offset $offset")
-                }
-                val maskedInst = instruction.toInt() and 0xFF80
-                return (maskedInst or (offset and 0x7F)).toUShort()
-
-            }
-        }
-    }
-
 }
 
 
@@ -132,10 +68,10 @@ fun main() {
     )
     println(linker.passOne())
 
-    val binary = linker.link()
-    binary.forEachIndexed { i, word ->
-        val address = 0x3000 + i
-        println("0x${address.toString(16).uppercase()}: 0x${word.toString(16).padStart(4, '0').uppercase()}")
-    }
+//    val binary = linker.link()
+//    binary.forEachIndexed { i, word ->
+//        val address = 0x3000 + i
+//        println("0x${address.toString(16).uppercase()}: 0x${word.toString(16).padStart(4, '0').uppercase()}")
+//    }
 
 }

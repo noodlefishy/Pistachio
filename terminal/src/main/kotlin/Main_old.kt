@@ -106,9 +106,9 @@ suspend fun main(args: Array<String>) {
                 ObjectExcreter(it).generate()
             }.toTypedArray()
             val linker = Linker(*objectFiles, baseAddress = MemoryMapRanges.userLandRange.first.toUShort())
-            val binary = linker.link()
-            outFile.writeText("") // Clear file
-            binary.forEach { outFile.appendText(it.toString() + "\n") }
+//            val binary = linker.link()
+//            outFile.writeText("") // Clear file
+//            binary.forEach { outFile.appendText(it.toString() + "\n") }
         }
 
 

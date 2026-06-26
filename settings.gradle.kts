@@ -5,4 +5,3 @@ rootProject.name = "Operating-System"
 include("hardware")
 include("compiler")
 include("terminal")
-include("kernel")

@@ -15,13 +15,13 @@ class Registers {
     }
 
     suspend fun read(register: RegisterType): Short {
-        if (register == RegisterType.RZ) return 0
+        if (register == RegisterType.R0) return 0
         delay(Clock.REGISTER_READ_TIME)
         return registerData[register.ordinal]
     }
 
     suspend fun write(register: RegisterType, value: Short) {
-        if (register == RegisterType.RZ) return // Ignore writes to R0
+        if (register == RegisterType.R0) return // Ignore writes to R0
         delay(Clock.REGISTER_WRITE_TIME)
         registerData[register.ordinal] = value
     }

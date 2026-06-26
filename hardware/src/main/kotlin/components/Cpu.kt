@@ -7,8 +7,8 @@ import io.cuttlefish.instructions.*
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
     val alu = Alu()
-
-    //    var pc: Short = 0 // Starts at 0
+    var epc: Short = 0 // Exception Program Counter
+    var pc: Short = 0 // Program Counter
     var isHalted = false
     private val backend = Backend()
 
@@ -17,22 +17,16 @@ class Cpu(val mmu: MemoryBus) {
         if (isHalted) return
 
         // 1. FETCH
-        val pc = registers.read(RegisterType.PC)
         val rawInstruction = mmu.read(pc)
-        registers.write(RegisterType.PC, (pc + 1).toShort())
-
+        pc++
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
 
-        println("INST = $instruction | STATE = $registers")
+//        println("| STATE = $registers")
 
 
-        if (instruction is Instruction.Jalr &&
-            instruction.register1 == RegisterType.RZ &&
-            instruction.register2 == RegisterType.RZ &&
-            instruction.immediate != 0.toShort()
-        ) {
+        if (instruction is Instruction.Jalr && instruction.register1 == RegisterType.R0 && instruction.register2 == RegisterType.R0 && instruction.immediate != 0.toShort()) {
             isHalted = true
             return
         }

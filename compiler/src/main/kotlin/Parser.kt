@@ -142,11 +142,11 @@ class Parser(val file: File) {
 
                 // --- Pseudo-Instructions ---
                 "nop" -> {
-                    instructions += Instruction.Add(RegisterType.RZ, RegisterType.RZ, RegisterType.RZ)
+                    instructions += Instruction.Add(RegisterType.R0, RegisterType.R0, RegisterType.R0)
                     currentPC++
                 }
                 "halt" -> {
-                    instructions += Instruction.Jalr(RegisterType.RZ, RegisterType.RZ, immediate = 1)
+                    instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)
                     currentPC++
                 }
                 "lli" -> {

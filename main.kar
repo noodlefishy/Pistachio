@@ -1,4 +1,13 @@
-movi R1 10
-movi R2 10
-Add r1 r1 r2
-halt
+
+movi r1 counter
+lw   r1, r1, 0
+
+loop:
+    beq r1 rz done
+    addi r1 r1 -1
+    beq rz rz loop
+
+done:
+    halt
+
+counter: .fill 5

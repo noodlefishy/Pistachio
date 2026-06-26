@@ -12,8 +12,7 @@ suspend fun main() {
     val backend = Backend()
     val machineCode = backend.encode(instructions)
     println(machineCode)
-    println(backend.decode(machineCode).joinToString())
-
+//    backend.decode(machineCode).forEach(::println)
 
     val memory = MemoryBus(
         PhysicalMemory(1024),
@@ -29,4 +28,5 @@ suspend fun main() {
     while (!cpu.isHalted) {
         cpu.tick()
     }
+    println(cpu.registers)
 }

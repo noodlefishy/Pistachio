@@ -2,6 +2,6 @@ package io.cuttlefish
 
 
 interface MemoryManagement {
-    fun read(address: Short): Short
-    fun write(address: Short, value: Short)
+    suspend fun read(address: Short): Short
+    suspend fun write(address: Short, value: Short)
 }

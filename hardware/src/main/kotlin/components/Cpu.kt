@@ -10,6 +10,7 @@ class Cpu(val mmu: MemoryBus) {
     var epc: Short = 0 // Exception Program Counter
     var pc: Short = 0 // Program Counter
     var isHalted = false
+    var isKernelMode = false        // Flag to track CPU privilege level
     private val backend = Backend()
 
     // tick() no longer takes an Instruction argument!
@@ -26,8 +27,21 @@ class Cpu(val mmu: MemoryBus) {
 //        println("| STATE = $registers")
 
 
-        if (instruction is Instruction.Jalr && instruction.register1 == RegisterType.R0 && instruction.register2 == RegisterType.R0 && instruction.immediate != 0.toShort()) {
-            isHalted = true
+        if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
+            val trapId = instruction.immediate
+            if (trapId == 1.toShort()) {
+                isHalted = true
+                return
+            }
+
+            // Trap ID 15: Special RTI/RFE instruction (explained in Phase 3!)
+            if (trapId == 15.toShort()) {
+                handleRti()
+                return
+            }
+
+            // Otherwise, it's a standard system call (Trap IDs 2 through 14)
+            handleTrap(trapId)
             return
         }
 
@@ -43,6 +57,18 @@ class Cpu(val mmu: MemoryBus) {
             is Instruction.Sw -> handleSw(instruction)
             is Instruction.DataWord -> error("The data-words like .fill and .space shouldn't be there?")
         }
+    }
+
+    private suspend fun handleTrap(trapId: Short) {
+        epc = pc
+        isKernelMode = true
+        val newAddress = mmu.read(trapId)
+        pc = newAddress
+    }
+
+    private fun handleRti() {
+        pc = epc
+        this.isKernelMode = false
     }
 
     suspend fun RegisterType.read(): Short = registers.read(this)

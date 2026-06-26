@@ -6,7 +6,7 @@ import io.cuttlefish.components.devices.*
 class MemoryBus(val ram: PhysicalMemory, val display: DisplayDevice) : MemoryManagement {
 
 
-    override fun read(address: Short): Short {
+    override suspend fun read(address: Short): Short {
         return when (address) {
             in MemoryMapRanges.vectorRange -> ram.read(address)
             in MemoryMapRanges.kernalRange -> ram.read(address)
@@ -17,7 +17,7 @@ class MemoryBus(val ram: PhysicalMemory, val display: DisplayDevice) : MemoryMan
         }
     }
 
-    override fun write(address: Short, value: Short) {
+    override suspend fun write(address: Short, value: Short) {
         when (address) {
             in MemoryMapRanges.vectorRange -> ram.write(address, value)
             in MemoryMapRanges.kernalRange -> ram.write(address, value)

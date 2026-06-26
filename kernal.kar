@@ -1,0 +1,29 @@
+vector2: fill handle_print_character
+
+
+mmioDisplay: .fill 0xF000
+saveR2: .fill 0
+saveR3: .fill 0
+
+
+# Print a single character (Trap 2)
+handle_print_character:
+    # Context save
+    movi r2 saveR2
+    sw r2 r2 0
+    movi r2 saveR3
+    sw r3 r2 0
+
+    # Service R1 -> MMIO screen
+    movi r2 mmioDisplay
+    lw r2 r2 0
+    sw r1 r2 0
+
+
+    # Context restore
+    movi r2, save_r3
+    lw   r3, r2, 0    # Store R3
+    movi r2, save_r2
+    lw   r2, r2, 0    # Store R2
+
+    jalr r0, r0, 15

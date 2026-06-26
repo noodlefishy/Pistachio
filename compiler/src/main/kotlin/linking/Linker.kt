@@ -12,7 +12,6 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     }
 
     val groupedByFile = objects.groupBy { File(it.header.fileName) }.map { it.key to it.value.first() }.toMap()
-    val mainF = getMainFile()
 
     private fun assignLayout(): Map<File, UShort> {
         val fileBaseAddresses = mutableMapOf<File, UShort>()
@@ -60,18 +59,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         }
     }
 
-    private fun getMainFile(): File {
-        val grouped = groupedByFile
 
-        for ((file, objectFile) in grouped.entries) {
-            objectFile.symbolTables.forEach { symbol ->
-                if (symbol.type == SymbolType.Export && symbol.name == "main") {
-                    return file
-                }
-            }
-        }
-        throw IllegalStateException($$$$$$$$$$$"Incorrect main function configuration ${}")
-    }
 
     fun link(): List<UShort> {
         currentAddress = initialBaseAddress

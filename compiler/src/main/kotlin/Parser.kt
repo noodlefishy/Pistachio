@@ -120,7 +120,7 @@ class Parser(val file: File) {
 
                 Movi -> {
 
-                    val imm = parts[3].toShort()
+                    val imm = parts[2].toShort()
                     if (imm !in Short.MIN_VALUE..Short.MAX_VALUE) {
                         throw Exception("Assembler Error: Immediate $imm out of range for Movi (${Short.MIN_VALUE} to ${Short.MAX_VALUE})")
                     }

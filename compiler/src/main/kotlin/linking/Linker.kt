@@ -13,7 +13,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     val groupedByFile = objects.groupBy { File(it.header.fileName) }.map { it.key to it.value.first() }.toMap()
     val mainF = getMainFile()
 
-    fun assignLayout(): Map<File, UShort> {
+    private fun assignLayout(): Map<File, UShort> {
         val fileBaseAddresses = mutableMapOf<File, UShort>()
         for (file in groupedByFile) {
 //            println("${file.key.nameWithoutExtension} lives at $currentAddress")
@@ -23,6 +23,24 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         return fileBaseAddresses
     }
 
+    private fun generateSymbolTable(assignedLayout: Map<File, UShort>): Map<String, UShort> {
+        val global: MutableMap<String, UShort> = mutableMapOf()
+        for ((file: File, objectFile: ObjectFile) in groupedByFile) {
+            for (symbol in objectFile.symbolTables) {
+                global[symbol.name] = assignedLayout[file]!!
+                if (symbol.type == SymbolType.Import) continue
+                global[symbol.name] = (assignedLayout[file]!! + symbol.offset).toUShort()
+            }
+        }
+        return global
+    }
+
+
+    fun passOne(): Map<String, UShort> {
+        val layout = assignLayout()
+        val absolute = generateSymbolTable(layout)
+        return absolute
+    }
 
     private fun checkDuplicates() {
         val combined = mutableSetOf<String>()
@@ -61,5 +79,5 @@ fun main() {
     val linker = Linker(
         ObjectExcreter(testLinkMainFile).generate(), ObjectExcreter(testLinkMathsFile).generate()
     )
-    println(linker.assignLayout())
+    println(linker.passOne())
 }

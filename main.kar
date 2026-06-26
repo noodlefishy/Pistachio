@@ -1,2 +1,13 @@
+string: .fill "hello World!\n"
 
-string: .fill "Hello World!\n"
+movi r2 string
+addi r2 r2 -1
+ll:
+    addi r2 r2 1
+    lw r1 r2 0
+    beq r1 r0 done
+    jalr r0 r0 2
+    beq r0 r0 ll
+
+done:
+    halt

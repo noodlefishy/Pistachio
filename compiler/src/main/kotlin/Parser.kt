@@ -39,7 +39,7 @@ class Parser(file: File, val baseAddress: Short) {
         }.filter { it.isNotEmpty() }
 
         var addressCounter: Short = baseAddress
-        for (tokens in parsedLines) {
+        for (tokens in parsedLines) { // symbol building
             var startIndex = 0
 
             if (tokens[0].endsWith(":")) {
@@ -57,13 +57,23 @@ class Parser(file: File, val baseAddress: Short) {
                         addressCounter = (addressCounter + count).toShort()
                     }
 
-                    else -> addressCounter++ // Every other instruction and .fill takes 1 word
+                    ".fill" -> {
+                        val remainder = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
+                        if (remainder.contains("\"")) {
+                            val content = remainder.substringAfter("\"").substringBeforeLast("\"").replace("\\n","\n")
+                            addressCounter = (addressCounter + content.length + 1 ).toShort()
+                        } else {
+                            addressCounter++
+                        }
+                    }
+
+                    else -> addressCounter++ // Every other instruction and NOT .fill takes 1 word
                 }
             }
         }
 
         var currentPC: Short = baseAddress
-        for (tokens in parsedLines) {
+        for (tokens in parsedLines) { // normal building
             val startIndex = if (tokens[0].endsWith(":")) 1 else 0
             // If the line was *only* a label with nothing else, skip generation
             if (startIndex >= tokens.size) continue
@@ -194,16 +204,13 @@ class Parser(file: File, val baseAddress: Short) {
 
                 ".fill" -> {
                     val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
-                    if (parsed.all { it.isDigit() }) {
-                        println("Int")
+                    if (parsed.all { it.isDigit() } || symbolTable.containsKey(tokens[startIndex + 1])) {
                         val value = resolveValue(tokens[startIndex + 1], currentPC)
                         instructions += Instruction.DataWord(value)
                         currentPC++
 
                     } else if (parsed.toCharArray().count { it == '"' } == 2) {
-                        val newChars = parsed.removeSuffix("\"").removePrefix("\"").replace("\\n","\n")
-
-
+                        val newChars = parsed.removeSuffix("\"").removePrefix("\"").replace("\\n", "\n")
                         for (char in newChars) {
                             instructions += Instruction.DataWord(char.code.toShort())
                             currentPC++
@@ -211,6 +218,7 @@ class Parser(file: File, val baseAddress: Short) {
                         instructions += Instruction.DataWord(0)
                         currentPC++
                     } else {
+                        println(parsed)
                         error("")
                     }
 

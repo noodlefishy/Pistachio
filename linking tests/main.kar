@@ -6,3 +6,6 @@ main:
     jalr r7, r5, 0    // Jump to R5, save return address to R7
     
     halt
+
+useless:
+    nop

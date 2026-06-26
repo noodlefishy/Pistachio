@@ -16,6 +16,7 @@ suspend fun main(args: Array<String>) {
             [USAGE] lc -c $file -o $out (compile)
             [USAGE] lc -i $file (compile + run)
             [USAGE] lc -r $file (run)
+            [USAGE] lc -os $kernel $file
         """.trimIndent()
         )
         exitProcess(0)
@@ -26,7 +27,7 @@ suspend fun main(args: Array<String>) {
             val parse = Parser(file, 0).decode()
             val backend = Backend()
             val machineCode = backend.encode(parse)
-            if (args[2] == "-o") machineCode.forEach { File(args[3]).appendText(it.toString()) }
+            if (args.size >= 3 && args[2] == "-o") machineCode.forEach { File(args[3]).appendText(it.toString()) }
             else machineCode.forEach { File(file.nameWithoutExtension).appendText(it.toString()) }
         }
 

@@ -1,1 +1,1 @@
-p_sp: .space 30beq r0 r0 mainmain:    movi r6 p_sp    addi r1 r0 10    addi r2 r0 5    movi r4 mf_multiply    jalr r5 r4    haltmf_multiply:    // r4 = accumulate    // r7 = count    sw r4 r6 0    addi r6 r6 1    movi r4 0    movi r7 0    pmfm_loop:        add r4 r4 r1        addi r7 r7 1        beq r7 r2 end    end:        jalr r5 r0
+halt

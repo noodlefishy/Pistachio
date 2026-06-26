@@ -36,9 +36,12 @@ class Parser(val file: File) {
                     parts[1].toRegisterType(), parts[2].toRegisterType(), parts[3].toRegisterType()
                 )
 
-                Halt -> TODO()
+                Halt -> throw NotImplementedError()
+                Printr -> Printr(parts[1].toRegisterType())
             }
-            instructions += curr
+
+
+            instructions.add(curr)
         }
         return instructions.toList()
     }

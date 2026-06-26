@@ -115,19 +115,28 @@ class Parser(file: File, val baseAddress: Short) {
                     // call label (via R7)
                     // movi r7 m_multiply
                     //    jalr r7 r7 0
-                    val imm = resolveValue(tokens[startIndex + 1], currentPC)
-                    val luiPart = (imm.toInt() shr 6).toShort() // Top 10 bits
-                    val lliPart = (imm.toInt() and 0x3F).toShort() // Bottom 6 bits
+                    val immStr = tokens[startIndex + 1]
+                    var imm: Short = 0
+                    if (symbolTable.containsKey(immStr)) {
+                        imm = symbolTable[immStr]!!
+                    } else if (immStr.isNumber()) {
+                        imm = immStr.toNumber()
+                    } else {
+                        // For macros, we must log BOTH instructions that make up the absolute jump!!!
+                        imports += (immStr)
+                        relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
+                        relocations += (RelocationTable(
+                            (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI // addi
+                        ))
+                    }
+
+                    val luiPart = (imm.toInt() shr 6).toShort()
+                    val lliPart = (imm.toInt() and 0x3F).toShort()
                     val reg = RegisterType.R7
 
-                    val lui = Instruction.Lui(register1 = reg, immediate = luiPart)
-
-                    val addi = Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
-                    val jalr = Instruction.Jalr(reg, reg, 0)
-                    instructions += lui
-                    instructions += addi
-                    instructions += jalr
-
+                    instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
+                    instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
+                    instructions += Instruction.Jalr(reg, reg, 0)
                     currentPC = (currentPC + 3).toShort()
 
 
@@ -150,7 +159,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "addi" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC)
+                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.ABS_LLI)
                     instructions += Instruction.Addi(
                         register1 = tokens[startIndex + 1].toRegisterType(),
                         register2 = tokens[startIndex + 2].toRegisterType(),
@@ -169,7 +178,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "lui" -> {
-                    val imm = resolveValue(tokens[startIndex + 2], currentPC)
+                    val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LUI)
                     instructions += Instruction.Lui(
                         register1 = tokens[startIndex + 1].toRegisterType(), immediate = imm
                     )
@@ -177,7 +186,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "lw" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC)
+                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
                     instructions += Instruction.Lw(
                         register1 = tokens[startIndex + 1].toRegisterType(),
                         register2 = tokens[startIndex + 2].toRegisterType(),
@@ -187,7 +196,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "sw" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC)
+                    val imm = resolveValue(tokens[startIndex + 3],currentPC, type = RelocationType.REL_7)
                     instructions += Instruction.Sw(
                         register1 = tokens[startIndex + 1].toRegisterType(),
                         register2 = tokens[startIndex + 2].toRegisterType(),
@@ -197,7 +206,8 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "beq" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC, isRelative = true)
+                    val imm =
+                        resolveValue(tokens[startIndex + 3], currentPC, isRelative = true, type = RelocationType.REL_7)
                     instructions += Instruction.Beq(
                         register1 = tokens[startIndex + 1].toRegisterType(),
                         register2 = tokens[startIndex + 2].toRegisterType(),
@@ -209,7 +219,7 @@ class Parser(file: File, val baseAddress: Short) {
                 "jalr" -> {
                     // Jalr can have an immediate for Syscalls, or default to 0
                     val imm = if (startIndex + 3 < tokens.size) resolveValue(
-                        tokens[startIndex + 3], currentPC
+                        tokens[startIndex + 3], currentPC, type = RelocationType.REL_7
                     ) else 0.toShort()
                     instructions += Instruction.Jalr(
                         register1 = tokens[startIndex + 1].toRegisterType(),
@@ -231,7 +241,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "lli" -> {
-                    val imm = resolveValue(tokens[startIndex + 2], currentPC)
+                    val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LLI)
                     val maskedImm = (imm.toInt() and 0x3F).toShort() // Bottom 6 bits
                     instructions += Instruction.Addi(
                         register1 = tokens[startIndex + 1].toRegisterType(),
@@ -242,9 +252,24 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "movi" -> {
-                    val imm = resolveValue(tokens[startIndex + 2], currentPC)
-                    val luiPart = (imm.toInt() shr 6).toShort() // Top 10 bits
-                    val lliPart = (imm.toInt() and 0x3F).toShort() // Bottom 6 bits
+                    val immStr = tokens[startIndex + 2]
+                    var imm: Short = 0
+                    if (symbolTable.containsKey(immStr)) {
+                        imm = symbolTable[immStr]!!
+                    } else if (immStr.isNumber()) {
+                        imm = immStr.toNumber()
+                    } else {
+                        imports += (immStr)
+                        relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
+                        relocations += (RelocationTable(
+                            (currentPC + 1).toShort().toUShort(),
+                            immStr,
+                            RelocationType.ABS_LLI
+                        ))
+                    }
+
+                    val luiPart = (imm.toInt() shr 6).toShort()
+                    val lliPart = (imm.toInt() and 0x3F).toShort()
                     val reg = tokens[startIndex + 1].toRegisterType()
 
                     instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
@@ -255,7 +280,7 @@ class Parser(file: File, val baseAddress: Short) {
                 ".fill" -> {
                     val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
                     if (parsed.all { it.isDigit() } || symbolTable.containsKey(tokens[startIndex + 1])) {
-                        val value = resolveValue(tokens[startIndex + 1], currentPC)
+                        val value = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16)
                         instructions += Instruction.DataWord(value)
                         currentPC++
 
@@ -276,7 +301,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 ".space" -> {
-                    val count = resolveValue(tokens[startIndex + 1], currentPC).toInt()
+                    val count = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16).toInt()
                     repeat(count) {
                         instructions += Instruction.DataWord(0)
                     }

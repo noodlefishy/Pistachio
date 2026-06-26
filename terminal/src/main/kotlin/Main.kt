@@ -3,6 +3,7 @@ package io.cuttlefish
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.components.devices.*
+import io.cuttlefish.linking.*
 import java.io.*
 import kotlin.system.*
 
@@ -30,8 +31,9 @@ suspend fun main(args: Array<String>) {
             val parse = Parser(file, 0).decode()
             val backend = Backend()
             val machineCode = backend.encode(parse)
-            if (args.size >= 3 && args[2] == "-o") machineCode.forEach { File(args[3]).appendText(it.toString()) }
-            else machineCode.forEach { File(file.nameWithoutExtension).appendText(it.toString()) }
+            val ff = if (args.size >= 3 && args[2] == "-o") File(args[3]) else File("${file.nameWithoutExtension}.bin")
+            ff.writeText("")
+            machineCode.forEach { ff.appendText(it.toString() + '\n') }
         }
 
         "-i" -> {
@@ -99,6 +101,13 @@ suspend fun main(args: Array<String>) {
                     i++
                 }
             }
+            val objectFiles = sourceFiles.map {
+                ObjectExcreter(it).generate()
+            }.toTypedArray()
+            val linker = Linker(*objectFiles, baseAddress = MemoryMapRanges.userLandRange.first.toUShort())
+            val binary = linker.link()
+            outFile.writeText("") // Clear file
+            binary.forEach { outFile.appendText(it.toString() + "\n") }
         }
 
 

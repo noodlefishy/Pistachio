@@ -84,5 +84,23 @@ suspend fun main(args: Array<String>) {
                 cpu.tick()
             }
         }
+
+        "-l" -> {
+            val sourceFiles = mutableListOf<File>()
+            var outFile = File("unnamed.out")
+
+            var i = 1
+            while (i < args.size) {
+                if (args[i] == "-o" && i + 1 < args.size) {
+                    outFile = File(args[i + 1])
+                    i += 2
+                } else {
+                    sourceFiles.add(File(args[i]))
+                    i++
+                }
+            }
+        }
+
+
     }
 }

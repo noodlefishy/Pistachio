@@ -10,16 +10,23 @@ class Cpu(/* val mmu: MemoryManagement , */ val onSyscall: suspend (Instruction.
 
     suspend fun tick(instruction: Instruction) {
         when (instruction) {
-            is Instruction.Printr -> print(instruction)
+            is Instruction.Printr -> println(instruction.code.read())
             is Instruction.Add -> handlerAdd(instruction)
             is Instruction.Div -> handlerDiv(instruction)
             is Instruction.Mul -> handlerMul(instruction)
             is Instruction.Sub -> handlerSub(instruction)
             is Instruction.Syscall -> onSyscall(instruction)
-            is Instruction.Halt -> { /* Handled by OS */ }
+            is Instruction.Halt -> { /* Handled by OS */
+            }
+
             is Instruction.Lit -> handlerLit(instruction)
 
         }
         pc++
     }
+    suspend fun RegisterType.read(): Short = registers.read(this)
+    suspend fun RegisterType.write(a: Short) = registers.write(this, a)
 }
+
+
+

@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    kotlin("plugin.serialization") version "2.4.0"
 }
 
 group = "io.cuttlefish"

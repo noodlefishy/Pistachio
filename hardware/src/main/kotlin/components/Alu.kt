@@ -14,4 +14,9 @@ class Alu {
         return (number1 and number2).inv()
     }
 
+    suspend fun compare(number1: Short, number2: Short): Boolean {
+        delay(Clock.ALU_CALCULATION_TIME)
+        return number1 == number2
+    }
+
 }

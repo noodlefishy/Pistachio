@@ -1,13 +1,13 @@
 package io.cuttlefish.components
 
 import io.cuttlefish.*
-import io.cuttlefish.components.devices.*
 import io.cuttlefish.instructions.*
+import kotlinx.coroutines.*
 
 class Cpu(val mmu: MemoryBus     /* val mmu: MemoryManagement , val onSyscall: suspend (Instruction) -> Unit */) {
     val registers = Registers()
     val alu = Alu()
-    var pc: Int = 0
+    var pc: Short = runBlocking { RegisterType.PC.read() }
 
     suspend fun tick(instruction: Instruction) {
 
@@ -16,12 +16,12 @@ class Cpu(val mmu: MemoryBus     /* val mmu: MemoryManagement , val onSyscall: s
         when (instruction) {
             is Instruction.Add -> handlerAdd(instruction)
             is Instruction.Addi -> handlerAddImmediate(instruction)
-            is Instruction.Beq -> TODO()
-            is Instruction.Jalr -> TODO()
+            is Instruction.Beq -> handlerBeq(instruction)
+            is Instruction.Jalr -> handlerJalr(instruction)
             is Instruction.Lui -> handlerLui(instruction)
-            is Instruction.Lw -> TODO()
+            is Instruction.Lw -> handleLw(instruction)
             is Instruction.Nand -> handlerNand(instruction)
-            is Instruction.Sw -> TODO()
+            is Instruction.Sw -> handleSw(instruction)
         }
 
 

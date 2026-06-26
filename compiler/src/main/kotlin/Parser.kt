@@ -1,6 +1,6 @@
 package io.cuttlefish
 
-import io.cuttlefish.InstructionType.*
+import io.cuttlefish.backend.InstructionType.*
 import java.io.*
 import java.util.Locale.getDefault
 import kotlin.experimental.*

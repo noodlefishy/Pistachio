@@ -209,7 +209,7 @@ class Backend() {
         return x
     }
 
-    private fun decode(single: UShort): Instruction {
+    fun decode(single: UShort): Instruction {
         val opcode = (single.toUInt() shr (15 - (15 - 13))).toUShort()
         return when (InstructionType.entries.find { it.ordinal == opcode.toInt() }) {
             InstructionType.Add -> decodeRRR(single)

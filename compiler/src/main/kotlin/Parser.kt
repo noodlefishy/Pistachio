@@ -34,7 +34,7 @@ class Parser(file: File, val baseAddress: Short) {
         val instructions = mutableListOf<Instruction>()
 
         val parsedLines = text.map { line ->
-            val noComment = line.split("#")[0].trim()
+            val noComment = line.split("#","//")[0].trim()
             noComment.split(Regex("[\\s,]+")).filter { it.isNotEmpty() }
         }.filter { it.isNotEmpty() }
 

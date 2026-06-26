@@ -59,7 +59,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         }
     }
 
-    fun getMainFile(): File {
+    private fun getMainFile(): File {
         val grouped = groupedByFile
 
         for ((file, objectFile) in grouped.entries) {

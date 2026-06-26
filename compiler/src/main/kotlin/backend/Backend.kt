@@ -15,22 +15,20 @@ class Backend(instructions: List<Instruction>) {
 
         val x = when (single) {
             is Instruction.Add -> {
-                // 12-10
-//                println(value.toString(2).padStart(16, '0'))
                 value = value or register(12, 10, single.register1)
-//                println(value.toString(2).padStart(16, '0'))
                 value = value or register(9, 7, single.register2)
                 value = value or register(6, 4, single.register3)
                 value
             }
 
-            is Instruction.Addi -> TODO()
-            is Instruction.Beq -> TODO()
-            is Instruction.Jalr -> TODO()
-            is Instruction.Lui -> TODO()
-            is Instruction.Lw -> TODO()
-            is Instruction.Nand -> TODO()
-            is Instruction.Sw -> TODO()
+            is Instruction.Nand -> {
+                value = value or register(12, 10, single.register1)
+                value = value or register(9, 7, single.register2)
+                value = value or register(6, 4, single.register3)
+                value
+            }
+
+            else -> error("The instruction $single is not an RRR-Format instruction")
         }
         return x
     }
@@ -40,7 +38,21 @@ class Backend(instructions: List<Instruction>) {
         var value: UShort
         val opcode = InstructionType.entries.find { it.name == single::class.simpleName }!!.ordinal
         value = (opcode shl (15 - (15 - 13))).toUShort()
-        return encodeRRR(value, single)
+        return when (InstructionType.entries.find { it.name == single::class.simpleName }) {
+            InstructionType.Add -> encodeRRR(value, single)
+            InstructionType.Addi -> TODO()
+            InstructionType.Nand -> encodeRRR(value, single)
+            InstructionType.Lui -> TODO()
+            InstructionType.Lw -> TODO()
+            InstructionType.Sw -> TODO()
+            InstructionType.Beq -> TODO()
+            InstructionType.Jalr -> TODO()
+            InstructionType.Nop -> TODO()
+            InstructionType.Halt -> TODO()
+            InstructionType.LLi -> TODO()
+            InstructionType.Movi -> TODO()
+            null -> error("The instruction is null???")
+        }
 
 
     }
@@ -65,7 +77,16 @@ class Backend(instructions: List<Instruction>) {
                 )
             }
 
-            else -> TODO()
+            InstructionType.Nand -> {
+                Instruction.Nand(
+                    RegisterType.entries[r1.toInt() shr 13],
+                    RegisterType.entries[r2.toInt() shr 13],
+                    RegisterType.entries[r3.toInt() shr 13]
+
+                )
+            }
+
+            else -> error("The instruction $single is not an RRR-Format instruction")
         }
         return x
 

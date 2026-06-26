@@ -70,6 +70,17 @@ class Parser(file: File, val baseAddress: Short) {
             if (startIndex >= tokens.size) continue
 
             when (val opcode = tokens[startIndex].lowercase()) {
+
+                "syscall" -> {
+                    // syscall $id
+                    instructions += Instruction.Jalr(
+                        RegisterType.R0, RegisterType.R0, immediate = tokens[startIndex + 1].toNumber()
+                    )
+                    currentPC++
+
+                }
+
+
                 "add" -> {
                     instructions += Instruction.Add(
                         register1 = tokens[startIndex + 1].toRegisterType(),

@@ -2,10 +2,9 @@ package io.cuttlefish
 
 import io.cuttlefish.components.*
 import io.cuttlefish.components.devices.*
-import kotlinx.coroutines.*
 import java.io.*
 
-fun main() {
+suspend fun main() {
     val parser = Parser(File("main.kar"))
     val memory = MemoryBus(
         PhysicalMemory(1024),
@@ -13,6 +12,7 @@ fun main() {
     )
     val cpu = Cpu(memory)
     for (line in parser.decode()) {
-        println(line)
+//        println(line)
+        cpu.tick(line)
     }
 }

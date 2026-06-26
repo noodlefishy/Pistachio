@@ -3,20 +3,20 @@ package io.cuttlefish.backend
 import io.cuttlefish.*
 import io.cuttlefish.instructions.*
 
-class Backend(instructions: List<Instruction>) {
+class Backend() {
     private fun registerEncode(start: Int, end: Int, reg: RegisterType): UShort {
         val regA = reg.ordinal
         val preMerge = (regA shl (15 - start)).toUShort()
         return preMerge
     }
 
+    @Deprecated("Not used often enough")
     private fun immediateEncode(start: Int, end: Int, immediate: Short): UShort {
         val preMerge = (immediate.toInt() shl (15 - start)).toUShort()
         return preMerge
     }
 
-
-    fun encodeRRI(valueAdjust: UShort, single: Instruction): UShort {
+    private fun encodeRRI(valueAdjust: UShort, single: Instruction): UShort {
         var value = valueAdjust
         val x = when (single) {
             is Instruction.Addi -> {
@@ -59,7 +59,7 @@ class Backend(instructions: List<Instruction>) {
         return x
     }
 
-    fun encodeRI(valueAdjust: UShort, single: Instruction): UShort {
+    private fun encodeRI(valueAdjust: UShort, single: Instruction): UShort {
         var value = valueAdjust
         val x = when (single) {
             is Instruction.Lui -> {
@@ -73,8 +73,7 @@ class Backend(instructions: List<Instruction>) {
         return x
     }
 
-
-    fun encodeRRR(valueAdjust: UShort, single: Instruction): UShort {
+    private fun encodeRRR(valueAdjust: UShort, single: Instruction): UShort {
         var value = valueAdjust
 
         val x = when (single) {
@@ -97,8 +96,7 @@ class Backend(instructions: List<Instruction>) {
         return x
     }
 
-
-    fun encode(single: Instruction): UShort {
+    private fun encode(single: Instruction): UShort {
         var value: UShort
         val opcode = InstructionType.entries.find { it.name == single::class.simpleName }!!.ordinal
         value = (opcode shl (15 - (15 - 13))).toUShort()
@@ -118,7 +116,7 @@ class Backend(instructions: List<Instruction>) {
 
     }
 
-    fun decodeRRR(single: UShort): Instruction {
+    private fun decodeRRR(single: UShort): Instruction {
         val instructionTypeCode = (single.toUInt() shr (15 - (15 - 13))).toUShort()
         val instructionType = InstructionType.entries.find { it.ordinal == instructionTypeCode.toInt() }!!
 
@@ -129,18 +127,14 @@ class Backend(instructions: List<Instruction>) {
         val x = when (instructionType) {
             InstructionType.Add -> {
                 Instruction.Add(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    RegisterType.entries[r3.toInt()]
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], RegisterType.entries[r3.toInt()]
 
                 )
             }
 
             InstructionType.Nand -> {
                 Instruction.Nand(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    RegisterType.entries[r3.toInt()]
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], RegisterType.entries[r3.toInt()]
 
                 )
             }
@@ -152,7 +146,7 @@ class Backend(instructions: List<Instruction>) {
 
     }
 
-    fun decodeRRI(single: UShort): Instruction {
+    private fun decodeRRI(single: UShort): Instruction {
         val instructionTypeCode = (single.toUInt() shr (15 - (15 - 13))).toUShort()
         val instructionType = InstructionType.entries.find { it.ordinal == instructionTypeCode.toInt() }!!
 
@@ -163,41 +157,31 @@ class Backend(instructions: List<Instruction>) {
         val x = when (instructionType) {
             InstructionType.Addi -> {
                 Instruction.Addi(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    signExtend7(imm)
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], signExtend7(imm)
                 )
             }
 
             InstructionType.Beq -> {
                 Instruction.Beq(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    signExtend7(imm)
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], signExtend7(imm)
                 )
             }
 
             InstructionType.Jalr -> {
                 Instruction.Jalr(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    signExtend7(imm)
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], signExtend7(imm)
                 )
             }
 
             InstructionType.Lw -> {
                 Instruction.Lw(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    signExtend7(imm)
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], signExtend7(imm)
                 )
             }
 
             InstructionType.Sw -> {
                 Instruction.Sw(
-                    RegisterType.entries[r1.toInt()],
-                    RegisterType.entries[r2.toInt()],
-                    signExtend7(imm)
+                    RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], signExtend7(imm)
                 )
             }
 
@@ -206,7 +190,7 @@ class Backend(instructions: List<Instruction>) {
         return x
     }
 
-    fun decodeRI(single: UShort): Instruction {
+    private fun decodeRI(single: UShort): Instruction {
         val instructionTypeCode = (single.toUInt() shr (15 - (15 - 13))).toUShort()
         val instructionType = InstructionType.entries.find { it.ordinal == instructionTypeCode.toInt() }!!
 
@@ -216,8 +200,7 @@ class Backend(instructions: List<Instruction>) {
         val x = when (instructionType) {
             InstructionType.Lui -> {
                 Instruction.Lui(
-                    RegisterType.entries[r1.toInt()],
-                    imm
+                    RegisterType.entries[r1.toInt()], imm
                 )
             }
 
@@ -226,8 +209,7 @@ class Backend(instructions: List<Instruction>) {
         return x
     }
 
-
-    fun decode(single: UShort): Instruction {
+    private fun decode(single: UShort): Instruction {
         val opcode = (single.toUInt() shr (15 - (15 - 13))).toUShort()
         return when (InstructionType.entries.find { it.ordinal == opcode.toInt() }) {
             InstructionType.Add -> decodeRRR(single)
@@ -245,13 +227,16 @@ class Backend(instructions: List<Instruction>) {
         }
     }
 
+    fun encode(instructions: List<Instruction>): List<UShort> = instructions.map { encode(it) }
+
+    fun decode(instructions: List<UShort>): List<Instruction> = instructions.map { decode(it) }
 }
 
 
 fun main() {
-    val ins = Instruction.Add(RegisterType.RZ, RegisterType.PC, RegisterType.SP)
-    val b = Backend(listOf())
-    val s = b.encode(ins)
-    val d = b.decode(s)
-    println(d)
+//    val ins = Instruction.Add(RegisterType.RZ, RegisterType.PC, RegisterType.SP)
+//    val b = Backend()
+//    val s = b.encode(ins)
+//    val d = b.decode(s)
+//    println(d)
 }

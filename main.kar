@@ -1,8 +1,17 @@
 
+movi r3 123
 movi r2 string
 lw r1 r2 0
 syscall 2
 
-halt
+loop:
+    addi r1 r1 1
+    syscall 2
+    beq r1 r3 done
+    beq r0 r0 loop
 
-string: .fill 107
+done:
+    halt
+
+string: .fill 97
+// a = 97 z = 123

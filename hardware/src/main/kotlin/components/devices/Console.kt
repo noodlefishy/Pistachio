@@ -28,7 +28,7 @@ class Console : MemoryManagement {
     override suspend fun write(address: Short, value: Short) {
         delay(Clock.DEVICE_CONSOLE_WRITE_TIME)
         if (address == 0xFF00.toShort()) {
-            print(value.toInt().toChar())
+            System.err.print("[KERNEL] " + value.toInt().toChar())
         }
 
         TODO("Not yet implemented")

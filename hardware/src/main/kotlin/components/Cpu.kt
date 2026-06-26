@@ -23,8 +23,7 @@ class Cpu(val mmu: MemoryBus) {
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
-        val ku = if (isKernelMode) 'k' else 'u'
-        println("| $ku | $pc | STATE = $instruction")
+        println("$pc | STATE = $instruction")
 
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
@@ -41,7 +40,6 @@ class Cpu(val mmu: MemoryBus) {
                 return
             }
 
-            // Otherwise, it's a standard system call (Trap IDs 2 through 14)
             handleTrap(trapId)
             return
         }

@@ -23,7 +23,7 @@ syscall_char:
     sw   r2, r6, 0
 
     // Route R1 to the MMIO display at 0xFF00
-    movi r2, 65280
+    movi r2, 0xFF00
     sw   r1, r2, 0
 
     // Pop R2 from the Stack to restore it

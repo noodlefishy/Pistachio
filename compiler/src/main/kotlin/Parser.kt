@@ -193,9 +193,28 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 ".fill" -> {
-                    val value = resolveValue(tokens[startIndex + 1], currentPC)
-                    instructions += Instruction.DataWord(value)
-                    currentPC++
+                    val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
+                    if (parsed.all { it.isDigit() }) {
+                        println("Int")
+                        val value = resolveValue(tokens[startIndex + 1], currentPC)
+                        instructions += Instruction.DataWord(value)
+                        currentPC++
+
+                    } else if (parsed.toCharArray().count { it == '"' } == 2) {
+                        val newChars = parsed.removeSuffix("\"").removePrefix("\"").replace("\\n","\n")
+
+
+                        for (char in newChars) {
+                            instructions += Instruction.DataWord(char.code.toShort())
+                            currentPC++
+                        }
+                        instructions += Instruction.DataWord(0)
+                        currentPC++
+                    } else {
+                        error("")
+                    }
+
+
                 }
 
                 ".space" -> {

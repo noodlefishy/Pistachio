@@ -3,8 +3,6 @@ package io.cuttlefish.instructions
 import io.cuttlefish.*
 import io.cuttlefish.components.*
 
-suspend fun Cpu.handlerLit(instruction: Instruction.Lit) {
-    val destination = instruction.destination
-    val value = instruction.value
-    registers.write(destination, value)
+suspend fun Cpu.handlerLui(instruction: Instruction.Lui) {
+    instruction.register1.write((instruction.immediate.toInt() shl 6).toShort())
 }

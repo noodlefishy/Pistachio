@@ -1,12 +1,12 @@
 package io.cuttlefish
 
 sealed interface Instruction {
-    data class Add(val number1: RegisterType, val number2: RegisterType, val destination: RegisterType) : Instruction
-    data class Sub(val number1: RegisterType, val number2: RegisterType, val destination: RegisterType) : Instruction
-    data class Mul(val number1: RegisterType, val number2: RegisterType, val destination: RegisterType) : Instruction
-    data class Div(val number1: RegisterType, val number2: RegisterType, val destination: RegisterType) : Instruction
-    data class Lit(val destination: RegisterType, val value: Short) : Instruction
-    data class Syscall(val id: RegisterType, val arg1: RegisterType, val arg2: RegisterType) : Instruction
-    data class Printr(val code: RegisterType): Instruction
-    data object Halt : Instruction
+    data class Add(val register1: RegisterType, val register2: RegisterType, val register3: RegisterType): Instruction
+    data class Addi(val register1: RegisterType, val register2: RegisterType, val immediate: Short): Instruction
+    data class Nand(val register1: RegisterType, val register2: RegisterType, val register3: RegisterType): Instruction
+    data class Lui(val register1: RegisterType, val immediate: Short): Instruction
+    data class Lw(val register1: RegisterType, val register2: RegisterType, val immediate: Short): Instruction
+    data class Sw(val register1: RegisterType, val register2: RegisterType, val immediate: Short): Instruction
+    data class Beq(val register1: RegisterType, val register2: RegisterType, val immediate: Short): Instruction
+    data class Jalr(val register1: RegisterType, val register2: RegisterType): Instruction
 }

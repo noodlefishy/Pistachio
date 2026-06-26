@@ -6,9 +6,6 @@ import io.cuttlefish.components.devices.*
 import java.io.*
 import kotlin.system.*
 
-// lc -c $file -o $out (compile)
-// lc -i $file (compile + run)
-// lc -r $file (run)
 suspend fun main(args: Array<String>) {
     if (args.isEmpty()) {
         println(
@@ -16,7 +13,7 @@ suspend fun main(args: Array<String>) {
             [USAGE] lc -c $file -o $out (compile)
             [USAGE] lc -i $file (compile + run)
             [USAGE] lc -r $file (run)
-            [USAGE] lc -os $kernel $file
+            [USAGE] lc -os $kernel $file.                                              
         """.trimIndent()
         )
         exitProcess(0)

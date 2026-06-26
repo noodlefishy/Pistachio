@@ -23,7 +23,6 @@ suspend fun main() {
 
     val cpu = Cpu(memory)
 
-    // 3. Realistic Execution Loop: Run until a halt condition triggers
     while (!cpu.isHalted) {
         cpu.tick()
     }

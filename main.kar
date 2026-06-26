@@ -1,3 +1,4 @@
-movi R1 20
+movi R1 0xFF
 movi R2 10
 Add r1 r1 r2
+halt

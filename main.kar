@@ -1,1 +1,1 @@
-halt
+movi r1 10movi r2 5multiply:    movi r3 0    movi r4 0    loop:        addi r4 r4 1        add r3 r3 r2        beq r4 r1 done        beq r0 r0 loopdone:    halt

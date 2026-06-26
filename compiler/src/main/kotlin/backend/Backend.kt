@@ -3,28 +3,38 @@ package io.cuttlefish.backend
 import io.cuttlefish.*
 
 class Backend(instructions: List<Instruction>) {
+    private fun registerEncode(start: Int, end: Int, reg: RegisterType): UShort {
+        val regA = reg.ordinal
+        val preMerge = (regA shl (start - (start - end))).toUShort()
+        return preMerge
+    }
 
 
-    fun encodeRRR(valueAdjust: UShort, single: Instruction): UShort {
+    fun encodeRRI(valueAdjust: UShort, single: Instruction): UShort {
         var value = valueAdjust
         fun register(start: Int, end: Int, reg: RegisterType): UShort {
             val regA = reg.ordinal
             val preMerge = (regA shl (start - (start - end))).toUShort()
             return preMerge
         }
+    }
+
+
+    fun encodeRRR(valueAdjust: UShort, single: Instruction): UShort {
+        var value = valueAdjust
 
         val x = when (single) {
             is Instruction.Add -> {
-                value = value or register(12, 10, single.register1)
-                value = value or register(9, 7, single.register2)
-                value = value or register(6, 4, single.register3)
+                value = value or registerEncode(12, 10, single.register1)
+                value = value or registerEncode(9, 7, single.register2)
+                value = value or registerEncode(6, 4, single.register3)
                 value
             }
 
             is Instruction.Nand -> {
-                value = value or register(12, 10, single.register1)
-                value = value or register(9, 7, single.register2)
-                value = value or register(6, 4, single.register3)
+                value = value or registerEncode(12, 10, single.register1)
+                value = value or registerEncode(9, 7, single.register2)
+                value = value or registerEncode(6, 4, single.register3)
                 value
             }
 

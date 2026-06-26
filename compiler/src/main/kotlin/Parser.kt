@@ -8,13 +8,14 @@ class Parser(val file: File) {
     private val symbolTable = mutableMapOf<String, Short>()
 
     private fun String.toNumber(): Short {
-        return when {
-            this.startsWith("0x", ignoreCase = true) -> this.substring(2).toShort(16)
-            this.startsWith("-0x", ignoreCase = true) -> ("-" + this.substring(3)).toShort(16)
-            this.startsWith("0") && this.length > 1 -> this.toShort(8)
-            this.startsWith("-0") && this.length > 2 -> ("-" + this.substring(2)).toShort(8)
-            else -> this.toShort(10)
+        val intVal = when {
+            this.startsWith("0x", ignoreCase = true) -> this.substring(2).toInt(16)
+            this.startsWith("-0x", ignoreCase = true) -> ("-" + this.substring(3)).toInt(16)
+            this.startsWith("0") && this.length > 1 -> this.toInt(8)
+            this.startsWith("-0") && this.length > 2 -> ("-" + this.substring(2)).toInt(8)
+            else -> this.toInt(10)
         }
+        return intVal.toShort()
     }
 
     private fun resolveValue(input: String, currentAddress: Short, isRelative: Boolean = false): Short {

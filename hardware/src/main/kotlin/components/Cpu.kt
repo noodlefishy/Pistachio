@@ -10,7 +10,7 @@ class Cpu(val mmu: MemoryBus) {
     var epc: Short = 0 // Exception Program Counter
     var pc: Short = 0 // Program Counter
     var isHalted = false
-    var isKernelMode = false        // Flag to track CPU privilege level
+    var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend()
 
     // tick() no longer takes an Instruction argument!
@@ -23,8 +23,8 @@ class Cpu(val mmu: MemoryBus) {
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
-
-        println("$pc | STATE = $instruction")
+        val ku = if (isKernelMode) 'k' else 'u'
+        println("| $ku | $pc | STATE = $instruction")
 
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {

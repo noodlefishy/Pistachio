@@ -19,7 +19,7 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 application {
-    mainClass.set("Operating-System.terminal.MainKt") // Tells gradle where your main() function is
+    mainClass.set("io.cuttlefish.MainKt") // Tells gradle where your main() function is
 }
 
 tasks.test {

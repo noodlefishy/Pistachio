@@ -1,2 +1,4 @@
-lit R1 20
-printr R1
+LIT R1 10
+LIT R2 20
+ADD R1 R2 R1
+PRINTR R1

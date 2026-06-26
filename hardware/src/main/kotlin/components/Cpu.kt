@@ -1,9 +1,8 @@
 package io.cuttlefish.components
 
 import io.cuttlefish.*
-import io.cuttlefish.backend.Backend
+import io.cuttlefish.backend.*
 import io.cuttlefish.instructions.*
-import kotlinx.coroutines.*
 
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
@@ -11,6 +10,7 @@ class Cpu(val mmu: MemoryBus) {
     var pc: Short = 0 // Starts at 0
     var isHalted = false
     private val backend = Backend()
+
     // tick() no longer takes an Instruction argument!
     suspend fun tick() {
         if (isHalted) return
@@ -24,6 +24,7 @@ class Cpu(val mmu: MemoryBus) {
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
+
 
         if (instruction is Instruction.Jalr &&
             instruction.register1 == RegisterType.RZ &&
@@ -47,6 +48,10 @@ class Cpu(val mmu: MemoryBus) {
         }
 
         registers.write(RegisterType.RZ, 0)
+
+
+        println("I = $instruction | STATE = $registers")
+
     }
 
     suspend fun RegisterType.read(): Short = registers.read(this)

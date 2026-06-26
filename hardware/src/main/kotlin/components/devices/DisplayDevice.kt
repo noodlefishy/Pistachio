@@ -5,7 +5,7 @@ import io.cuttlefish.*
 
 data class Dimensions(val width: Short, val height: Short)
 class DisplayDevice : MemoryManagement {
-    val dimensions = Dimensions(100, 100)
+    val dimensions = Dimensions(8, 8)
     override fun read(address: Short): Short {
         TODO("Not yet implemented")
     }

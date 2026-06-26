@@ -6,7 +6,13 @@ import kotlinx.coroutines.*
 
 class Registers {
     private val maxRegisters = 8
-    private val registerData: Array<Short> = Array(maxRegisters) { -1 }
+    val registerData: Array<Short> = Array(maxRegisters) { 0 }
+    override fun toString(): String {
+        val rNames = RegisterType.entries
+        val m = mutableMapOf<String, Short>()
+        registerData.forEachIndexed { index, sh -> m[rNames[index].name] = sh }
+        return m.toString()
+    }
 
     suspend fun read(register: RegisterType): Short {
         delay(Clock.REGISTER_READ_TIME)

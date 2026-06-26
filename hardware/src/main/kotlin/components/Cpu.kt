@@ -30,6 +30,7 @@ class Cpu(val mmu: MemoryBus) {
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
             val trapId = instruction.immediate
             if (trapId == 1.toShort()) {
+                println("[DEBUG] $registers")
                 isHalted = true
                 return
             }

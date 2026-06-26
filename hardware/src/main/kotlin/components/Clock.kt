@@ -8,4 +8,8 @@ object Clock {
     const val MEMORY_WRITE_TIME = 50L
     const val REGISTER_READ_TIME = 5L
     const val REGISTER_WRITE_TIME = 10L
+
+    const val DEVICE_CONSOLE_WRITE_TIME = MEMORY_WRITE_TIME + 10L
+    const val DEVICE_CONSOLE_READ_TIME = MEMORY_READ_TIME + 5L
+
 }

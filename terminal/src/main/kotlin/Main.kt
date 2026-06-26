@@ -66,7 +66,7 @@ suspend fun main(args: Array<String>) {
             val kernelFile = File(args[1]) // kernel.kar
             val mainFile = File(args[2])   // main.kar
             val kernelCode = Backend().encode(Parser(kernelFile, 0x0000.toShort()).decode())
-            val mainCode = Backend().encode(Parser(mainFile, 0x1000.toShort()).decode())
+            val mainCode = Backend().encode(Parser(mainFile, MemoryMapRanges.userLandRange.first.toShort()).decode())
             val memory = MemoryBus(PhysicalMemory(65536), DisplayDevice())
             // Flash Kernel into 0x0000+
             kernelCode.forEachIndexed { i, word -> memory.write(i.toShort(), word.toShort()) }

@@ -143,4 +143,11 @@ fun main() {
         ObjectExcreter(testLinkMainFile).generate(), ObjectExcreter(testLinkMathsFile).generate()
     )
     println(linker.passOne())
+
+    val binary = linker.link()
+    binary.forEachIndexed { i, word ->
+        val address = 0x3000 + i
+        println("0x${address.toString(16).uppercase()}: 0x${word.toString(16).padStart(4, '0').uppercase()}")
+    }
+
 }

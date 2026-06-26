@@ -5,7 +5,7 @@ import kotlinx.coroutines.*
 
 
 class Registers {
-    private val maxRegisters = 16
+    private val maxRegisters = 8
     private val registerData: Array<Short> = Array(maxRegisters) { -1 }
 
     suspend fun read(register: RegisterType): Short {

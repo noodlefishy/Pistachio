@@ -18,7 +18,7 @@ class Cpu(val mmu: MemoryManagement, val onSyscall: (Cpu, Instruction.Syscall) -
             is Instruction.Halt -> { /* Handled by OS */
             }
 
-            is Instruction.Lit -> handerLit(instruction)
+            is Instruction.Lit -> handlerLit(instruction)
 
         }
         pc++

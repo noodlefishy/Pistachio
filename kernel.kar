@@ -1,32 +1,42 @@
-beq r0, r0, boot // 0
-beq r0, r0, interrupt_handler // 1
+beq r0, r0, boot 
+beq r0, r0, interrupt_handler
 
-
-.fill syscall_char // 2
-.space 61 // for future vectors
+.fill sDeviceWrite
+.space 61
 
 boot:
-    p_sp: .space 30
-    movi r6 p_sp
-    addi r6 r6 30
+    add r1, r0, r0
+    add r2, r0, r0
+    add r3, r0, r0
+    add r4, r0, r0
+    add r5, r0, r0
+    add r6, r0, r0
 
-    movi r1, 0x3000 // context switch
-
-    jalr r0, r1, 0
+    movi r7, 0x3000 // Jump to userland
+    jalr r0, r7, 0
 
 interrupt_handler:
-    // TODO
     jalr r0, r0, 15
 
-syscall_char:
+sDeviceWrite:
+    // 1. Push User R2 to the User Stack to free up R2 as a scratch register
     addi r6, r6, -1
     sw   r2, r6, 0
 
-    // Route R1 to the MMIO display at 0xFF00
+    // 2. Load the Kernel Stack Pointer (0x3000) into R2
+    movi r2, 0x3000
+
+    addi r2, r2, -1
+    sw   r6, r2, 0
+
+    add  r6, r2, r0
+
+
+    // 5. Route R1 to the MMIO display at 0xFF00 (using R2 as a temporary)
     movi r2, 0xFF00
     sw   r1, r2, 0
 
-    // Pop R2 from the Stack to restore it
+    lw   r6, r6, 0
     lw   r2, r6, 0
     addi r6, r6, 1
 

@@ -1,18 +1,14 @@
 package io.cuttlefish
 
-import kotlinx.coroutines.*
+import kotlin.experimental.*
 
 fun main() {
-    println("[1] Start!")
+    val imm: Short = 16_123
+    val lower6Mask: Short = 0x3F
+    val lowerPart = (imm and lower6Mask)
+    val upperPart = (imm.toInt() shr 6).toShort()
+    println("Lower = $lowerPart, Upper = $upperPart")
+    println((upperPart.toInt() shl 6).toShort() + lowerPart)
 
-    runBlocking {
-        forgottenWork()
-    }
-    println("[3] I forgot")
-}
 
-suspend fun forgottenWork() {
-    println("[2] What should i do?")
-    delay(1000L) // thinking
-    println("[4] I remember")
 }

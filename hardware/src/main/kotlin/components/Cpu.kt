@@ -1,9 +1,10 @@
 package io.cuttlefish.components
 
 import io.cuttlefish.*
+import io.cuttlefish.components.devices.*
 import io.cuttlefish.instructions.*
 
-class Cpu(/* val mmu: MemoryManagement , */ val onSyscall: suspend (Instruction.Syscall) -> Unit) {
+class Cpu(val mmu: MemoryBus     /* val mmu: MemoryManagement , val onSyscall: suspend (Instruction) -> Unit */) {
     val registers = Registers()
     val alu = Alu()
     var pc: Int = 0
@@ -13,13 +14,13 @@ class Cpu(/* val mmu: MemoryManagement , */ val onSyscall: suspend (Instruction.
         registers.write(RegisterType.RZ, 0)
 
         when (instruction) {
-            is Instruction.Add -> TODO()
-            is Instruction.Addi -> TODO()
+            is Instruction.Add -> handlerAdd(instruction)
+            is Instruction.Addi -> handlerAddImmediate(instruction)
             is Instruction.Beq -> TODO()
             is Instruction.Jalr -> TODO()
-            is Instruction.Lui -> TODO()
+            is Instruction.Lui -> handlerLui(instruction)
             is Instruction.Lw -> TODO()
-            is Instruction.Nand -> TODO()
+            is Instruction.Nand -> handlerNand(instruction)
             is Instruction.Sw -> TODO()
         }
 

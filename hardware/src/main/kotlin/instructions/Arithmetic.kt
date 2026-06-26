@@ -10,7 +10,7 @@ suspend fun Cpu.handlerAdd(instruction: Instruction.Add) {
     registers.write(instruction.register1, result)
 }
 
-private fun signExtend7(value: Short): Short {
+fun signExtend7(value: Short): Short {
     val intValue = value.toInt() and 0x7F // Ensure we only have 7 bits
     return if ((intValue and 0x40) != 0) {
         (intValue or 0xFF80).toShort()
@@ -25,6 +25,7 @@ suspend fun Cpu.handlerAddImmediate(instruction: Instruction.Addi) {
     val result = alu.add(number1, extendedImmediate)
     registers.write(instruction.register1, result)
 }
+
 suspend fun Cpu.handlerNand(instruction: Instruction.Nand) {
     val number1 = registers.read(instruction.register2)
     val number2 = registers.read(instruction.register3)

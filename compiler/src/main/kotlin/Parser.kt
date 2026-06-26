@@ -34,7 +34,7 @@ class Parser(file: File, val baseAddress: Short) {
         val instructions = mutableListOf<Instruction>()
 
         val parsedLines = text.map { line ->
-            val noComment = line.split(delimiters = arrayOf("//","#"))[0].trim()
+            val noComment = line.split(delimiters = arrayOf("//", "#"))[0].trim()
             noComment.split(Regex("[\\s,]+")).filter { it.isNotEmpty() }
         }.filter { it.isNotEmpty() }
 
@@ -112,8 +112,7 @@ class Parser(file: File, val baseAddress: Short) {
                 "lui" -> {
                     val imm = resolveValue(tokens[startIndex + 2], currentPC)
                     instructions += Instruction.Lui(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        immediate = imm
+                        register1 = tokens[startIndex + 1].toRegisterType(), immediate = imm
                     )
                     currentPC++
                 }
@@ -151,8 +150,7 @@ class Parser(file: File, val baseAddress: Short) {
                 "jalr" -> {
                     // Jalr can have an immediate for Syscalls, or default to 0
                     val imm = if (startIndex + 3 < tokens.size) resolveValue(
-                        tokens[startIndex + 3],
-                        currentPC
+                        tokens[startIndex + 3], currentPC
                     ) else 0.toShort()
                     instructions += Instruction.Jalr(
                         register1 = tokens[startIndex + 1].toRegisterType(),

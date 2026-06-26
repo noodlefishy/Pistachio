@@ -31,6 +31,7 @@ class Console : MemoryManagement {
             print(value.toInt().toChar())
         }
 
+        TODO("Not yet implemented")
     }
 }
 

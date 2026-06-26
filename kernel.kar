@@ -4,7 +4,7 @@ beq r0, r0, boot
 beq r0, r0, interrupt_handler
 
 // 0x0002: Trap 2 Vector (Print Character)
-.fill syscall_println // logic pointer
+.fill syscall_char // logic pointer
 
 .space 13 // for future vectors
 
@@ -18,7 +18,7 @@ interrupt_handler:
     // TODO
     jalr r0, r0, 15
 
-syscall_println:
+syscall_char:
     addi r6, r6, -1
     sw   r2, r6, 0
 

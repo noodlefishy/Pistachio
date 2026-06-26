@@ -1,0 +1,36 @@
+// ... init steps!
+
+// userland
+letterA: .fill 97
+
+movi r2 letterA
+lw r1 r2 0 // load the value of `letterA` into R1. R1 is the character the kernel will print
+jalr r0 r0 2 // this makes a context switch to the kernel
+
+// [KERNEL] a // this would be the result after `sw r1, r2, 0`
+
+
+// kernel land
+
+.fill syscallPrintCharacter // `jalr r0 r0 2` will point to this address, which will make JALR jump to the label
+
+// ...
+
+syscallPrintCharacter:
+    // Setting up the stack(R6), this is to save, and restore the state of the userland program
+    addi r6, r6, -1
+    sw   r2, r6, 0
+
+    // 0xFF00 is a special memory address, that connects to the terminal
+    // if you write a character to 0xFF00 it will write it to the terminal (MMIO, memory mapped I/O)
+    movi r2, 0xFF00
+    // We writing the character stored in R1 (by the userland) into the address 0xFF00 (the terminal)
+    // This is the screen writing)
+    sw   r1, r2, 0
+
+    // Pop R2 from the Stack to restore it
+    lw   r2, r6, 0
+    addi r6, r6, 1
+
+    // special call to return back to userland to do the next call etc etc
+    jalr r0, r0, 15

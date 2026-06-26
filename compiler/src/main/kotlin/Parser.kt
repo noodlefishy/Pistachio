@@ -47,7 +47,7 @@ class Parser(file: File, val baseAddress: Short) {
                 symbolTable[labelName] = addressCounter
                 startIndex = 1
             }
-
+            // Only add if new pseudo is 1+ instructions long
             if (startIndex < tokens.size) {
                 val opcode = tokens[startIndex].lowercase()
                 when (opcode) {
@@ -60,8 +60,8 @@ class Parser(file: File, val baseAddress: Short) {
                     ".fill" -> {
                         val remainder = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
                         if (remainder.contains("\"")) {
-                            val content = remainder.substringAfter("\"").substringBeforeLast("\"").replace("\\n","\n")
-                            addressCounter = (addressCounter + content.length + 1 ).toShort()
+                            val content = remainder.substringAfter("\"").substringBeforeLast("\"").replace("\\n", "\n")
+                            addressCounter = (addressCounter + content.length + 1).toShort()
                         } else {
                             addressCounter++
                         }
@@ -86,7 +86,12 @@ class Parser(file: File, val baseAddress: Short) {
                         RegisterType.R0, RegisterType.R0, immediate = tokens[startIndex + 1].toNumber()
                     )
                     currentPC++
+                }
 
+                "ret" -> {
+                    // ret $reg
+                    instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R5, 0)
+                    currentPC++
                 }
 
 

@@ -1,11 +1,8 @@
-beq r0, r0, boot
+beq r0, r0, boot // 0
+beq r0, r0, interrupt_handler // 1
 
-// 0x0001: Hardware Interrupt Entry
-beq r0, r0, interrupt_handler
 
-// 0x0002: Trap 2 Vector (Print Character)
-.fill syscall_char // logic pointer
-
+.fill syscall_char // 2
 .space 13 // for future vectors
 
 boot:

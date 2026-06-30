@@ -15,6 +15,9 @@ data class SymbolTable(
     val name: String, val type: SymbolType, val offset: UShort
 )
 
+/**
+ * Stupid Meani Panini, fricken Salamie code
+ */
 @Serializable
 data class ObjectFile(
     val header: Header,

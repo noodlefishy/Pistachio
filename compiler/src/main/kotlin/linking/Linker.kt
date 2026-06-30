@@ -74,10 +74,11 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
 
 }
 
+val mainFsL = File("/Users/leuw/dev/kotlin/Operating-System/linking tests/main.kar")
+val mathsFsL = File("/Users/leuw/dev/kotlin/Operating-System/linking tests/maths.kar")
+
 
 fun main() {
-    val linker = Linker(
-        ObjectExcreter(testLinkMainFile).generate(), ObjectExcreter(testLinkMathsFile).generate()
-    )
-    println(linker.passOne())
+    val linker = Linker(ObjectExcreter(mainFsL).generate(), ObjectExcreter(mathsFsL).generate())
+
 }

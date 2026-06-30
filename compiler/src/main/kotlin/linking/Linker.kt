@@ -1,5 +1,7 @@
 package io.cuttlefish.linking
 
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
 import java.io.*
 
 class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
@@ -79,6 +81,13 @@ val mathsFsL = File("/Users/leuw/dev/kotlin/Operating-System/linking tests/maths
 
 
 fun main() {
-    val linker = Linker(ObjectExcreter(mainFsL).generate(), ObjectExcreter(mathsFsL).generate())
+    val mainO = ObjectExcreter(mainFsL).generate()
+    val mathsO = ObjectExcreter(mathsFsL).generate()
+    val j = Json { prettyPrint = true }
+    File("${mainFsL.nameWithoutExtension}.json").writeText(j.encodeToString(mainO))
+    File("${mathsFsL.nameWithoutExtension}.json").writeText(j.encodeToString(mathsO))
+
+
+    val linker = Linker(mainO, mathsO)
 
 }

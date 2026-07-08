@@ -1,3 +1,19 @@
 math_add:
     add r1, r1, r2  // R1 = R1 + R2
     jalr r0, r7, 0  // Return (Assumes the caller saved the return address in R7)
+
+m_multiply:
+    sw r4 r6 0
+    addi r6 r6 1
+
+    movi r3 0
+    movi r4 0
+    m_multiply_loop:
+        addi r4 r4 1
+        add r3 r3 r2
+        beq r4 r1 m_multiply_done
+        beq r0 r0 m_multiply_loop
+m_multiply_done:
+    lw r4 r6 0
+    addi r6 r6 -1
+    ret

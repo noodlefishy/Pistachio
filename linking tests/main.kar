@@ -1,8 +1,12 @@
+stack: .space 3
+movi r6 stack
+beq r0 r0 main
+
 main:
-    movi r1, 5
-    movi r2, 10
+    movi r1, 8
+    movi r2, 9
     
-    movi r5, math_add // Load address of math_add into R5 (Requires Relocation!)
+    movi r5, m_multiply // Load address of math_add into R5 (Requires Relocation!)
     jalr r7, r5, 0    // Jump to R5, save return address to R7
     
     halt

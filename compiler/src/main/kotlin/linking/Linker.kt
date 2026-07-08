@@ -94,9 +94,20 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     }
 
     private fun relocation(
-        buffer: Array<UShort>,
-        labelAddresses: Map<String, UShort>
+        buffer: Array<UShort>, labelAddresses: Map<String, UShort>
     ) {
+        for ((file, obj) in groupedByFile) {
+            val fileBaseAddress = fileBaseAddresses[file]!!
+            for (relocatable in obj.relocationTable) { // O(n^2) type shit
+                val targetAbsoluteAddress = labelAddresses[relocatable.name]!!
+                val instructionAbsoluteAddress = fileBaseAddress + relocatable.offset
+                val indexInBuffer = instructionAbsoluteAddress - startAddress
+                val instruction  = buffer[indexInBuffer.toInt()]
+
+
+
+            }
+        }
 
     }
 

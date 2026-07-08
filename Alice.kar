@@ -15,6 +15,7 @@ jalr r0 r0 2 // this makes a context switch to the kernel
 .fill syscallPrintCharacter // `jalr r0 r0 2` will point to this address, which will make JALR jump to the label
 
 // ...
+// 🥕🥕🥕🥕🥕🥕🥕🥕🥕🥕🥕🥕🥕
 
 syscallPrintCharacter:
     // Setting up the stack(R6), this is to save, and restore the state of the userland program

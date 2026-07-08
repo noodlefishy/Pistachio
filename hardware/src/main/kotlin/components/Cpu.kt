@@ -23,7 +23,7 @@ class Cpu(val mmu: MemoryBus) {
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
-        // println("$pc | STATE = $registers")
+         println("$pc | $instruction")
 
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {

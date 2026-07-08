@@ -1,5 +1,7 @@
 package io.cuttlefish.linking
 
+import io.cuttlefish.components.*
+import io.cuttlefish.components.devices.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.*
@@ -96,7 +98,8 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         buffer: Array<UShort>, labelAddresses: Map<String, UShort>
     ) {
         for ((file, obj) in groupedByFile) {
-            val fileBaseAddress = fileBaseAddresses[file]!!
+            val fileBaseAddress =
+                fileBaseAddresses[file] ?: throw IllegalStateException("File layout not assigned for ${file.name} in ${fileBaseAddresses}")
             for (relocatable in obj.relocationTable) { // O(n^2) type shit
                 val targetAbsoluteAddress = labelAddresses[relocatable.name]!!.toInt()
                 val instructionAbsoluteAddress = fileBaseAddress + relocatable.offset
@@ -131,13 +134,13 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
      */
 
 
-    fun passTwo(labelAddresses: Map<String, UShort>) {
+    fun passTwo(labelAddresses: Map<String, UShort>): Array<UShort> {
 //        println("RT $relocationTable")
         val emptyOutPutBuffer = allocateOutputBuffer()
         val buffer = copyRawPayloads(emptyOutPutBuffer)
 //        println(buffer.joinToString("\n"))
         relocation(buffer, labelAddresses)
-
+        return buffer
     }
 
 }
@@ -146,7 +149,7 @@ val mainFsL = File("/Users/leuw/dev/kotlin/Operating-System/linking tests/main.k
 val mathsFsL = File("/Users/leuw/dev/kotlin/Operating-System/linking tests/maths.kar")
 
 
-fun main() {
+suspend fun main() {
     val mainO = ObjectExcreter(mainFsL).generate()
     val mathsO = ObjectExcreter(mathsFsL).generate()
     val j = Json { prettyPrint = true }
@@ -154,10 +157,21 @@ fun main() {
     File("${mainFsL.absolutePath}.json").writeText(j.encodeToString(mainO))
     File("${mathsFsL.absolutePath}.json").writeText(j.encodeToString(mathsO))
 
-    val linker = Linker(mainO, mathsO)
+    val linker = Linker(mainO, mathsO, baseAddress = 0u)
     val p1 = linker.passOne()
     println(p1)
     val p2 = linker.passTwo(p1)
+    p2.forEach(::println)
+    println("-----")
+    val memory = MemoryBus(PhysicalMemory(), DisplayDevice())
+    for ((index, word) in p2.withIndex()) {
+        memory.write((index.toUShort()).toShort(), word.toShort())
+    }
+    val cpu = Cpu(memory)
+    while (!cpu.isHalted) {
+        cpu.tick()
+    }
+
 
 }
 // FBA main  = 12288

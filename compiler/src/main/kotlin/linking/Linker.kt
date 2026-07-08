@@ -7,6 +7,9 @@ import java.io.*
 class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     private val objects = objectFiles.toList()
     private var currentAddress = baseAddress
+    private val startAddress = baseAddress
+
+    private val fileBaseAddresses = mutableMapOf<File, UShort>() // Future me. `passTwo` will lose context
 
     init {
         checkDuplicates()
@@ -22,7 +25,6 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
             fileBaseAddresses[file.key] = currentAddress
             currentAddress = (currentAddress + file.value.payload.size.toUShort()).toUShort()
         }
-        println("FBA -> $fileBaseAddresses")
         return fileBaseAddresses
     }
 
@@ -92,19 +94,10 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     }
 
     private fun relocation(
-        relocationTable: List<RelocationTable>,
         buffer: Array<UShort>,
         labelAddresses: Map<String, UShort>
     ) {
-        // inst_addr = file_base_address[file] + relocation.offset
-        for (relocatable in relocationTable) {
-            val label = relocatable.name
-            val spot = labelAddresses[relocatable.name]
-                ?: throw IllegalStateException("Label oopsie ${relocatable.name} !in $labelAddresses")
 
-            // assuming it follows LUI then LLI(ADDI)
-
-        }
     }
 
     /**
@@ -115,13 +108,11 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
 
 
     fun passTwo(labelAddresses: Map<String, UShort>) {
-        val relocationTable = objects.flatMap { it.relocationTable }
 //        println("RT $relocationTable")
         val emptyOutPutBuffer = allocateOutputBuffer()
         val buffer = copyRawPayloads(emptyOutPutBuffer)
 //        println(buffer.joinToString("\n"))
-        println("SGM -> $labelAddresses\nBFR -> $buffer\nRLT -> $relocationTable")
-        relocation(relocationTable, buffer, labelAddresses)
+        relocation(buffer, labelAddresses)
 
     }
 

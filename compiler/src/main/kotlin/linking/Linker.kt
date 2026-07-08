@@ -19,7 +19,6 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     val mainF = getMainFile()
 
     private fun assignLayout(): Map<File, UShort> {
-        val fileBaseAddresses = mutableMapOf<File, UShort>()
         for (file in groupedByFile) {
 //            println("${file.key.nameWithoutExtension} lives at $currentAddress")
             fileBaseAddresses[file.key] = currentAddress

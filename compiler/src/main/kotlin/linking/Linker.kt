@@ -99,12 +99,26 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         for ((file, obj) in groupedByFile) {
             val fileBaseAddress = fileBaseAddresses[file]!!
             for (relocatable in obj.relocationTable) { // O(n^2) type shit
-                val targetAbsoluteAddress = labelAddresses[relocatable.name]!!
+                val targetAbsoluteAddress = labelAddresses[relocatable.name]!!.toInt()
                 val instructionAbsoluteAddress = fileBaseAddress + relocatable.offset
                 val indexInBuffer = instructionAbsoluteAddress - startAddress
-                val instruction  = buffer[indexInBuffer.toInt()]
+                val instruction = buffer[indexInBuffer.toInt()]
 
+                val patchedInstruction = when (relocatable.type) {
+                    RelocationType.ABS_LUI -> {
+                        val top10 = (targetAbsoluteAddress ushr 6).toUInt() and 0x3FFu
+                        (instruction.toUInt() or top10).toUShort()
+                    }
 
+                    RelocationType.ABS_LLI -> {
+                        val bottom6: UShort = (targetAbsoluteAddress.toUInt() and 0x3Fu).toUShort()
+                        instruction or bottom6
+                    }
+
+                    else -> throw IllegalStateException("Unknown relocation type ${relocatable.type}")
+
+                }
+                buffer[indexInBuffer.toInt()] = patchedInstruction
 
             }
         }

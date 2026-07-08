@@ -4,7 +4,11 @@ import Linker
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.components.devices.*
+import io.cuttlefish.config.EmulatorConfig
+import io.cuttlefish.config.GlobalConfig
 import io.cuttlefish.linking.*
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.io.*
 import kotlin.system.*
 
@@ -34,7 +38,7 @@ suspend fun main(args: Array<String>) {
         printUsage()
         exitProcess(0)
     }
-
+    loadConfig()
     val command = args[0]
     val remainingArgs = args.drop(1)
 
@@ -107,6 +111,8 @@ private fun handleBuild(args: List<String>) {
     val finalBinary = linker.passTwo(p1)
 
     val outFile = File(outPath)
+    val baseAddr = MemoryMapRanges.userLandRange.first // 0x3000
+    outFile.writeText("@$baseAddr\n" + finalBinary.joinToString("\n"))
     outFile.writeText(finalBinary.joinToString("\n"))
 }
 
@@ -132,16 +138,16 @@ private suspend fun handleRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -r")
     val file = getFileOrThrow(args[0])
 
-    val machineCode = file.readLines()
-        .filter { it.isNotBlank() }
-        .map { it.trim().toUShort() }
+    val lines = file.readLines().filter { it.isNotBlank() }
+    val baseAddress = if (lines[0].startsWith("@")) lines[0].drop(1).toShort() else 0.toShort()
+    val machineCode = (if (lines[0].startsWith("@")) lines.drop(1) else lines).map { it.trim().toUShort() }
 
     val memory = MemoryBus(PhysicalMemory(), DisplayDevice())
     for ((index, word) in machineCode.withIndex()) {
-        memory.write(index.toShort(), word.toShort())
+        memory.write((baseAddress + index).toShort(), word.toShort())
     }
-
     val cpu = Cpu(memory)
+    cpu.pc = baseAddress
     while (!cpu.isHalted) {
         cpu.tick()
     }
@@ -169,4 +175,25 @@ private suspend fun handleRunOs(args: List<String>) {
     while (!cpu.isHalted) {
         cpu.tick()
     }
+}
+
+fun loadConfig() {
+    val configFile = File("configurations/Emulator config.json")
+    val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+
+    val config = if (configFile.exists()) {
+        try {
+            json.decodeFromString<EmulatorConfig>(configFile.readText())
+        } catch (e: Exception) {
+            println("[WARNING] Failed to parse emulator_config.json. Using defaults. (${e.message})")
+            EmulatorConfig()
+        }
+    } else {
+        val defaultConfig = EmulatorConfig()
+        configFile.writeText(json.encodeToString(defaultConfig))
+        defaultConfig
+    }
+
+    Clock.applyConfig(config.clock)
+    GlobalConfig.debug = config.debug
 }

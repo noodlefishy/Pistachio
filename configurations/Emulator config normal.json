@@ -1,0 +1,17 @@
+{
+  "clock": {
+    "calculationTimeMs": 10,
+    "memoryReadTimeMs": 15,
+    "memoryWriteTimeMs": 25,
+    "registerReadTimeMs": 5,
+    "registerWriteTimeMs": 10,
+    "deviceConsoleWriteTimeMs": 10,
+    "deviceConsoleReadTimeMs": 5
+  },
+  "debug": {
+    "printInstructions": false,
+    "printRegistersOnHalt": true
+  }
+}
+
+

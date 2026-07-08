@@ -3,6 +3,7 @@ package io.cuttlefish.components
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.instructions.*
+import io.cuttlefish.config.GlobalConfig
 
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
@@ -13,23 +14,27 @@ class Cpu(val mmu: MemoryBus) {
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend()
 
-    // tick() no longer takes an Instruction argument!
     suspend fun tick() {
         if (isHalted) return
 
         // 1. FETCH
         val rawInstruction = mmu.read(pc)
+        val currentPc = pc
         pc++
 
         // 2. DECODE
         val instruction = backend.decode(rawInstruction.toUShort())
-//         println("$pc | $instruction")
 
+        if (GlobalConfig.debug.printInstructions) {
+            println("$currentPc | $instruction")
+        }
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
             val trapId = instruction.immediate
             if (trapId == 1.toShort()) {
-                println("[DEBUG] $registers")
+                if (GlobalConfig.debug.printRegistersOnHalt) {
+                    println("[DEBUG] $registers")
+                }
                 isHalted = true
                 return
             }

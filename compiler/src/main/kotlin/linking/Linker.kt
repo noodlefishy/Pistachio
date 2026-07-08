@@ -1,6 +1,5 @@
 package io.cuttlefish.linking
 
-import jdk.internal.foreign.abi.Binding.baseAddress
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.*
@@ -76,14 +75,25 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     }
 
 
-    private fun allocateOutputBuffer() = objects.map { it.payload.size }.fold(0) { acc, i -> acc + i }
+    private fun allocateOutputBuffer() =
+        Array<UShort>(objects.map { it.payload.size }.fold(0) { acc, i -> acc + i }) { 0xFFFFu }
 
-    private fun copyRawPayloads() {
-        for (file in groupedByFile) {}
+    private fun copyRawPayloads(buffer: Array<UShort>): Array<UShort> {
+        var arrayPointer = 0
+        for (obj in groupedByFile.values) {
+            for (byte in obj.payload) {
+                buffer[arrayPointer] = byte
+                arrayPointer++
+            }
+        }
+        return buffer
     }
 
+
     fun passTwo(segments: Map<String, UShort>) {
-        val outputBuffer = allocateOutputBuffer()
+        val emptyOutPutBuffer = allocateOutputBuffer()
+        val buffer = copyRawPayloads(emptyOutPutBuffer)
+        println(buffer.joinToString("\n"))
     }
 
 }

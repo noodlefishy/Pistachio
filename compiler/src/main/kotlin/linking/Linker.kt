@@ -69,16 +69,6 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         }
     }
 
-    private fun getMainFile(): File {
-        for ((file, objectFile) in groupedByFile) {
-            objectFile.symbolTables.forEach { symbol ->
-                if (symbol.type == SymbolType.Export && (symbol.name == "main" || symbol.name == "_start")) {
-                    return file
-                }
-            }
-        }
-        throw IllegalStateException($$$$$$$$$$$"Incorrect main function configuration ${}")
-    }
 
     private fun allocateOutputBuffer() =
         Array<UShort>(3 + objects.map { it.payload.size }.fold(0) { acc, i -> acc + i }) { 0xFFFFu }
@@ -100,7 +90,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     ) {
         for ((file, obj) in groupedByFile) {
             val fileBaseAddress = fileBaseAddresses[file]
-                ?: throw IllegalStateException("File layout not assigned for ${file.name} in ${fileBaseAddresses}")
+                ?: throw IllegalStateException("File layout not assigned for ${file.name} in $fileBaseAddresses")
             for (relocatable in obj.relocationTable) { // O(n^2) type shit
                 val targetAbsoluteAddress = labelAddresses[relocatable.name]
                     ?: throw IllegalStateException("Unresolved External Symbol Error: ${relocatable.name}")

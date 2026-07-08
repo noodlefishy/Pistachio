@@ -78,6 +78,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     private fun allocateOutputBuffer() =
         Array<UShort>(objects.map { it.payload.size }.fold(0) { acc, i -> acc + i }) { 0xFFFFu }
 
+    // Warning! `copyRawPayloads` depends on the labels to be in the right order for everything to work out
     private fun copyRawPayloads(buffer: Array<UShort>): Array<UShort> {
         var arrayPointer = 0
         for (obj in groupedByFile.values) {

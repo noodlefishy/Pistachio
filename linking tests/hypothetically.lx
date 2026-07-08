@@ -1,0 +1,11 @@
+main:     lui r1 0   // 12 288
+          lli r1 5   // 12 289
+          lui r2 0   // 12 290
+          lli r2 10   // 12 291
+          lui r5 math_add   // 12 292
+          lli r5 math_add   // 12 293
+          jalr r7, r5, 0   // 12 294
+          jalr r0 r0 1    // 12 295
+useless:  addi r0 r0 0  // 12 296
+math_add: add r1, r1, r2  // 12 297
+          jalr r0, r7, 0  // 12 298

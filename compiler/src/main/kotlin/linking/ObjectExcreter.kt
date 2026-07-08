@@ -12,6 +12,10 @@ class ObjectExcreter(val file: File) {
         val symbols: MutableList<SymbolTable> = mutableListOf()
 
         for ((name: String, address: Short) in parser.symbolTable) {
+            // a naming convention to only import if it is not _ or . :3, very smart, old C did this!
+            if (!name.startsWith(".") && !name.startsWith("_")) {
+                symbols += SymbolTable(name = name, type = SymbolType.Export, offset = address.toUShort())
+            }
             symbols += SymbolTable(name = name, type = SymbolType.Export, offset = address.toUShort())
         }
 

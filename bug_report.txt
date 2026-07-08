@@ -1,4 +1,4 @@
-i found a bug
+I found a bug
 
 
 
@@ -80,4 +80,4 @@ i found a bug
                     /      |               ^
                    ^       |
                            ^
-the bug ate a carrot, i think you have a carrot farm somewhere
+The bug ate a carrot, i think you have a carrot farm somewhere

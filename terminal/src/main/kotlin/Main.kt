@@ -11,13 +11,11 @@ import kotlin.system.*
 fun printUsage() {
     println(
         """
-        Cuttlefish OS / RiSC-16 Toolchain
-        =================================
-        Usage: lc <command> [options]
+        Usage: lx <command> [options]
         
         Commands:
           -c     <file.lx> [-o <out.bin>]      Compile a single source file to machine code.
-          -build <f1.lx> <f2.lx> [-o <out>]   Compile & link multiple source files into a binary.
+          -b <f1.lx> <f2.lx> [-o <out>]   Compile & link multiple source files into a binary.
           -i     <file.lx>                     Compile and immediately run a source file.
           -r     <file.bin>                     Run a pre-compiled machine code file.
           -os    <kernel.lx> <main.lx>        Compile and run an OS kernel with a userland program.
@@ -25,8 +23,8 @@ fun printUsage() {
           -h, --help                            Show this help menu.
           
         Examples:
-          lc -build main.lx math.lx -o prog.bin
-          lc -os kernel.lx main.lx
+          lx -b main.lx math.lx -o prog.bin
+          lx -os kernel.lx main.lx
         """.trimIndent()
     )
 }
@@ -44,7 +42,7 @@ suspend fun main(args: Array<String>) {
         when (command) {
             "-t" -> handleTokenize(remainingArgs)
             "-c" -> handleCompile(remainingArgs)
-            "-build" -> handleBuild(remainingArgs)
+            "-b" -> handleBuild(remainingArgs)
             "-i" -> handleCompileAndRun(remainingArgs)
             "-r" -> handleRun(remainingArgs)
             "-os" -> handleRunOs(remainingArgs)
@@ -71,7 +69,6 @@ private fun handleTokenize(args: List<String>) {
     val file = getFileOrThrow(args[0])
 
     val parse = Parser(file, 0).decode()
-    println("--- Tokens for ${file.name} ---")
     parse.forEachIndexed { index, instruction -> println("$index | $instruction") }
 }
 
@@ -88,33 +85,29 @@ private fun handleCompile(args: List<String>) {
     val machineCode = Backend().encode(parse)
 
     val outFile = File(outPath)
-    // Joined with \n so the `-r` command can read back the lines individually
     outFile.writeText(machineCode.joinToString("\n"))
-    println("[SUCCESS] Compiled '${file.name}' -> '${outFile.name}'")
 }
 
 private fun handleBuild(args: List<String>) {
-    if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -build")
+    if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -b")
 
     val outIndex = args.indexOf("-o")
     val inputPaths = if (outIndex != -1) args.subList(0, outIndex) else args
     val outPath = if (outIndex != -1 && outIndex + 1 < args.size) args[outIndex + 1] else "out.bin"
 
-    if (inputPaths.isEmpty()) throw IllegalArgumentException("No input files provided.")
+    if (inputPaths.isEmpty()) throw IllegalArgumentException("No input files provided")
 
     val objects = inputPaths.map { path ->
         val file = getFileOrThrow(path)
         ObjectExcreter(file).generate()
     }
 
-    // Default to the Userland start address
     val linker = Linker(*objects.toTypedArray(), baseAddress = MemoryMapRanges.userLandRange.first.toUShort())
     val p1 = linker.passOne()
     val finalBinary = linker.passTwo(p1)
 
     val outFile = File(outPath)
     outFile.writeText(finalBinary.joinToString("\n"))
-    println("[SUCCESS] Linked ${inputPaths.size} object(s) into '$outPath'")
 }
 
 private suspend fun handleCompileAndRun(args: List<String>) {
@@ -129,12 +122,10 @@ private suspend fun handleCompileAndRun(args: List<String>) {
         memory.write(index.toShort(), word.toShort())
     }
 
-    println("--- Booting ${file.name} ---")
     val cpu = Cpu(memory)
     while (!cpu.isHalted) {
         cpu.tick()
     }
-    println("\n--- System Halted ---")
 }
 
 private suspend fun handleRun(args: List<String>) {
@@ -159,7 +150,7 @@ private suspend fun handleRun(args: List<String>) {
 }
 
 private suspend fun handleRunOs(args: List<String>) {
-    if (args.size < 2) throw IllegalArgumentException("Missing kernel or main file.\nUsage: lc -os <kernel.lx> <main.lx>")
+    if (args.size < 2) throw IllegalArgumentException("Missing kernel or main file.\nUsage: lx -os <kernel.lx> <main.lx>")
 
     val kernelFile = getFileOrThrow(args[0])
     val mainFile = getFileOrThrow(args[1])
@@ -169,19 +160,15 @@ private suspend fun handleRunOs(args: List<String>) {
 
     val memory = MemoryBus(PhysicalMemory(65536), DisplayDevice())
 
-    // Flash Kernel into Address 0x0000+
     kernelCode.forEachIndexed { i, word ->
         memory.write(i.toShort(), word.toShort())
     }
-    // Flash Main into Address 0x3000+
     mainCode.forEachIndexed { i, word ->
         memory.write((MemoryMapRanges.userLandRange.first + i).toShort(), word.toShort())
     }
 
-    println("--- Booting OS (${kernelFile.name} + ${mainFile.name}) ---")
     val cpu = Cpu(memory)
     while (!cpu.isHalted) {
         cpu.tick()
     }
-    println("\n--- System Halted ---")
 }

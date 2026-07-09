@@ -74,14 +74,17 @@ class Backend() {
             is Instruction.Add -> {
                 value = value or registerEncode(12, 10, single.register1)
                 value = value or registerEncode(9, 7, single.register2)
-                value = value or registerEncode(6, 4, single.register3)
+                value = value or registerEncode(9, 7, single.register2)
+                value = value or registerEncode(2, 0, single.register3) // (6, 4) to (2, 0) !!
                 value
             }
 
             is Instruction.Nand -> {
                 value = value or registerEncode(12, 10, single.register1)
                 value = value or registerEncode(9, 7, single.register2)
-                value = value or registerEncode(6, 4, single.register3)
+                value = value or registerEncode(2, 0, single.register3) // I feel felt my brain decompose
+                // Note for future you, you originally assumed it was (6, 4) for Reg C. Sigh, you misread
+                // Luckily
                 value
             }
 
@@ -117,28 +120,24 @@ class Backend() {
 
         val r1 = (single.toUInt() shr 10 and 0x7u).toUShort()
         val r2 = (single.toUInt() shr 7 and 0x7u).toUShort()
-        val r3 = (single.toUInt() shr 4 and 0x7u).toUShort()
+        val r3 = (single.toUInt() and 0x7u).toUShort() // Sigh
 
         val x = when (instructionType) {
             InstructionType.Add -> {
                 Instruction.Add(
                     RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], RegisterType.entries[r3.toInt()]
-
                 )
             }
 
             InstructionType.Nand -> {
                 Instruction.Nand(
                     RegisterType.entries[r1.toInt()], RegisterType.entries[r2.toInt()], RegisterType.entries[r3.toInt()]
-
                 )
             }
 
             else -> error("The instruction $single is not an RRR-Format instruction")
         }
         return x
-
-
     }
 
     private fun decodeRRI(single: UShort): Instruction {

@@ -14,8 +14,11 @@ multiply:
 
 // R1 = R1 - R2
 subtract: // stackless
-    movi r1 1
-    movi r2 2
+    push r2
+
     nand r2 r2 r2
     addi r2 r2 1
     add r1 r1 r2
+
+    pop r2
+    ret

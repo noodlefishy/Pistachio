@@ -76,7 +76,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
 
     // Warning! `copyRawPayloads` depends on the labels to be in the right order for everything to work out
     private fun copyRawPayloads(buffer: Array<UShort>): Array<UShort> {
-        var arrayPointer = 0 // Start copying after the bootstrap sequence
+        var arrayPointer = 3 // Start copying after the bootstrap sequence
         for (obj in groupedByFile.values) {
             for (byte in obj.payload) {
                 buffer[arrayPointer] = byte
@@ -133,8 +133,30 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         val emptyOutPutBuffer = allocateOutputBuffer()
         val buffer = copyRawPayloads(emptyOutPutBuffer)
         relocation(buffer, labelAddresses)
+        bootStrap(buffer, labelAddresses)
 
         return buffer
+    }
+
+
+    private fun bootStrap(buffer: Array<UShort>, labelAddresses: Map<String, UShort>) {
+        val mainAddress = labelAddresses["main"] ?: labelAddresses["_start"]
+        if (mainAddress != null) {
+            val luiPart = ((mainAddress.toInt() ushr 6) and 0x3FF).toUShort()
+            val lliPart = (mainAddress.toInt() and 0x3F).toUShort()
+
+            // movi r7, main
+            buffer[0] = (0x7C00 or luiPart.toInt()).toUShort() // lui r7, <main_high>
+            buffer[1] = (0x3F80 or lliPart.toInt()).toUShort() // addi r7, r7, <main_low>
+            // jalr r0, r7, 0
+            buffer[2] = 0xE380.toUShort()
+        } else {
+            // fallBack
+            val halt = Backend().encode(listOf(Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)))[0]
+            buffer[0] = halt
+            buffer[1] = halt
+            buffer[2] = halt
+        }
     }
 }
 

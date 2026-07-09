@@ -1,1 +1,1 @@
-stack: .space 3main: // r1 - r2    movi r1 1    movi r2 2    nand r2 r2 r2    addi r2 r2 1    add r3 r1 r2    halt
+stack: .space 10main: // r1 - r2    movi r1 1    movi r2 2    nand r2 r2 r2    addi r2 r2 1    add r3 r1 r2    halt

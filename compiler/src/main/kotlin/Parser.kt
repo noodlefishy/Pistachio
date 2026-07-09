@@ -72,7 +72,7 @@ class Parser(file: File, val baseAddress: Short) {
             if (startIndex < tokens.size) {
                 val opcode = tokens[startIndex].lowercase()
                 when (opcode) {
-                    "movi" -> addressCounter = (addressCounter + 2).toShort() // LUI + ADDI
+                    "movi", "push", "pop" -> addressCounter = (addressCounter + 2).toShort() // LUI + ADDI
                     "call" -> addressCounter = (addressCounter + 3).toShort() // LUI + ADDI + JALR
                     ".space" -> {
                         val count = tokens[startIndex + 1].toNumber().toInt()
@@ -101,6 +101,29 @@ class Parser(file: File, val baseAddress: Short) {
             if (startIndex >= tokens.size) continue
 
             when (val opcode = tokens[startIndex].lowercase()) {
+                "push" -> {
+                    // push rX  sw rX, r6, 0
+                    //          addi r6, r6, 1
+                    instructions += Instruction.Sw(
+                        register1 = tokens[startIndex + 1].toRegisterType(), register2 = RegisterType.R6, immediate = 0
+                    )
+                    instructions += Instruction.Addi(
+                        register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = 1
+                    )
+                    currentPC = (currentPC + 2).toShort()
+                }
+
+                "pop" -> {
+                    // pop rX  addi r6, r6, -1
+                    //         lw rX, r6, 0
+                    instructions += Instruction.Addi(
+                        register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = -1
+                    )
+                    instructions += Instruction.Lw(
+                        register1 = tokens[startIndex + 1].toRegisterType(), register2 = RegisterType.R6, immediate = 0
+                    )
+                    currentPC = (currentPC + 2).toShort()
+                }
 
                 "syscall" -> {
                     // syscall $id
@@ -196,7 +219,7 @@ class Parser(file: File, val baseAddress: Short) {
                 }
 
                 "sw" -> {
-                    val imm = resolveValue(tokens[startIndex + 3],currentPC, type = RelocationType.REL_7)
+                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
                     instructions += Instruction.Sw(
                         register1 = tokens[startIndex + 1].toRegisterType(),
                         register2 = tokens[startIndex + 2].toRegisterType(),
@@ -262,9 +285,7 @@ class Parser(file: File, val baseAddress: Short) {
                         imports += (immStr)
                         relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
                         relocations += (RelocationTable(
-                            (currentPC + 1).toShort().toUShort(),
-                            immStr,
-                            RelocationType.ABS_LLI
+                            (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI
                         ))
                     }
 

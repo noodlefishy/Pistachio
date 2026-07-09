@@ -106,7 +106,6 @@ class Backend() {
             InstructionType.Beq -> encodeRRI(value, single)
             InstructionType.Jalr -> encodeRRI(value, single)
             null -> error("The instruction is null???")
-            else -> error("Pseudo-instruction $single should have been expanded by the Parser")
         }
 
 
@@ -219,7 +218,6 @@ class Backend() {
 
 
             null -> error("The instruction is null???")
-            else -> error("Pseudo-instruction cannot be decoded directly: $opcode")
         }
     }
 

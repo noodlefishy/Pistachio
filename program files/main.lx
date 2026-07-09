@@ -1,6 +1,15 @@
-stack: .space 3
 main:
+    movi r6 stack
     movi r1 1000
     movi r2 700
+
+    push r7
     call subtract
+    pop r7
+
     halt
+
+
+
+.space 20
+stack:

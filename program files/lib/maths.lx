@@ -1,7 +1,6 @@
 // R3 = R1 * R2
 multiply:
-    sw r4 r6 0 // 1
-    addi r6 r6 1 // 2
+    push r4
     movi r3 0 // 3
     movi r4 0 // 4
     .loop: // 5
@@ -10,8 +9,7 @@ multiply:
         beq r4 r1 .done
         beq r0 r0 .loop
 .done:
-    lw r4 r6 0
-    addi r6 r6 -1
+    pop r4
     ret
 
 // R1 = R1 - R2

@@ -1,6 +1,6 @@
 stack: .space 3
 main:
-    movi r1 10
+    movi r1 1000
     movi r2 700
-    call multiply
+    call subtract
     halt

@@ -1,0 +1,23 @@
+// R3 = R1 * R2
+multiply:
+    sw r4 r6 0 // 1
+    addi r6 r6 1 // 2
+    movi r3 0 // 3
+    movi r4 0 // 4
+    .loop: // 5
+        addi r4 r4 1
+        add r3 r3 r2
+        beq r4 r1 .done
+        beq r0 r0 .loop
+.done:
+    lw r4 r6 0
+    addi r6 r6 -1
+    ret
+
+// R1 = R1 - R2
+subtract: // stackless
+    movi r1 1
+    movi r2 2
+    nand r2 r2 r2
+    addi r2 r2 1
+    add r1 r1 r2

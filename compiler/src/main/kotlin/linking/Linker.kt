@@ -50,8 +50,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     private fun checkDuplicates() {
         val totalObjectsWithoutFiles = objects.flatMap { it.symbolTables }
 
-        val mainExports =
-            totalObjectsWithoutFiles.filter { (it.name == "main" || it.name == "_start") && it.type == SymbolType.Export }
+        val mainExports = totalObjectsWithoutFiles.filter { (it.name == "main") && it.type == SymbolType.Export }
         if (mainExports.size != 1) {
             println(totalObjectsWithoutFiles)
             throw IllegalStateException($$$$$$$$$$$"Incorrect main function configuration ${}")
@@ -140,7 +139,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
 
 
     private fun bootStrap(buffer: Array<UShort>, labelAddresses: Map<String, UShort>) {
-        val mainAddress = labelAddresses["main"] ?: labelAddresses["_start"]
+        val mainAddress = labelAddresses["main"]
         if (mainAddress != null) {
             val luiPart = ((mainAddress.toInt() ushr 6) and 0x3FF).toUShort()
             val lliPart = (mainAddress.toInt() and 0x3F).toUShort()

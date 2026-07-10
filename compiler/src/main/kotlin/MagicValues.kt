@@ -76,21 +76,21 @@ enum class MagicValues(val value: Short, val hex: String) {
      *
      * Number of bits to shift right to get the Opcode value (0-7).
      */
-    S_OC(13, "13"),
+    S_OC(13, "0x000D"),
 
     /**
      * `Register A Shift`
      *
      * Number of bits to shift right to get the Register A index (0-7).
      */
-    S_RA(10, "10"),
+    S_RA(10, "0x000A"),
 
     /**
      * `Register B Shift`
      *
      * Number of bits to shift right to get the Register B index (0-7).
      */
-    S_RB(7, "7"),
+    S_RB(7, "0x0007"),
 
     /**
      * `Highest Positive Lower Immediate`
@@ -118,12 +118,12 @@ enum class MagicValues(val value: Short, val hex: String) {
      *
      * Mask to isolate the bottom 8 bits (useful for ASCII/Byte operations).
      */
-    LBMK(255, "0x00FF"),
+    M_LB(255, "0x00FF"),
 
     /**
      * `Upper Byte Mask`
      *
      * Mask to isolate the top 8 bits.
      */
-    UBMK(-256, "0xFF00");
+    M_UB(-256, "0xFF00");
 }

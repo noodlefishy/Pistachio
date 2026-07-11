@@ -3,7 +3,6 @@ package io.cuttlefish
 import Linker
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
-import io.cuttlefish.components.devices.*
 import io.cuttlefish.config.*
 import io.cuttlefish.linking.*
 import kotlinx.serialization.*
@@ -117,13 +116,11 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -i")
     val file = getFileOrThrow(args[0])
 
-    val parse = Parser(file, 0)
-    if (parse.relocations.isNotEmpty()) {
-        val missing = parse.relocations.map { it.name }.distinct().joinToString(", ")
-        throw IllegalStateException("Unresolved External Symbols: [$missing]. Single-file execution (-i) cannot run programmes with missing dependencies. :C")
-    }
+    val objectFile = ObjectExcreter(file).generate()
 
-    val machineCode = Backend().encode(parse.decode())
+    val linker = Linker(objectFile, baseAddress = 0u)
+    val symbols = linker.passOne()
+    val machineCode = linker.passTwo(symbols)
 
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in machineCode.withIndex()) {

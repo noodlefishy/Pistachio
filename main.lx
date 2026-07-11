@@ -1,1 +1,1 @@
-main:    movi r6 stack    movi r1 string    call prints    haltstring: .fill "hi y'all\n".space 20stack:
+main:// r1 = string pointer    movi r1 string    .loop:        lw r4 r1 0        beq r0 r4 .done        movi r2 0xFF00        sw r4 r2 0        addi r1 r1 1        beq r0 r0 .loop    .done:        halt    halt.space 20stack:string: .fill "Hello World!!!\n"

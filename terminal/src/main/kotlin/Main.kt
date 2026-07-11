@@ -18,7 +18,7 @@ fun printUsage() {
         Commands:
           -c     <file.lx> [-o <out.bin>]      Compile a single source file to machine code.
           -b     <f1.lx> <f2.lx> [-o <out>]    Compile & link multiple source files into a binary.
-          -i     <file.lx>                     Compile and immediately run a source file.
+          -i     <f1.lx> [f2.lx] [...]         Compile, link, and immediately run source files.
           -r     <file.bin>                    Run a pre-compiled machine code file.
           -os    <kernel.lx> <main.lx>         Compile and run an OS kernel with a userland program.
           -t     <file.lx>                     Tokenize and parse a file (prints instructions).
@@ -27,6 +27,7 @@ fun printUsage() {
           
         Examples:
           lx -b main.lx math.lx -o program.bin
+          lx -i main.lx "program files/lib" 
           lx -os kernel.lx main.lx
         """.trimIndent()
     )
@@ -97,7 +98,22 @@ private fun handleBuild(args: List<String>) {
 
     if (inputPaths.isEmpty()) throw IllegalArgumentException("No input files provided")
 
-    val objects = inputPaths.map { path ->
+    val inputPathsAdjustedForDirectories = mutableListOf<String>()
+
+    for (path in inputPaths) {
+        if (File(path).isDirectory) {
+            val list = File(path).list()
+            if (list != null) {
+                for (j in list) {
+                    inputPathsAdjustedForDirectories.add("${File(path).absolutePath}/$j")
+                }
+            }
+        } else {
+            inputPathsAdjustedForDirectories.add(path)
+        }
+    }
+
+    val objects = inputPathsAdjustedForDirectories.map { path ->
         val file = getFileOrThrow(path)
         ObjectExcreter(file).generate()
     }
@@ -109,25 +125,50 @@ private fun handleBuild(args: List<String>) {
 
     val outFile = File(outPath)
     outFile.writeText("@$baseAddr\n" + finalBinary.joinToString("\n"))
-//    outFile.writeText(finalBinary.joinToString("\n"))
 }
 
 private suspend fun handleCompileAndRun(args: List<String>) {
-    if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -i")
-    val file = getFileOrThrow(args[0])
+    if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -i")
 
-    val objectFile = ObjectExcreter(file).generate()
+    val inputPathsAdjustedForDirectories = mutableListOf<String>()
 
-    val linker = Linker(objectFile, baseAddress = 0u)
-    val symbols = linker.passOne()
-    val machineCode = linker.passTwo(symbols)
+    // Parse files and directories recursively exactly like handleBuild!!
+    for (path in args) {
+        val file = File(path)
+        if (file.isDirectory) {
+            val list = file.list()
+            if (list != null) {
+                for (j in list) {
+                    inputPathsAdjustedForDirectories.add("${file.absolutePath}/$j")
+                }
+            }
+        } else {
+            inputPathsAdjustedForDirectories.add(path)
+        }
+    }
+
+    if (inputPathsAdjustedForDirectories.isEmpty()) {
+        throw IllegalArgumentException("No input files resolved")
+    }
+
+    val objects = inputPathsAdjustedForDirectories.map { path ->
+        val file = getFileOrThrow(path)
+        ObjectExcreter(file).generate()
+    }
+
+    val baseAddr = MemoryMapRanges.userLandRange.first // 0x3000
+
+    val linker = Linker(*objects.toTypedArray(), baseAddress = baseAddr.toUShort())
+    val p1 = linker.passOne()
+    val machineCode = linker.passTwo(p1)
 
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in machineCode.withIndex()) {
-        memory.write(index.toShort(), word.toShort())
+        memory.write((baseAddr + index).toShort(), word.toShort())
     }
 
     val cpu = Cpu(memory)
+    cpu.pc = baseAddr.toShort()
     while (!cpu.isHalted) {
         cpu.tick()
     }

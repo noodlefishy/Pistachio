@@ -18,7 +18,6 @@ class Cpu(val mmu: MemoryBus) {
         if (isHalted) return
         if (pc in MemoryMapRanges.userLandRange) {
             isKernelMode = false
-            println('e')
         }
 
         if (!isKernelMode && pc.toUShort().toInt() !in MemoryMapRanges.userLandRange) {

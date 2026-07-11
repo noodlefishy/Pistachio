@@ -7,16 +7,19 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
     val devices: Array<Device> = arrayOf(Console(), Display())
 
     override suspend fun read(address: Short): Short {
-        return when (address.toUShort().toInt()) {
+        return when (val addressInt = address.toUShort().toInt()) {
             in MemoryMapRanges.vectorRange -> ram.read(address)
             in MemoryMapRanges.kernelRange -> ram.read(address)
             in MemoryMapRanges.userLandRange -> ram.read(address)
             in MemoryMapRanges.mmioRange -> {
                 for (device in devices) {
-
+                    if (addressInt in device.memoryUsed) {
+                        return device.read(address)
+                    }
                 }
-                ram.read(address) // TODO NOTICE ME!
+                throw IllegalAccessException("Device ${addressInt.toUShort()} not found")
             }
+
             else -> error("Unknown addresses?")
         }
     }

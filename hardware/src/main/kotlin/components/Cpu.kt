@@ -2,8 +2,8 @@ package io.cuttlefish.components
 
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
+import io.cuttlefish.config.*
 import io.cuttlefish.instructions.*
-import io.cuttlefish.config.GlobalConfig
 
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
@@ -16,6 +16,16 @@ class Cpu(val mmu: MemoryBus) {
 
     suspend fun tick() {
         if (isHalted) return
+        if (pc in MemoryMapRanges.userLandRange) {
+            isKernelMode = false
+            println('e')
+        }
+
+        if (!isKernelMode && pc.toUShort().toInt() !in MemoryMapRanges.userLandRange) {
+            val hexAddress = "0x" + (pc.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+            throw IllegalStateException("Segmentation Fault!! User-mode programme attempted to execute instruction at protected address $hexAddress")
+        }
+
 
         // 1. FETCH
         val rawInstruction = mmu.read(pc)

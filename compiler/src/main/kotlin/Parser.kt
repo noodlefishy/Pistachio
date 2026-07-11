@@ -40,21 +40,18 @@ class Parser(file: File, val baseAddress: Short) {
     private fun resolveValue(
         input: String, currentAddress: Short, isRelative: Boolean = false, type: RelocationType
     ): Short {
-        if (symbolTable.containsKey(input)) {
+        if (isRelative && symbolTable.containsKey(input)) {
             val targetAddress = symbolTable[input]!!
-            val offset = targetAddress - (currentAddress + 1)
-            if (isRelative) {
-                if (offset !in -64..63) throw IllegalStateException("Branch target '$input' out of range by $offset words!")
-                return offset.toShort()
-            }
+            return (targetAddress - (currentAddress + 1)).toShort()
         }
         if (input.isNumber()) return input.toNumber()
 
-        imports += input
+        if (!symbolTable.containsKey(input)) {
+            imports += input
+        }
         relocations += RelocationTable(currentAddress.toUShort(), input, type)
 
         return 0x0000
-
     }
 
     fun decode(): List<Instruction> {
@@ -141,18 +138,14 @@ class Parser(file: File, val baseAddress: Short) {
 
 
                 "call" -> {
-                    // call label (via R7)
-                    // movi r7 m_multiply
-                    //    jalr r7 r7 0
                     val immStr = tokens[startIndex + 1]
                     var imm: Short = 0
-                    if (symbolTable.containsKey(immStr)) {
-                        imm = symbolTable[immStr]!!
-                    } else if (immStr.isNumber()) {
+                    if (immStr.isNumber()) {
                         imm = immStr.toNumber()
                     } else {
-                        // For macros, we must log BOTH instructions that make up the absolute jump!!!
-                        imports += (immStr)
+                        if (!symbolTable.containsKey(immStr)) {
+                            imports += immStr
+                        }
                         relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
                         relocations += (RelocationTable(
                             (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI // addi
@@ -167,10 +160,7 @@ class Parser(file: File, val baseAddress: Short) {
                     instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
                     instructions += Instruction.Jalr(reg, reg, 0)
                     currentPC = (currentPC + 3).toShort()
-
-
                 }
-
                 "ret" -> {
                     // ret (usually R7)
                     instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R7, 0)
@@ -283,12 +273,12 @@ class Parser(file: File, val baseAddress: Short) {
                 "movi" -> {
                     val immStr = tokens[startIndex + 2]
                     var imm: Short = 0
-                    if (symbolTable.containsKey(immStr)) {
-                        imm = symbolTable[immStr]!!
-                    } else if (immStr.isNumber()) {
+                    if (immStr.isNumber()) {
                         imm = immStr.toNumber()
                     } else {
-                        imports += (immStr)
+                        if (!symbolTable.containsKey(immStr)) {
+                            imports += immStr
+                        }
                         relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
                         relocations += (RelocationTable(
                             (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI
@@ -303,7 +293,6 @@ class Parser(file: File, val baseAddress: Short) {
                     instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
                     currentPC = (currentPC + 2).toShort()
                 }
-
                 ".fill" -> {
                     val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
                     if (parsed.all { it.isDigit() } || symbolTable.containsKey(tokens[startIndex + 1])) {

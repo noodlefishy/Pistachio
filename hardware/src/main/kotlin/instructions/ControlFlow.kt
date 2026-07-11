@@ -9,7 +9,7 @@ suspend fun Cpu.handlerBeq(instruction: Instruction.Beq) {
     val extendedImmediate = signExtend7(instruction.immediate)
 
     if (alu.compare(number1, number2)) {
-        pc = (pc + extendedImmediate).toShort()
+        pc = (pc + extendedImmediate.toUInt()).toUShort()
     }
 }
 
@@ -17,7 +17,7 @@ suspend fun Cpu.handlerJalr(instruction: Instruction.Jalr) {
     // Read the destination address FIRST just in case reg1 and reg2 are the same register!
     val destination = instruction.register2.read()
 
-    instruction.register1.write(pc)
+    instruction.register1.write(pc.toShort())
 
-    pc = destination
+    pc = destination.toUShort()
 }

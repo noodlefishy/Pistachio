@@ -1,7 +1,6 @@
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
-import io.cuttlefish.components.devices.*
 import io.cuttlefish.linking.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
@@ -178,7 +177,7 @@ suspend fun main() {
     println("-----")
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in p2.withIndex()) {
-        memory.write((index.toUShort()).toShort(), word.toShort())
+        memory.write(index.toUShort(), word.toShort())
     }
     val cpu = Cpu(memory)
     while (!cpu.isHalted) {

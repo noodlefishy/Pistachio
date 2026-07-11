@@ -8,8 +8,8 @@ import io.cuttlefish.instructions.*
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
     val alu = Alu()
-    var epc: Short = 0 // Exception Program Counter
-    var pc: Short = 0 // Program Counter
+    var epc: UShort = 0u // Exception Program Counter
+    var pc: UShort = 0u // Program Counter
     var isHalted = false
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend()
@@ -20,8 +20,8 @@ class Cpu(val mmu: MemoryBus) {
             isKernelMode = false
         }
 
-        if (!isKernelMode && pc.toUShort().toInt() !in MemoryMapRanges.userLandRange) {
-            val hexAddress = "0x" + (pc.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+        if (!isKernelMode && pc !in MemoryMapRanges.userLandRange) {
+            val hexAddress = "0x" + pc.toString(16).uppercase().padStart(4, '0')
             throw IllegalStateException("Segmentation Fault!! User-mode programme attempted to execute instruction at protected address $hexAddress")
         }
 
@@ -78,8 +78,8 @@ class Cpu(val mmu: MemoryBus) {
     private suspend fun handleTrap(trapId: Short) {
         epc = pc
         isKernelMode = true
-        val newAddress = mmu.read(trapId)
-        pc = newAddress
+        val newAddress = mmu.read(trapId.toUShort())
+        pc = newAddress.toUShort()
     }
 
     private fun handleRti() {

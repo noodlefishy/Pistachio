@@ -4,5 +4,5 @@ import io.cuttlefish.MemoryManagement
 
 interface Device: MemoryManagement {
     val deviceId: UShort
-    val memoryUsed: IntRange
+    val memoryUsed: UIntRange
 }

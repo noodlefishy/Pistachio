@@ -11,7 +11,7 @@ suspend fun Cpu.handleLw(instruction: Instruction.Lw) {
     val number1 = instruction.register2.read()
     val extendedImmediate = signExtend7(instruction.immediate)
     val address = alu.add(number1, extendedImmediate)
-    val result = mmu.read(address)
+    val result = mmu.read(address.toUShort())
     instruction.register1.write(result)
 }
 
@@ -20,5 +20,5 @@ suspend fun Cpu.handleSw(instruction: Instruction.Sw) {
     val extendedImmediate = signExtend7(instruction.immediate)
     val number1 = instruction.register2.read()
     val address = alu.add(number1, extendedImmediate)
-    mmu.write(address, instruction.register1.read())
+    mmu.write(address.toUShort(), instruction.register1.read())
 }

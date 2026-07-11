@@ -164,11 +164,11 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in machineCode.withIndex()) {
-        memory.write((baseAddr + index).toShort(), word.toShort())
+        memory.write((baseAddr + index.toUInt()).toUShort(), word.toShort())
     }
 
     val cpu = Cpu(memory)
-    cpu.pc = baseAddr.toShort()
+    cpu.pc = baseAddr.toUShort()
     while (!cpu.isHalted) {
         cpu.tick()
     }
@@ -184,10 +184,10 @@ private suspend fun handleRun(args: List<String>) {
 
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in machineCode.withIndex()) {
-        memory.write((baseAddress + index).toShort(), word.toShort())
+        memory.write((baseAddress + index).toUShort(), word.toShort())
     }
     val cpu = Cpu(memory)
-    cpu.pc = baseAddress
+    cpu.pc = baseAddress.toUShort()
     while (!cpu.isHalted) {
         cpu.tick()
     }
@@ -205,10 +205,10 @@ private suspend fun handleRunOs(args: List<String>) {
     val memory = MemoryBus(PhysicalMemory(65536))
 
     kernelCode.forEachIndexed { i, word ->
-        memory.write(i.toShort(), word.toShort())
+        memory.write(i.toUShort(), word.toShort())
     }
     mainCode.forEachIndexed { i, word ->
-        memory.write((MemoryMapRanges.userLandRange.first + i).toShort(), word.toShort())
+        memory.write((MemoryMapRanges.userLandRange.first + i.toUInt()).toUShort(), word.toShort())
     }
 
     val cpu = Cpu(memory)

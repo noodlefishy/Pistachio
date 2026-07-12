@@ -7,6 +7,7 @@ class Display : Device {
     private var frame: JFrame? = null // Start as null to prevent instant Swing thread startup!!
     private var grid: GridPanel? = null
 
+    override val name = "Display"
     override val deviceId: UShort = 2u
     override val memoryUsed: UIntRange = 0xFF03u..0xFF4Eu // Fixed boundary to prevent crash!!
 

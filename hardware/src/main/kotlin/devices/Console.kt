@@ -7,9 +7,9 @@ import kotlinx.coroutines.*
 class Console : Device {
     // jalr r0 r0 2 = print
     // print what is in r1
-
+    override val name: String = "Console"
     override val deviceId: UShort = 1u
-    override val memoryUsed: UIntRange = 0xFF01u..0xFF02u
+    override val memoryUsed: UIntRange = 0xFF00u..0xFF02u
 
     override suspend fun read(address: UShort): Short {
         delay(Clock.DEVICE_CONSOLE_READ_TIME)

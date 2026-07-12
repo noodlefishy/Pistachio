@@ -1,0 +1,64 @@
+main:
+    movi r6, stack
+
+    movi r1, safe_function
+    movi r2, target_fn_ptr
+    sw   r1, r2, 0
+
+    movi r1, buffer
+    movi r2, input_string
+    call copy_string
+
+    movi r2, target_fn_ptr
+    lw   r7, r2, 0
+    jalr r7, r7, 0
+
+    halt
+
+safe_function:
+    movi r1, safe_msg
+    call prints
+    ret
+
+copy_string:
+    lw   r3, r2, 0
+    sw   r3, r1, 0          // Writes to buffer
+    beq  r3, r0, .copy_done
+    addi r1, r1, 1
+    addi r2, r2, 1
+    beq  r0, r0, copy_string
+.copy_done:
+    ret
+
+
+.space 10
+buffer:
+    .space 5                // 5-word buffer
+target_fn_ptr:
+    .space 1                // 1-word function pointer
+
+input_string:
+//    .fill 1
+//    .fill 1
+    .fill 1
+    .fill 1
+    .fill 1
+.fill 0
+    // The 6th word: Overwrites 'target_fn_ptr' with the
+    // absolute address of the payload
+    .fill payload
+
+    .fill 0
+
+payload:  // The injected code we want to execute!!
+    movi r1, unsafe_msg
+    call prints
+    halt
+
+safe_msg:
+    .fill "Safe execution completed cleanly!!\n"
+unsafe_msg:
+    .fill "!!! Safe execution not completed very not cleanly!!\n"
+
+.space 20
+stack:

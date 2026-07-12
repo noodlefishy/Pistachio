@@ -1,0 +1,7 @@
+main:
+    movi r1, unsafe_msg
+    movi r2 0xFF00
+     sw r1 r2 0
+
+        halt
+    unsafe_msg: .fill "e"

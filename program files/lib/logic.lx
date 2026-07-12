@@ -1,6 +1,13 @@
 
 
 xnor:
+    nand r3 r1 r2
+    nand r1 r1 r1
+    nand r2 r2 r2
+    nand r2 r1 r2
+    nand r1 r3 r2
+
+    // nand r1 r1 r1
 
 
 
@@ -19,6 +26,11 @@ not:
     nand r1 r1 r1
     ret
 
+
+nand:
+    // FAHHH
+    nand r1 r1 r2
+    ret
 
 and:
     nand r1 r1 r2

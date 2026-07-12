@@ -28,9 +28,7 @@ modulus:
     call divide
     pop r7
 
-    movi r1 0
     add r1 r3 r0
-
     ret
 
 
@@ -100,23 +98,14 @@ divide:
 
 
 lessThan:
-    push r2
-    push r3
+    nand r2 r2 r2
+    addi r2 r2 1
+    add r1 r1 r2
 
-    NAND r2, r2, r2
-    movi r3, 1
-    ADD r2, r2, r3
-
-    ADD r1, r1, r2
-
-    movi r3, $SBIT
-    NAND r1, r1, r3
-
-    NAND r1, r1, r1
-
-    pop r3
-    pop r2
-
+    // Isolate the Sign Bit
+    movi r3 $SBIT
+    nand r1 r1 r3
+    nand r1 r1 r1
     ret
 
 

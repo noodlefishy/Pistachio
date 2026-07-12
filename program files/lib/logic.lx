@@ -1,6 +1,6 @@
 // Inputs: r1 (Value), r2 (Shift Amount)
 // Outputs: r1 (Shifted Value)
-logic_shl:
+shl:
     push r4
 
     beq r2 r0 .shl_done
@@ -17,78 +17,21 @@ logic_shl:
     ret
 
 
-// Inputs: r1 (Value), r2 (Shift Amount)
-// Outputs: r1 (Shifted Value)
-// Note:  calls 'logic_shl' under the hood
-logic_shr:
-    push r4
-    push r5
+// r1 = Value, r2 = Shift Amount
+shr:
     push r7
+    push r1
 
-    // Edge Case 1: If shift amount is 0, return r1 unchanged
-    beq r2 r0 .shr_exit
+    // 1. Calculate Divisor: r1 = 1 << r2
+    movi r1, 1
+    call shl
+    add r2, r1, r0      // r2 is now our Divisor (2^N)
 
-    // Edge Case 2: Calculate Loop Counter (r4 = 16 - r2)
-    movi r4 16
-    nand r5 r2 r2
-    addi r5 r5 1        // r5 = -r2
-    add r4 r4 r5        // r4 = 16 - r2
+    pop r1              // Restore our Value into r1
+    call divide         // r1 = r1 / r2 !!
 
-    // If r4 == 0 (shift is 16), return 0
-    beq r4 r0 .shr_zero
-
-    // If r4 is negative (shift is > 16), return 0
-    movi r5 $SBIT
-    nand r5 r4 r5
-    nand r5 r5 r5
-    movi r7 $SBIT
-    beq r5 r7 .shr_zero
-
-    add r5 r1 r0
-
-    // Calculate MaskIn (r1 = 1 << r2)
-    movi r1 1
-    call logic_shl      // r2 still holds the shift amount!!
-    add r3 r1 r0        // r3 now holds MaskIn (starts at 1 << r2)
-
-    add r1 r5 r0
-
-    movi r5 1           // r5 holds MaskOut (starts at 1)
-    movi r7 0           // r7 holds our running Output (starts at 0)
-
-    .shr_loop:
-        nand r2 r1 r3       // r2 = ~(Value & MaskIn)
-        nand r2 r2 r2       // r2 = Value & MaskIn
-
-        beq r2 r0 .skip_bit
-
-        // Output = Output | MaskOut
-        // Since r7 starts at 0 and MaskOut is one-hot, addition is identical to OR!!
-        add r7 r7 r5
-
-    .skip_bit:
-        // Shift MaskIn left by 1
-        add r3 r3 r3
-
-        // Shift MaskOut left by 1
-        add r5 r5 r5
-
-        addi r4 r4 -1
-        beq r4 r0 .shr_done
-        beq r0 r0 .shr_loop
-
-    .shr_done:
-        add r1 r7 r0        // Move the final Output into r1 for return!!
-        beq r0 r0 .shr_exit
-
-    .shr_zero:
-        movi r1 0           // Return 0
-
-    .shr_exit:
-        pop r7
-        pop r5
-        pop r4
-        ret
+    pop r7
+    ret
 
 
 xnor:
@@ -101,14 +44,54 @@ xnor:
     ret
     // nand r1 r1 r1
 
+// neurotypical
 nor:
     nand r1 r1 r1
     nand r2 r2 r2
     nand r1 r1 r2
-
     nand r1 r1 r1
-
     ret
+
+// "improved"
+nor_2:
+    call or
+    call not
+    ret
+
+// not improved
+nor_2_2:
+    // push r7
+    sw r7, r6, 0
+    addi r6, r6, 1
+
+    // movi r7 or
+    lui r7 or
+    lli r7 or
+
+    // call or
+    jalr r7 r7 0
+
+    // pop or
+    addi r6, r6, -1
+    lw r7, r6, 0
+
+    // push r7
+    sw r7, r6, 0
+    addi r6, r6, 1
+
+    // movi r7
+    lui r7 not
+    lli r7 not
+
+    // call not
+    jalr r7 r7 0
+
+    // pop r7
+    addi r6, r6, -1
+    lw r7, r6, 0
+
+    // ret
+    jalr r0 r7 0
 
 not:
     nand r1 r1 r1
@@ -128,15 +111,9 @@ and:
 
 xor:
     nand r3 r1 r2
-
-    nand r1 r1 r1
-    nand r2 r2 r2
-
-    nand r2 r1 r2
-    nand r1 r3 r2
-
-    nand r1 r1 r1
-
+    nand r1 r1 r3
+    nand r2 r2 r3
+    nand r1 r1 r2
     ret
 
 or:

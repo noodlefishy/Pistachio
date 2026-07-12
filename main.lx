@@ -1,1 +1,1 @@
-main:    // r1 / r2    movi r1 0    movi r2    call xor    // and, or, not, xor, nor    halt.space 20stack:
+main:    movi r6 stack    // r1 / r2    movi r1 10    movi r2 2    call shr    halt.space 30stack:

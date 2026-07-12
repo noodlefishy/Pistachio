@@ -1,1 +1,1 @@
-main:    // r1 / r2    movi r6 stack    movi r1 19    call random    movi r2 10    call modulus    halt.space 20stack:
+main:    // r1 / r2    movi r1 1    movi r2 0    nand r3 r1 r2    nand r1 r1 r1    nand r2 r2 r2    nand r4 r1 r2    nand r3 r3 r4    nand r1 r3 r3    halt.space 20stack:

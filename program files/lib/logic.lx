@@ -1,0 +1,23 @@
+
+
+xor:
+    push r4
+
+    nand r3 r1 r2
+
+    nand r1 r1 r1
+    nand r2 r2 r2
+
+    nand r4 r1 r2
+
+    nand r3 r3 r4
+    nand r1 r3 r3
+
+    pop r4
+    ret
+
+or:
+    nand r1 r1 r1
+    nand r2 r2 r2
+    nand r1 r1 r2
+    ret

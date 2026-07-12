@@ -2,7 +2,6 @@ main:
     movi r6 stack
 
 	movi r2 string
-	halt
 //	lw r1 r2 0
 //	add r3 r2 r0
 //	.len_loop:
@@ -25,12 +24,18 @@ stack:
 // 5 < 10 = -32767
 
 /*
-
+string: .fill "Hello!"
+movi r1 string
+call prints
 r2 = 0
 
 @loop
 
-
+ useless comment of random nonsense
 
 
 */
+
+movi r1 string
+call prints
+halt

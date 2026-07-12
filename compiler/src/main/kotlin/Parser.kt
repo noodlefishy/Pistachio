@@ -63,8 +63,20 @@ class Parser(file: File, val baseAddress: Short) {
         }.filter { it.isNotEmpty() }
 
         var addressCounter: Short = baseAddress
+        var inSymbolCodeBlock = false // Independent tracker for Pass 1!!
         for (tokens in parsedLines) { // symbol building
             var startIndex = 0
+
+
+            if (tokens[startIndex].lowercase() == "*/") inSymbolCodeBlock = false
+            if (inSymbolCodeBlock) continue
+            if (tokens[startIndex].lowercase() == "/*") {
+                inSymbolCodeBlock = true
+                continue
+            }
+            if (tokens[startIndex].lowercase() == "*/") continue
+
+
 
             if (tokens[0].endsWith(":")) {
                 val labelName = tokens[0].removeSuffix(":")
@@ -98,12 +110,21 @@ class Parser(file: File, val baseAddress: Short) {
         }
 
         var currentPC: Short = baseAddress
+        var inCodeBlock = false
         for (tokens in parsedLines) { // normal building
             val startIndex = if (tokens[0].endsWith(":")) 1 else 0
             // If the line was *only* a label with nothing else, skip generation
             if (startIndex >= tokens.size) continue
 
+            if (tokens[startIndex].lowercase() == "*/") inCodeBlock = false
+            if (inCodeBlock) continue
             when (val opcode = tokens[startIndex].lowercase()) {
+                "/*" -> {
+                    inCodeBlock = true
+                    continue
+                }
+                "*/" -> continue
+
                 "push" -> {
                     // push rX  sw rX, r6, 0
                     //          addi r6, r6, 1
@@ -161,6 +182,7 @@ class Parser(file: File, val baseAddress: Short) {
                     instructions += Instruction.Jalr(reg, reg, 0)
                     currentPC = (currentPC + 3).toShort()
                 }
+
                 "ret" -> {
                     // ret (usually R7)
                     instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R7, 0)
@@ -293,6 +315,7 @@ class Parser(file: File, val baseAddress: Short) {
                     instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
                     currentPC = (currentPC + 2).toShort()
                 }
+
                 ".fill" -> {
                     val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
                     if (parsed.isNumber() || symbolTable.containsKey(tokens[startIndex + 1])) {

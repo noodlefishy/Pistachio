@@ -2,13 +2,18 @@ main:
     movi r6 stack
 
 	movi r1 string
-	call str_len
+
+	.loop:
+
+
+
 
 	halt
 
 
-string: .fill "0123456789ABCDEF"
-x: .fill "x"
+s1: .fill "Hello"
+s2: .fill "Hello"
+
 .space 20
 stack:
 

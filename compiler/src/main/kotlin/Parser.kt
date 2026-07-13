@@ -58,8 +58,18 @@ class Parser(file: File, val baseAddress: Short) {
         val instructions = mutableListOf<Instruction>()
 
         val parsedLines = text.map { line ->
-            val noComment = line.split(delimiters = arrayOf("//", "#"))[0].trim()
-            noComment.split(Regex("[\\s,]+")).filter { it.isNotEmpty() }
+            val noComment = line.split(delimiters = arrayOf("//"))[0].trim()
+
+            val cleanLine = noComment
+                .replace("[", " ")
+                .replace("]", " ")
+                .replace("+", " ")
+                .replace(",", " ")
+                .replace("#", " ")
+
+
+
+            cleanLine.split(Regex("[\\s,]+")).filter { it.isNotEmpty() }
         }.filter { it.isNotEmpty() }
 
         var addressCounter: Short = baseAddress

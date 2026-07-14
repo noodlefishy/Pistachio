@@ -65,12 +65,12 @@ class Parser(val file: File, val baseAddress: Short) {
             val lineNumber = index + 1 // 1-indexed for humans!!
 
             // 1. Strip standard comments
-            val noComment = line.split(delimiters = arrayOf("//", "#"))[0].trim()
+            val noComment = line.split(delimiters = arrayOf("//"))[0].trim()
             if (noComment.isEmpty()) return@forEachIndexed
 
             // 2. Preprocess syntax (strip brackets, commas, plus signs, immediate hashes)
             val cleanLine =
-                noComment.replace("[", " ").replace("]", " ").replace("+", " ").replace(",", " ").replace("#", " ")
+                noComment.replace("[", " ").replace("]", " ").replace("+", " ").replace(",", " ")
                     .trim()
 
             if (cleanLine.isEmpty()) return@forEachIndexed

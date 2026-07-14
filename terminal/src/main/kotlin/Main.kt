@@ -42,19 +42,32 @@ suspend fun main(args: Array<String>) {
     val command = args[0]
     val remainingArgs = args.drop(1)
 
-    when (command) {
-        "-t" -> handleTokenize(remainingArgs)
-        "-c" -> handleCompile(remainingArgs)
-        "-b" -> handleBuild(remainingArgs)
-        "-i" -> handleCompileAndRun(remainingArgs)
-        "-r" -> handleRun(remainingArgs)
-        "-d" -> handleDecode(remainingArgs)
-        "-os" -> handleRunOs(remainingArgs)
-        else -> {
-            System.err.println("[ERROR] Unknown command or flag: $command")
-            printUsage()
-            exitProcess(1)
+    try {
+        when (command) {
+            "-t" -> handleTokenize(remainingArgs)
+            "-c" -> handleCompile(remainingArgs)
+            "-b" -> handleBuild(remainingArgs)
+            "-i" -> handleCompileAndRun(remainingArgs)
+            "-r" -> handleRun(remainingArgs)
+            "-d" -> handleDecode(remainingArgs)
+            "-os" -> handleRunOs(remainingArgs)
+            else -> {
+                System.err.println("[ERROR] Unknown command or flag: $command")
+                printUsage()
+                exitProcess(1)
+            }
         }
+    } catch (e: CompilationException) {
+        System.err.println("\u001B[31m[COMPILER ERROR]\u001B[0m in file '${e.fileName}' on line ${e.sourceLine.lineNumber}:")
+        System.err.println("  ${e.sourceLine.lineNumber.toString().padStart(4, ' ')} | ${e.sourceLine.rawText.trim()}")
+        System.err.println("  Error: ${e.errorMessage}!!")
+        System.err.println()
+        exitProcess(1)
+    } catch (e: Exception) {
+        System.err.println()
+        System.err.println("\u001B[31m[LINKER EXCEPTION]\u001B[0m: ${e.message ?: "An unexpected error occurred"}")
+        System.err.println()
+        exitProcess(1)
     }
 }
 
@@ -169,8 +182,12 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     val cpu = Cpu(memory)
     cpu.pc = baseAddr.toUShort()
-    while (!cpu.isHalted) {
-        cpu.tick()
+    try {
+        while (!cpu.isHalted) {
+            cpu.tick()
+        }
+    } catch (e: Exception) {
+        throwRuntimeError(cpu, e)
     }
 }
 
@@ -188,8 +205,12 @@ private suspend fun handleRun(args: List<String>) {
     }
     val cpu = Cpu(memory)
     cpu.pc = baseAddress.toUShort()
-    while (!cpu.isHalted) {
-        cpu.tick()
+    try {
+        while (!cpu.isHalted) {
+            cpu.tick()
+        }
+    } catch (e: Exception) {
+        throwRuntimeError(cpu, e)
     }
 }
 
@@ -212,9 +233,14 @@ private suspend fun handleRunOs(args: List<String>) {
     }
 
     val cpu = Cpu(memory)
-    while (!cpu.isHalted) {
-        cpu.tick()
+    try {
+        while (!cpu.isHalted) {
+            cpu.tick()
+        }
+    } catch (e: Exception) {
+        throwRuntimeError(cpu, e)
     }
+
 }
 
 private fun handleDecode(args: List<String>) {
@@ -247,4 +273,23 @@ fun loadConfig() {
 
     Clock.applyConfig(config.clock)
     GlobalConfig.debug = config.debug
+}
+
+private fun throwRuntimeError(cpu: Cpu, e: Exception) {
+    System.err.println("==================================================")
+    System.err.println("          !!! CPU HARDWARE EXCEPTION !!!          ")
+    System.err.println("==================================================")
+    System.err.println("  Exception: ${e.message}")
+    val hexPC = "0x" + (cpu.pc.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+    System.err.println("  Program Counter: $hexPC")
+    System.err.println("--------------------------------------------------")
+    System.err.println(" Register Dump:")
+
+    cpu.registers.registerData.forEachIndexed { index, value ->
+        val regName = RegisterType.entries[index].name
+        val hexVal = "0x" + (value.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+        System.err.println("    $regName : $value ($hexVal)")
+    }
+    System.err.println("==================================================\n")
+    exitProcess(1)
 }

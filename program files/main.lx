@@ -16,7 +16,7 @@ main:
     beq r0, r0, .not_equal
 
 .check_null:
-    beq r4, r0, .is_equal
+    beq r4, r0, .is_equal_fake
 
     // 3. They are equal, and NOT zero. Advance pointers and repeat!
     addi r2, r2, #1

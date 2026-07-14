@@ -10,6 +10,7 @@
   },
   "debug": {
     "printHex16Dump": true,
+    "use16wordAddressInDump": false,
     "printHistory": false,
     "printInstructions": false,
     "printRegistersOnHalt": true,

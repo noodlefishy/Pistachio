@@ -393,12 +393,15 @@ suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int) {
             wordsHex.append(word.toString(16).uppercase().padStart(4, '0')).append(" ")
 
 
-            asciiChars.append(if (word in 32..126) word.toChar() else '.')
-//            val highByte = (word ushr 8) and 0xFF
-//            val lowByte = word and 0xFF
-//
-//            asciiChars.append(if (highByte in 32..126) highByte.toChar() else '.')
-//            asciiChars.append(if (lowByte in 32..126) lowByte.toChar() else '.')
+            if (GlobalConfig.debug.use16wordAddressInDump) {
+                asciiChars.append(if (word in 32..126) word.toChar() else '.')
+            } else {
+                val highByte = (word ushr 8) and 0xFF
+                val lowByte = word and 0xFF
+
+                asciiChars.append(if (highByte in 32..126) highByte.toChar() else '.')
+                asciiChars.append(if (lowByte in 32..126) lowByte.toChar() else '.')
+            }
         }
 
         System.err.println("$hexAddr: $wordsHex| $asciiChars")

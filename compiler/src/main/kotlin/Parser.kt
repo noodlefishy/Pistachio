@@ -3,7 +3,7 @@ package io.cuttlefish
 import io.cuttlefish.linking.*
 import java.io.*
 
-class Parser(file: File, val baseAddress: Short) {
+class Parser(val file: File, val baseAddress: Short) {
 
     private val text = file.readLines()
     val symbolTable = mutableMapOf<String, Short>()
@@ -26,10 +26,11 @@ class Parser(file: File, val baseAddress: Short) {
             this.startsWith("0") && this.length > 1 -> this.toInt(8)
             this.startsWith("-0") && this.length > 2 -> ("-" + this.substring(2)).toInt(8)
             this.startsWith("$") -> {
-                val magic = this.removePrefix("$").lowercase()
-                MagicValues.entries.firstOrNull { it.name.lowercase() == magic }?.value
+                val magic = this.removePrefix("$")
+                MagicValues.entries.firstOrNull { it.name == magic }?.value
                     ?: throw IllegalArgumentException("$this is not a predefined magic value!")
             }
+
             else -> this.toInt(10)
         }
         return intVal.toShort()
@@ -52,322 +53,341 @@ class Parser(file: File, val baseAddress: Short) {
         return 0x0000
     }
 
-    private fun preprocess(): List<List<String>> {
-        val processedLines = mutableListOf<List<String>>()
+    private fun throwError(message: String, line: SourceLine): Nothing {
+        throw CompilationException(file.name, line, message)
+    }
+
+    private fun preprocess(): List<SourceLine> {
+        val processedLines = mutableListOf<SourceLine>()
         var inCodeBlock = false
 
-        for (line in text) {
-            // 1. Strip standard comments (using '//' and '#')
-            val noComment = line.split(delimiters = arrayOf("//"))[0].trim()
-            if (noComment.isEmpty()) continue
+        text.forEachIndexed { index, line ->
+            val lineNumber = index + 1 // 1-indexed for humans!!
 
-            val cleanLine = noComment
-                .replace("[", " ")
-                .replace("]", " ")
-                .replace("+", " ")
-                .replace(",", " ")
-                .replace("#", " ")
-                .trim()
+            // 1. Strip standard comments
+            val noComment = line.split(delimiters = arrayOf("//", "#"))[0].trim()
+            if (noComment.isEmpty()) return@forEachIndexed
 
-            if (cleanLine.isEmpty()) continue
+            // 2. Preprocess syntax (strip brackets, commas, plus signs, immediate hashes)
+            val cleanLine =
+                noComment.replace("[", " ").replace("]", " ").replace("+", " ").replace(",", " ").replace("#", " ")
+                    .trim()
 
-            val tokens = cleanLine.split(Regex("\\s+")).filter { it.isNotEmpty() }
-            if (tokens.isEmpty()) continue
+            if (cleanLine.isEmpty()) return@forEachIndexed
 
+            val tokens = cleanLine.split(Regex("[\\s]+")).filter { it.isNotEmpty() }
+            if (tokens.isEmpty()) return@forEachIndexed
+
+            // 3. Handle block comments (/* and */)
             var startIndex = 0
             if (tokens[0].endsWith(":")) {
                 startIndex = 1
             }
             if (startIndex >= tokens.size) {
-                processedLines.add(tokens) // Keep lines that are ONLY labels!!
-                continue
+                processedLines.add(SourceLine(tokens, lineNumber, line))
+                return@forEachIndexed
             }
 
             val activeToken = tokens[startIndex].lowercase()
             if (activeToken == "*/") {
                 inCodeBlock = false
-                continue
+                return@forEachIndexed
             }
-            if (inCodeBlock) continue
+            if (inCodeBlock) return@forEachIndexed
             if (activeToken == "/*") {
                 inCodeBlock = true
-                continue
+                return@forEachIndexed
             }
 
-            processedLines.add(tokens)
+            processedLines.add(SourceLine(tokens, lineNumber, line))
         }
         return processedLines
     }
 
     fun decode(): List<Instruction> {
         val instructions = mutableListOf<Instruction>()
-        val parsedLines = preprocess() // Both passes use this EXACT list!!
+        val parsedLines = preprocess()
 
+        // --- PASS 1: Symbol Table Building ---
         var addressCounter: Short = baseAddress
-        for (tokens in parsedLines) {
+        for (line in parsedLines) {
+            val tokens = line.tokens
             var startIndex = 0
 
-            if (tokens[0].endsWith(":")) {
-                val labelName = tokens[0].removeSuffix(":")
-                symbolTable[labelName] = addressCounter
-                startIndex = 1
-            }
-            // Only add if new pseudo is 1+ instructions long
-            if (startIndex < tokens.size) {
-                val opcode = tokens[startIndex].lowercase()
-                when (opcode) {
-                    "movi", "push", "pop" -> addressCounter = (addressCounter + 2).toShort() // LUI + ADDI
-                    "call" -> addressCounter = (addressCounter + 3).toShort() // LUI + ADDI + JALR
-                    ".space" -> {
-                        val count = tokens[startIndex + 1].toNumber().toInt()
-                        addressCounter = (addressCounter + count).toShort()
-                    }
-
-                    ".fill" -> {
-                        val remainder = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
-                        if (remainder.contains("\"")) {
-                            val content = remainder.substringAfter("\"").substringBeforeLast("\"").replace("\\n", "\n")
-                            addressCounter = (addressCounter + content.length + 1).toShort()
-                        } else {
-                            addressCounter++
-                        }
-                    }
-
-                    else -> addressCounter++ // Every other instruction and NOT .fill takes 1 word
+            try {
+                if (tokens[0].endsWith(":")) {
+                    val labelName = tokens[0].removeSuffix(":")
+                    symbolTable[labelName] = addressCounter
+                    startIndex = 1
                 }
+                if (startIndex < tokens.size) {
+                    val opcode = tokens[startIndex].lowercase()
+                    when (opcode) {
+                        "movi", "push", "pop" -> addressCounter = (addressCounter + 2).toShort()
+                        "call" -> addressCounter = (addressCounter + 3).toShort()
+                        ".space" -> {
+                            val count = tokens[startIndex + 1].toNumber().toInt()
+                            addressCounter = (addressCounter + count).toShort()
+                        }
+
+                        ".fill" -> {
+                            val remainder = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
+                            if (remainder.contains("\"")) {
+                                val content =
+                                    remainder.substringAfter("\"").substringBeforeLast("\"").replace("\\n", "\n")
+                                addressCounter = (addressCounter + content.length + 1).toShort()
+                            } else {
+                                addressCounter++
+                            }
+                        }
+
+                        else -> addressCounter++
+                    }
+                }
+            } catch (e: Exception) {
+                throwError("Symbol Table Error: ${e.message ?: "Invalid syntax"}", line)
             }
         }
 
+        // --- PASS 2: Normal Building ---
         var currentPC: Short = baseAddress
-        for (tokens in parsedLines) { // normal building
+        for (line in parsedLines) {
+            val tokens = line.tokens
             val startIndex = if (tokens[0].endsWith(":")) 1 else 0
-            // If the line was *only* a label with nothing else, skip generation
             if (startIndex >= tokens.size) continue
 
-            when (val opcode = tokens[startIndex].lowercase()) {
-                "push" -> {
-                    // push rX  sw rX, r6, 0
-                    //          addi r6, r6, -1
-                    instructions += Instruction.Sw(
-                        register1 = tokens[startIndex + 1].toRegisterType(), register2 = RegisterType.R6, immediate = 0
-                    )
-                    instructions += Instruction.Addi(
-                        register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = -1
-                    )
-                    currentPC = (currentPC + 2).toShort()
-                }
-
-                "pop" -> {
-                    // pop rX  addi r6, r6, 1
-                    //         lw rX, r6, 0
-                    instructions += Instruction.Addi(
-                        register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = 1
-                    )
-                    instructions += Instruction.Lw(
-                        register1 = tokens[startIndex + 1].toRegisterType(), register2 = RegisterType.R6, immediate = 0
-                    )
-                    currentPC = (currentPC + 2).toShort()
-                }
-
-                "syscall" -> {
-                    // syscall $id
-                    instructions += Instruction.Jalr(
-                        RegisterType.R0, RegisterType.R0, immediate = tokens[startIndex + 1].toNumber()
-                    )
-                    currentPC++
-                }
-
-                "call" -> {
-                    val immStr = tokens[startIndex + 1]
-                    var imm: Short = 0
-                    if (immStr.isNumber()) {
-                        imm = immStr.toNumber()
-                    } else {
-                        if (!symbolTable.containsKey(immStr)) {
-                            imports += immStr
-                        }
-                        relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
-                        relocations += (RelocationTable(
-                            (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI // addi
-                        ))
+            try {
+                when (val opcode = tokens[startIndex].lowercase()) {
+                    "push" -> {
+                        instructions += Instruction.Sw(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = RegisterType.R6,
+                            immediate = 0
+                        )
+                        instructions += Instruction.Addi(
+                            register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = -1
+                        )
+                        currentPC = (currentPC + 2).toShort()
                     }
 
-                    val luiPart = (imm.toInt() shr 6).toShort()
-                    val lliPart = (imm.toInt() and 0x3F).toShort()
-                    val reg = RegisterType.R7
-
-                    instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
-                    instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
-                    instructions += Instruction.Jalr(reg, reg, 0)
-                    currentPC = (currentPC + 3).toShort()
-                }
-
-                "ret" -> {
-                    // ret (usually R7)
-                    instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R7, 0)
-                    currentPC++
-                }
-
-                "add" -> {
-                    instructions += Instruction.Add(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        register3 = tokens[startIndex + 3].toRegisterType()
-                    )
-                    currentPC++
-                }
-
-                "addi" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.ABS_LLI)
-                    instructions += Instruction.Addi(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        immediate = imm
-                    )
-                    currentPC++
-                }
-
-                "nand" -> {
-                    instructions += Instruction.Nand(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        register3 = tokens[startIndex + 3].toRegisterType()
-                    )
-                    currentPC++
-                }
-
-                "lui" -> {
-                    val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LUI)
-                    instructions += Instruction.Lui(
-                        register1 = tokens[startIndex + 1].toRegisterType(), immediate = imm
-                    )
-                    currentPC++
-                }
-
-                "lw" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
-                    instructions += Instruction.Lw(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        immediate = imm
-                    )
-                    currentPC++
-                }
-
-                "sw" -> {
-                    val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
-                    instructions += Instruction.Sw(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        immediate = imm
-                    )
-                    currentPC++
-                }
-
-                "beq" -> {
-                    val imm =
-                        resolveValue(tokens[startIndex + 3], currentPC, isRelative = true, type = RelocationType.REL_7)
-                    instructions += Instruction.Beq(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        immediate = imm
-                    )
-                    currentPC++
-                }
-
-                "jalr" -> {
-                    // Jalr can have an immediate for Syscalls, or default to 0
-                    val imm = if (startIndex + 3 < tokens.size) resolveValue(
-                        tokens[startIndex + 3], currentPC, type = RelocationType.REL_7
-                    ) else 0.toShort()
-                    instructions += Instruction.Jalr(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 2].toRegisterType(),
-                        immediate = imm
-                    )
-                    currentPC++
-                }
-
-                // --- Pseudo-Instructions ---
-                "nop" -> {
-                    instructions += Instruction.Add(RegisterType.R0, RegisterType.R0, RegisterType.R0)
-                    currentPC++
-                }
-
-                "halt" -> {
-                    instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)
-                    currentPC++
-                }
-
-                "lli" -> {
-                    val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LLI)
-                    val maskedImm = (imm.toInt() and 0x3F).toShort() // Bottom 6 bits
-                    instructions += Instruction.Addi(
-                        register1 = tokens[startIndex + 1].toRegisterType(),
-                        register2 = tokens[startIndex + 1].toRegisterType(),
-                        immediate = maskedImm
-                    )
-                    currentPC++
-                }
-
-                "movi" -> {
-                    val immStr = tokens[startIndex + 2]
-                    var imm: Short = 0
-                    if (immStr.isNumber()) {
-                        imm = immStr.toNumber()
-                    } else {
-                        if (!symbolTable.containsKey(immStr)) {
-                            imports += immStr
-                        }
-                        relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
-                        relocations += (RelocationTable(
-                            (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI
-                        ))
+                    "pop" -> {
+                        instructions += Instruction.Addi(
+                            register1 = RegisterType.R6, register2 = RegisterType.R6, immediate = 1
+                        )
+                        instructions += Instruction.Lw(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = RegisterType.R6,
+                            immediate = 0
+                        )
+                        currentPC = (currentPC + 2).toShort()
                     }
 
-                    val luiPart = (imm.toInt() shr 6).toShort()
-                    val lliPart = (imm.toInt() and 0x3F).toShort()
-                    val reg = tokens[startIndex + 1].toRegisterType()
-
-                    instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
-                    instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
-                    currentPC = (currentPC + 2).toShort()
-                }
-
-                ".fill" -> {
-                    val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
-                    if (parsed.isNumber() || symbolTable.containsKey(tokens[startIndex + 1])) {
-                        val value = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16)
-                        instructions += Instruction.DataWord(value)
+                    "syscall" -> {
+                        instructions += Instruction.Jalr(
+                            RegisterType.R0, RegisterType.R0, immediate = tokens[startIndex + 1].toNumber()
+                        )
                         currentPC++
+                    }
 
-                    } else if (parsed.toCharArray().count { it == '"' } == 2) {
-                        val newChars = parsed.removeSuffix("\"").removePrefix("\"").replace("\\n", "\n")
-                        for (char in newChars) {
-                            instructions += Instruction.DataWord(char.code.toShort())
+                    "call" -> {
+                        val immStr = tokens[startIndex + 1]
+                        var imm: Short = 0
+                        if (immStr.isNumber()) {
+                            imm = immStr.toNumber()
+                        } else {
+                            if (!symbolTable.containsKey(immStr)) {
+                                imports += immStr
+                            }
+                            relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
+                            relocations += (RelocationTable(
+                                (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI
+                            ))
+                        }
+
+                        val luiPart = (imm.toInt() shr 6).toShort()
+                        val lliPart = (imm.toInt() and 0x3F).toShort()
+                        val reg = RegisterType.R7
+
+                        instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
+                        instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
+                        instructions += Instruction.Jalr(reg, reg, 0)
+                        currentPC = (currentPC + 3).toShort()
+                    }
+
+                    "ret" -> {
+                        instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R7, 0)
+                        currentPC++
+                    }
+
+                    "add" -> {
+                        instructions += Instruction.Add(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            register3 = tokens[startIndex + 3].toRegisterType()
+                        )
+                        currentPC++
+                    }
+
+                    "addi" -> {
+                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.ABS_LLI)
+                        instructions += Instruction.Addi(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "nand" -> {
+                        instructions += Instruction.Nand(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            register3 = tokens[startIndex + 3].toRegisterType()
+                        )
+                        currentPC++
+                    }
+
+                    "lui" -> {
+                        val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LUI)
+                        instructions += Instruction.Lui(
+                            register1 = tokens[startIndex + 1].toRegisterType(), immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "lw" -> {
+                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
+                        instructions += Instruction.Lw(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "sw" -> {
+                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
+                        instructions += Instruction.Sw(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "beq" -> {
+                        val imm = resolveValue(
+                            tokens[startIndex + 3], currentPC, isRelative = true, type = RelocationType.REL_7
+                        )
+                        instructions += Instruction.Beq(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "jalr" -> {
+                        val imm = if (startIndex + 3 < tokens.size) resolveValue(
+                            tokens[startIndex + 3], currentPC, type = RelocationType.REL_7
+                        ) else 0.toShort()
+                        instructions += Instruction.Jalr(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 2].toRegisterType(),
+                            immediate = imm
+                        )
+                        currentPC++
+                    }
+
+                    "nop" -> {
+                        instructions += Instruction.Add(RegisterType.R0, RegisterType.R0, RegisterType.R0)
+                        currentPC++
+                    }
+
+                    "halt" -> {
+                        instructions += Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)
+                        currentPC++
+                    }
+
+                    "lli" -> {
+                        val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LLI)
+                        val maskedImm = (imm.toInt() and 0x3F).toShort()
+                        instructions += Instruction.Addi(
+                            register1 = tokens[startIndex + 1].toRegisterType(),
+                            register2 = tokens[startIndex + 1].toRegisterType(),
+                            immediate = maskedImm
+                        )
+                        currentPC++
+                    }
+
+                    "movi" -> {
+                        val immStr = tokens[startIndex + 2]
+                        var imm: Short = 0
+                        if (immStr.isNumber()) {
+                            imm = immStr.toNumber()
+                        } else {
+                            if (!symbolTable.containsKey(immStr)) {
+                                imports += immStr
+                            }
+                            relocations += (RelocationTable(currentPC.toUShort(), immStr, RelocationType.ABS_LUI))
+                            relocations += (RelocationTable(
+                                (currentPC + 1).toShort().toUShort(), immStr, RelocationType.ABS_LLI
+                            ))
+                        }
+
+                        val luiPart = (imm.toInt() shr 6).toShort()
+                        val lliPart = (imm.toInt() and 0x3F).toShort()
+                        val reg = tokens[startIndex + 1].toRegisterType()
+
+                        instructions += Instruction.Lui(register1 = reg, immediate = luiPart)
+                        instructions += Instruction.Addi(register1 = reg, register2 = reg, immediate = lliPart)
+                        currentPC = (currentPC + 2).toShort()
+                    }
+
+                    ".fill" -> {
+                        val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
+                        if (parsed.isNumber() || symbolTable.containsKey(tokens[startIndex + 1])) {
+                            val value = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16)
+                            instructions += Instruction.DataWord(value)
                             currentPC++
+
+                        } else if (parsed.toCharArray().count { it == '"' } == 2) {
+                            val newChars = parsed.removeSuffix("\"").removePrefix("\"").replace("\\n", "\n")
+                            for (char in newChars) {
+                                instructions += Instruction.DataWord(char.code.toShort())
+                                currentPC++
+                            }
+                            instructions += Instruction.DataWord(0)
+                            currentPC++
+                        } else {
+                            println(parsed)
+                            error("")
                         }
-                        instructions += Instruction.DataWord(0)
-                        currentPC++
-                    } else {
-                        println(parsed)
-                        error("")
                     }
 
-
-                }
-
-                ".space" -> {
-                    val count = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16).toInt()
-                    repeat(count) {
-                        instructions += Instruction.DataWord(0)
+                    ".space" -> {
+                        val count =
+                            resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16).toInt()
+                        repeat(count) {
+                            instructions += Instruction.DataWord(0)
+                        }
+                        currentPC = (currentPC + count).toShort()
                     }
-                    currentPC = (currentPC + count).toShort()
-                }
 
-                else -> throw Exception("Assembler Error: Unknown instruction or directive '$opcode'")
+                    else -> throw Exception("Assembler Error: Unknown instruction or directive '$opcode'")
+                }
+            } catch (e: Exception) {
+                throwError(e.message ?: "Invalid syntax", line)
             }
         }
         return instructions
     }
 }
+
+class CompilationException(
+    val fileName: String, val sourceLine: SourceLine, val errorMessage: String
+) : Exception()
+
+data class SourceLine(
+    val tokens: List<String>, val lineNumber: Int, val rawText: String
+)

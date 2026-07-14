@@ -361,7 +361,7 @@ suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int) {
     val end = (start + length) and 0xFFFF
 
     System.err.println("------------------------------------------ POST HEX DUMP 0000 ------------------------------------------")
-    System.err.println("ADDR  | 0         1         2         3         4         5         6         7       | ASCII")
+    System.err.println("ADDR  |    0        1         2         3         4         5         6         7     | ASCII")
     System.err.println("--------------------------------------------------------------------------------------------------------")
 
     val alignedStart = start - (start % 8)

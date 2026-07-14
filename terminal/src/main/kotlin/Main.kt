@@ -24,11 +24,14 @@ fun printUsage() {
           -os    <kernel.lx> <main.lx>         Compile and run an OS kernel with a userland program.
           -t     <file.lx>                     Tokenize and parse a file (prints instructions).
           -d.    <file.lx>                     Parses and decodes a file.bin (prints instructions).
+          -x     <file.bin> [length]           Produces a static hex dump of compiled binary. 
           -h, --help                           Show this help menu.
           
         Examples:
           lx -b main.lx math.lx -o program.bin
           lx -i main.lx "program files/lib" 
+          lx -i main.lx "program files/lib" --dump
+          lx -x out.bin -1
           lx -os kernel.lx main.lx
         """.trimIndent()
     )
@@ -52,6 +55,7 @@ suspend fun main(args: Array<String>) {
             "-r" -> handleRun(remainingArgs)
             "-d" -> handleDecode(remainingArgs)
             "-os" -> handleRunOs(remainingArgs)
+            "-x" -> handleHexDumpFile(remainingArgs)
             else -> {
                 System.err.println("[ERROR] Unknown command or flag: $command")
                 printUsage()
@@ -153,11 +157,14 @@ private fun handleBuild(args: List<String>) {
 
 private suspend fun handleCompileAndRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -i")
+    val shouldDump = args.contains("--dump")
+    val cleanArgs = args.filter { it != "--dump" }
+
 
     val inputPathsAdjustedForDirectories = mutableListOf<String>()
 
     // Parse files and directories recursively exactly like handleBuild!!
-    for (path in args) {
+    for (path in cleanArgs) {
         val file = File(path)
         if (file.isDirectory) {
             val list = file.list()
@@ -197,6 +204,10 @@ private suspend fun handleCompileAndRun(args: List<String>) {
         while (!cpu.isHalted) {
             cpu.tick()
         }
+        if (shouldDump) {
+            printHexDump(memory, baseAddr.toUShort(), machineCode.size)
+
+        }
     } catch (e: Exception) {
         throwRuntimeError(cpu, e, baseAddr.toUShort(), machineCode)
     }
@@ -204,7 +215,11 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
 private suspend fun handleRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -r")
-    val file = getFileOrThrow(args[0])
+    val shouldDump = args.contains("--dump")
+    val cleanArgs = args.filter { it != "--dump" }
+
+
+    val file = getFileOrThrow(cleanArgs[0])
 
     val lines = file.readLines().filter { it.isNotBlank() }
     val baseAddress = if (lines[0].startsWith("@")) lines[0].drop(1).toShort() else 0.toShort()
@@ -220,16 +235,25 @@ private suspend fun handleRun(args: List<String>) {
         while (!cpu.isHalted) {
             cpu.tick()
         }
+        if (shouldDump) {
+            printHexDump(memory, baseAddress.toUShort(), machineCode.size)
+
+        }
     } catch (e: Exception) {
-        throwRuntimeError(cpu, e,baseAddress.toUShort(),machineCode.toTypedArray())
+        throwRuntimeError(cpu, e, baseAddress.toUShort(), machineCode.toTypedArray())
     }
 }
 
 private suspend fun handleRunOs(args: List<String>) {
     if (args.size < 2) throw IllegalArgumentException("Missing kernel or main file.\nUsage: lx -os <kernel.lx> <main.lx>")
+    val shouldDump = args.contains("--dump")
+    val cleanArgs = args.filter { it != "--dump" }
 
-    val kernelFile = getFileOrThrow(args[0])
-    val mainFile = getFileOrThrow(args[1])
+
+
+
+    val kernelFile = getFileOrThrow(cleanArgs[0])
+    val mainFile = getFileOrThrow(cleanArgs[1])
 
     val kernelCode = Backend().encode(Parser(kernelFile, MemoryMapRanges.vectorRange.first.toShort()).decode())
     val mainCode = Backend().encode(Parser(mainFile, MemoryMapRanges.userLandRange.first.toShort()).decode())
@@ -248,6 +272,10 @@ private suspend fun handleRunOs(args: List<String>) {
         while (!cpu.isHalted) {
             cpu.tick()
         }
+        if (shouldDump) {
+            printHexDump(memory,  MemoryMapRanges.userLandRange.first.toUShort(), mainCode.size)
+
+        }
     } catch (e: Exception) {
         throwRuntimeError(cpu, e, MemoryMapRanges.userLandRange.first.toUShort(), mainCode.toTypedArray())
     }
@@ -262,6 +290,24 @@ private fun handleDecode(args: List<String>) {
 
     val parse = Backend().decode(linesInfo.map { it.toUShort() })
     parse.forEachIndexed { index, instruction -> println("$index | $instruction") }
+}
+
+
+private suspend fun handleHexDumpFile(args: List<String>) {
+    if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -x")
+    val file = getFileOrThrow(args[0])
+    val lines = file.readLines().filter { it.isNotBlank() }
+    val baseAddress = if (lines[0].startsWith('@')) lines[0].drop(1).toShort() else 0.toShort()
+    val machineCode = (if (lines[0].startsWith('@')) lines.drop(1) else lines).map { it.trim().toUShort() }
+    val memory = MemoryBus(PhysicalMemory())
+    for ((index, word) in machineCode.withIndex()) {
+        memory.write((baseAddress + index).toShort().toUShort(), word.toShort())
+    }
+
+    val length = if (args.size >= 2) args[1].toUShort() else machineCode.size.toUShort()
+    printHexDump(memory, baseAddress.toUShort(), length.toInt())
+
+
 }
 
 

@@ -4,16 +4,19 @@ main:
 	movi r2 [source]
 
 
+	movi r1 destination
 	call prints
+
+	movi r1 source
+    call prints
 
 
 	halt
 
 destination:
-	.fill "Hello "
-	.space
+	.space 10
 source:
- 	.fill "World\n"
+ 	.fill "hi\n"
 
 .space 30
 stack:

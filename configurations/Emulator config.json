@@ -9,7 +9,7 @@
     "deviceConsoleReadTimeMs": 0
   },
   "debug": {
-    "printHex16Dump": false,
+    "printHex16Dump": true,
     "use16wordAddressInDump": false,
     "printHistory": false,
     "printInstructions": false,

@@ -83,3 +83,23 @@ str_cat:
 		pop r4
 
 		ret
+
+// R1 = Destination
+// R2 = Source
+str_cpy:
+	push r3
+	add r4 r1 r0
+
+	.start_copy:
+		lw r3 [r2 + 0]
+		sw r3 [r1 + 0]
+		beq r3 r0 .done
+
+		addi r1 r1 #1
+		addi r2 r2 #1
+		beq r0 r0 .start_copy
+
+	.done:
+		addi r1 r4 #0
+		pop r3
+		ret

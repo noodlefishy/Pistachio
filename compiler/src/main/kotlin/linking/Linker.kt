@@ -1,7 +1,8 @@
+package io.cuttlefish.linking
+
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
-import io.cuttlefish.linking.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.*

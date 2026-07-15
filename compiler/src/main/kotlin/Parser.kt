@@ -75,7 +75,7 @@ class Parser(val file: File, val baseAddress: Short) {
 
             if (cleanLine.isEmpty()) return@forEachIndexed
 
-            val tokens = cleanLine.split(Regex("[\\s]+")).filter { it.isNotEmpty() }
+            val tokens = cleanLine.split(Regex("\\s+")).filter { it.isNotEmpty() }
             if (tokens.isEmpty()) return@forEachIndexed
 
             // 3. Handle block comments (/* and */)
@@ -144,8 +144,8 @@ class Parser(val file: File, val baseAddress: Short) {
                         else -> addressCounter++
                     }
                 }
-            } catch (e: Exception) {
-                throwError("Symbol Table Error: ${e.message ?: "Invalid syntax"}", line)
+            } catch (_: Exception) {
+                throwError("Symbol Table Error: Invalid syntax", line)
             }
         }
 

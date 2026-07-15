@@ -13,3 +13,39 @@ str_len:
 		addi r1 r1 1
 
 		ret
+
+str_cmp:
+	push r4
+	.loop:
+		lw r3, [r1 + 0]
+		lw r4, [r2 + 0]
+
+		// 1. Are they equal?
+		// If yes, jump down to check if it's the end of the string.
+		beq r3, r4, .check_null
+
+		// If they are NOT equal, the CPU drops down here. Break the loop!
+		beq r0, r0, .not_equal
+
+	.check_null:
+		beq r3, r0, .is_equal
+
+		// 3. They are equal, and NOT zero. Advance pointers and repeat!
+		addi r1, r1, #1
+		addi r2, r2, #1
+		beq r0, r0, .loop
+
+	.not_equal:
+
+		nand r4 r4 r4
+		add r1 r3 r4
+		addi r1 r1 #1
+
+		pop r4
+		ret
+
+	.is_equal:
+		movi r1 #0
+
+		pop r4
+ 		ret

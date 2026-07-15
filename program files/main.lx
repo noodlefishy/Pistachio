@@ -1,55 +1,15 @@
 main:
     movi r6, [stack]
-    movi r2, [s1]
-    movi r3, [s2]
-
-.loop:
-    lw r4, [r2 + 0]
-    lw r5, [r3 + 0]
-
-    // 1. Are they equal?
-    // If yes, jump down to check if it's the end of the string.
-    beq r4, r5, .check_null
-
-    // If they are NOT equal, the CPU drops down here. Break the loop!
-    beq r0, r0, .not_equal
-
-.check_null:
-    beq r4, r0, .is_equal
-
-    // 3. They are equal, and NOT zero. Advance pointers and repeat!
-    addi r2, r2, #1
-    addi r3, r3, #1
-    beq r0, r0, .loop
-
-.not_equal:
-
-    push r2
-    movi r1, [notEq]
-    call prints
-    pop r2
-
-    nand r5 r5 r5
-    add r1 r4 r5
-    addi r1 r1 1
-
-    halt
-
-.is_equal:
-	push r2
-    movi r1, [isEq]
-    call prints
-    pop r2
-    nand r5 r5 r5
-    add r1 r4 r5
-    addi r1 r1 1
-    halt
+    movi r1, [s1]
+    movi r2, [s2]
 
 
-s1: .fill "Hello World"
-s2: .fill "Hello World in paris"
+	call str_cmp
 
-isEq: .fill "Is equal\n"
-notEq: .fill "Not equal\n"
+	halt
+
+s1: .fill "Hello Worl"
+s2: .fill "Hello World"
+
 .space 30
 stack:

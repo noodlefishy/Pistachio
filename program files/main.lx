@@ -10,7 +10,7 @@ main:
 	addi r1 r1 #48
 	// r1 = 52
 	sw r1 [r3 + 0]
-	mem[destination] = 52
+	// mem[destination] = 52
 //	lw r1 [r3 + 0]
 
 

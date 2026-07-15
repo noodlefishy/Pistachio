@@ -12,9 +12,9 @@
     "printHex16Dump": true,
     "use16wordAddressInDump": false,
     "printHistory": false,
-    "printInstructions": false,
+    "printInstructions": true,
     "printRegistersOnHalt": true,
-    "printState": false
+    "printState": true
   }
 }
 

@@ -14,9 +14,11 @@ class Cpu(val mmu: MemoryBus) {
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend()
     val history = ArrayDeque<String>(50)
+    private var registerEdit = registers::oldWrite
+    private var oldRegisterEdit: Pair<RegisterType, Short>? = null
+
     suspend fun tick() {
-
-
+        val oldR = registers.registerData.copyOf()
         if (isHalted) return
         if (pc in MemoryMapRanges.userLandRange) {
             isKernelMode = false
@@ -38,9 +40,6 @@ class Cpu(val mmu: MemoryBus) {
 
         if (GlobalConfig.debug.printInstructions) {
             println("$currentPc | $instruction")
-        }
-        if (GlobalConfig.debug.printState) {
-            println("$currentPc | $registers")
         }
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
@@ -82,6 +81,35 @@ class Cpu(val mmu: MemoryBus) {
             is Instruction.Sw -> handleSw(instruction)
             is Instruction.DataWord -> error("The data-words like .fill and .space shouldn't be there?")
         }
+        if (GlobalConfig.debug.printState) {
+//            println(registerEdit.get())
+//            println(oldRegisterEdit)
+            if (registerEdit.get() != oldRegisterEdit) {
+                val reg = oldR[registerEdit.get().first.ordinal]
+                val newValue = registerEdit.get().second
+
+                // Convert to Int and apply 16-bit mask to handle negative numbers correctly
+                val regInt = reg.toInt()
+                val newValInt = newValue.toInt()
+
+                val hexPC = pc.toString(16).padStart(4, '0').uppercase()
+                val regHex = (regInt and 0xFFFF).toString(16).padStart(4, '0').uppercase()
+                val hexValue = (newValInt and 0xFFFF).toString(16).padStart(4, '0').uppercase()
+
+                // Align fields by padding them to a fixed width
+                val regName = registerEdit.get().first.toString().padEnd(3)
+                val oldDecStr = "#$reg".padEnd(7)
+                val newDecStr = "#$newValue".padEnd(7)
+
+                println(
+                    "$hexPC | $regName (0x$regHex / $oldDecStr)  <- $newDecStr (0x$hexValue)"
+                )
+            }
+        }
+
+
+        oldRegisterEdit = registerEdit.get()
+
     }
 
     private suspend fun handleTrap(trapId: Short) {

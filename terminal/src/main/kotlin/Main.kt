@@ -347,7 +347,7 @@ private suspend fun throwRuntimeError(cpu: Cpu, e: Exception, baseAddr: UShort, 
     }
     System.err.println("==================================================\n")
     System.err.println(" History of ${cpu.history.size} entries:")
-    cpu.history.forEach { System.err.println(it) }
+    cpu.history.forEach { System.err.println("    $it") }
     System.err.println("==================================================\n")
     printHexDump(cpu.mmu, baseAddr, machineCode.size)
     System.err.println("==================================================\n")
@@ -366,16 +366,36 @@ suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int) {
     val extraSpacing = if (word16) 4 else 4
     val print16 =
         """
-        ${if (use16) "-".repeat(8*extraSpacing) else ""}------------------------------------------ POST HEX DUMP 0x00FU ----------------------------------------${if (use16) "-".repeat(8*extraSpacing) else ""}
-        ADDR  | 0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15  |      ${if (use16) " ".repeat(4*extraSpacing) else ""}ASCII      
-        ${if (use16) "-".repeat(8*extraSpacing) else ""}--------------------------------------------------------------------------------------------------------${if (use16) "-".repeat(8*extraSpacing) else ""}
+        ${if (use16) "-".repeat(8 * extraSpacing) else ""}------------------------------------------ POST HEX DUMP 0x00FU ----------------------------------------${
+            if (use16) "-".repeat(
+                8 * extraSpacing
+            ) else ""
+        }
+        ADDR  | 0    1    2    3    4    5    6    7    8    9   10   11   12   13   14   15  |      ${
+            if (use16) " ".repeat(
+                4 * extraSpacing
+            ) else ""
+        }ASCII      
+        ${if (use16) "-".repeat(8 * extraSpacing) else ""}--------------------------------------------------------------------------------------------------------${
+            if (use16) "-".repeat(
+                8 * extraSpacing
+            ) else ""
+        }
         """.trimIndent()
 
     val print8 = $$"""
         ........
-        $${if (use16) "-".repeat(4*extraSpacing) else ""}-------------------- POST HEX DUMP 0x00FU --------------$${if (use16) "-".repeat(4*extraSpacing) else ""}
-        ADDR  | 0    1    2    3    4    5    6    7    |  $${if (use16) " ".repeat(2*extraSpacing) else ""}ASCII
-        $${if (use16) "-".repeat(4*extraSpacing) else ""}--------------------------------------------------------$${if (use16) "-".repeat(4*extraSpacing) else ""}
+        $${if (use16) "-".repeat(4 * extraSpacing) else ""}-------------------- POST HEX DUMP 0x00FU --------------$${
+        if (use16) "-".repeat(
+            4 * extraSpacing
+        ) else ""
+    }
+        ADDR  | 0    1    2    3    4    5    6    7    |  $${if (use16) " ".repeat(2 * extraSpacing) else ""}ASCII
+        $${if (use16) "-".repeat(4 * extraSpacing) else ""}--------------------------------------------------------$${
+        if (use16) "-".repeat(
+            4 * extraSpacing
+        ) else ""
+    }
         """.trimIndent()
 
 //    if (use16) System.err.println(print16) else System.err.println(print8)

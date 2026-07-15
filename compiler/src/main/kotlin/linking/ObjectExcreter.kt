@@ -23,7 +23,7 @@ class ObjectExcreter(val file: File) {
 
         val header = Header(
             fileName = file.absolutePath,
-            sectionSize = machineCode.size.toUShort(),
+            sectionSize = (machineCode.size + 1).toUShort() ,
             symbolCount = symbols.size.toUShort(),
             relocationCount = parser.relocations.size.toUShort(),
         )

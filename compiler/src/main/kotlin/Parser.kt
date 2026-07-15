@@ -37,18 +37,20 @@ class Parser(val file: File, val baseAddress: Short) {
     }
 
     private fun resolveValue(
-        input: String, currentAddress: Short, isRelative: Boolean = false, type: RelocationType
+        input: String, currentAddress: Short, currentScope: String, isRelative: Boolean = false, type: RelocationType
     ): Short {
-        if (isRelative && symbolTable.containsKey(input)) {
-            val targetAddress = symbolTable[input]!!
+        val scopedInput = if (input.startsWith(".")) currentScope + input else input
+
+        if (isRelative && symbolTable.containsKey(scopedInput)) {
+            val targetAddress = symbolTable[scopedInput]!!
             return (targetAddress - (currentAddress + 1)).toShort()
         }
         if (input.isNumber()) return input.toNumber()
 
-        if (!symbolTable.containsKey(input)) {
-            imports += input
+        if (!symbolTable.containsKey(scopedInput)) {
+            imports += scopedInput
         }
-        relocations += RelocationTable(currentAddress.toUShort(), input, type)
+        relocations += RelocationTable(currentAddress.toUShort(), scopedInput, type)
 
         return 0x0000
     }
@@ -109,6 +111,7 @@ class Parser(val file: File, val baseAddress: Short) {
         val parsedLines = preprocess()
 
         // --- PASS 1: Symbol Table Building ---
+        var currentGlobalScope = ""
         var addressCounter: Short = baseAddress
         for (line in parsedLines) {
             val tokens = line.tokens
@@ -116,7 +119,17 @@ class Parser(val file: File, val baseAddress: Short) {
 
             try {
                 if (tokens[0].endsWith(":")) {
-                    val labelName = tokens[0].removeSuffix(":")
+                    var labelName = tokens[0].removeSuffix(":")
+
+                    // If it is a global label, update our scope tracker!!
+                    if (!labelName.startsWith(".")) {
+                        currentGlobalScope = labelName
+                    } else {
+                        // If it is a local dot-label, secretly prepend the global scope!!
+                        // ".loop" becomes "prints.loop" in the dictionary!!
+                        labelName = currentGlobalScope + labelName
+                    }
+
                     symbolTable[labelName] = addressCounter
                     startIndex = 1
                 }
@@ -150,12 +163,28 @@ class Parser(val file: File, val baseAddress: Short) {
         }
 
         // --- PASS 2: Normal Building ---
+// --- PASS 2: Normal Building ---
         var currentPC: Short = baseAddress
+        currentGlobalScope = ""
+
         for (line in parsedLines) {
             val tokens = line.tokens
-            val startIndex = if (tokens[0].endsWith(":")) 1 else 0
-            if (startIndex >= tokens.size) continue
+            var startIndex = 0
 
+            // 1. Process labels and update Scope FIRST!!
+            if (tokens[0].endsWith(":")) {
+                var labelName = tokens[0].removeSuffix(":")
+
+                if (!labelName.startsWith(".")) {
+                    currentGlobalScope = labelName
+                } else {
+//                    labelName = currentGlobalScope + labelName
+                }
+
+                startIndex = 1
+            }
+
+            if (startIndex >= tokens.size) continue
             try {
                 when (val opcode = tokens[startIndex].lowercase()) {
                     "push" -> {
@@ -190,7 +219,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "call" -> {
-                        val immStr = tokens[startIndex + 1]
+                        var immStr = tokens[startIndex + 1]
+                        if (immStr.startsWith(".")) immStr = currentGlobalScope + immStr // Apply scope!!
+
                         var imm: Short = 0
                         if (immStr.isNumber()) {
                             imm = immStr.toNumber()
@@ -229,7 +260,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "addi" -> {
-                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.ABS_LLI)
+                        val imm = resolveValue(
+                            tokens[startIndex + 3], currentPC, currentGlobalScope, type = RelocationType.ABS_LLI
+                        )
                         instructions += Instruction.Addi(
                             register1 = tokens[startIndex + 1].toRegisterType(),
                             register2 = tokens[startIndex + 2].toRegisterType(),
@@ -248,7 +281,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "lui" -> {
-                        val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LUI)
+                        val imm = resolveValue(
+                            tokens[startIndex + 2], currentPC, currentGlobalScope, type = RelocationType.ABS_LUI
+                        )
                         instructions += Instruction.Lui(
                             register1 = tokens[startIndex + 1].toRegisterType(), immediate = imm
                         )
@@ -256,7 +291,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "lw" -> {
-                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
+                        val imm = resolveValue(
+                            tokens[startIndex + 3], currentPC, currentGlobalScope, type = RelocationType.REL_7
+                        )
                         instructions += Instruction.Lw(
                             register1 = tokens[startIndex + 1].toRegisterType(),
                             register2 = tokens[startIndex + 2].toRegisterType(),
@@ -266,7 +303,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "sw" -> {
-                        val imm = resolveValue(tokens[startIndex + 3], currentPC, type = RelocationType.REL_7)
+                        val imm = resolveValue(
+                            tokens[startIndex + 3], currentPC, currentGlobalScope, type = RelocationType.REL_7
+                        )
                         instructions += Instruction.Sw(
                             register1 = tokens[startIndex + 1].toRegisterType(),
                             register2 = tokens[startIndex + 2].toRegisterType(),
@@ -277,7 +316,11 @@ class Parser(val file: File, val baseAddress: Short) {
 
                     "beq" -> {
                         val imm = resolveValue(
-                            tokens[startIndex + 3], currentPC, isRelative = true, type = RelocationType.REL_7
+                            tokens[startIndex + 3],
+                            currentPC,
+                            currentGlobalScope,
+                            isRelative = true,
+                            type = RelocationType.REL_7
                         )
                         instructions += Instruction.Beq(
                             register1 = tokens[startIndex + 1].toRegisterType(),
@@ -289,7 +332,7 @@ class Parser(val file: File, val baseAddress: Short) {
 
                     "jalr" -> {
                         val imm = if (startIndex + 3 < tokens.size) resolveValue(
-                            tokens[startIndex + 3], currentPC, type = RelocationType.REL_7
+                            tokens[startIndex + 3], currentPC, currentGlobalScope, type = RelocationType.REL_7
                         ) else 0.toShort()
                         instructions += Instruction.Jalr(
                             register1 = tokens[startIndex + 1].toRegisterType(),
@@ -310,7 +353,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "lli" -> {
-                        val imm = resolveValue(tokens[startIndex + 2], currentPC, type = RelocationType.ABS_LLI)
+                        val imm = resolveValue(
+                            tokens[startIndex + 2], currentPC, currentGlobalScope, type = RelocationType.ABS_LLI
+                        )
                         val maskedImm = (imm.toInt() and 0x3F).toShort()
                         instructions += Instruction.Addi(
                             register1 = tokens[startIndex + 1].toRegisterType(),
@@ -321,7 +366,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     "movi" -> {
-                        val immStr = tokens[startIndex + 2]
+                        var immStr = tokens[startIndex + 2]
+                        if (immStr.startsWith(".")) immStr = currentGlobalScope + immStr // Apply scope!!
+
                         var imm: Short = 0
                         if (immStr.isNumber()) {
                             imm = immStr.toNumber()
@@ -346,8 +393,12 @@ class Parser(val file: File, val baseAddress: Short) {
 
                     ".fill" -> {
                         val parsed = tokens.subList(startIndex + 1, tokens.size).joinToString(" ")
-                        if (parsed.isNumber() || symbolTable.containsKey(tokens[startIndex + 1])) {
-                            val value = resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16)
+                        val rawInput = tokens[startIndex + 1]
+                        val scopedInput = if (rawInput.startsWith(".")) currentGlobalScope + rawInput else rawInput
+
+                        if (parsed.isNumber() || symbolTable.containsKey(scopedInput)) {
+                            val value =
+                                resolveValue(rawInput, currentPC, currentGlobalScope, type = RelocationType.ABS_16)
                             instructions += Instruction.DataWord(value)
                             currentPC++
 
@@ -366,8 +417,9 @@ class Parser(val file: File, val baseAddress: Short) {
                     }
 
                     ".space" -> {
-                        val count =
-                            resolveValue(tokens[startIndex + 1], currentPC, type = RelocationType.ABS_16).toInt()
+                        val count = resolveValue(
+                            tokens[startIndex + 1], currentPC, currentGlobalScope, type = RelocationType.ABS_16
+                        ).toInt()
                         repeat(count) {
                             instructions += Instruction.DataWord(0)
                         }

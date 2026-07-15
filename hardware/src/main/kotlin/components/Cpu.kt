@@ -67,7 +67,7 @@ class Cpu(val mmu: MemoryBus) {
         }
 
         if (history.size == 50) history.removeFirst()
-        history.addLast("$pc | $instruction | $registers")
+        history.addLast("${pc.toString(16).uppercase().padStart(4, '0')} | $instruction | $registers")
 
 
         // 3. EXECUTE

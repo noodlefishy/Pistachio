@@ -21,34 +21,29 @@ prints:
 readln:
     push r4
     push r5
-    push r1                 // Save the original buffer pointer on the stack!!
+    push r1                 // Save the original buffer pointer!!
 
-    movi r2, 0xFF01         // STDIN Read Register (Keyboard)
-    movi r3, 0xFF02         // STDIN Status Register
+    movi r2, 0xFF01
+    movi r3, 0xFF02
+    movi r4, #10            // Load the newline check outside the loop using a safe register!
 
-.loop:
-    lw   r4, [r3 + 0]       // Read STDIN status
-    beq  r4, r0, .loop      // Keep polling if 0
+.readln_loop:
+    lw   r5, [r3 + 0]
+    beq  r5, r0, .readln_loop
 
-    lw   r4, [r2 + 0]       // Read character from keyboard
+    lw   r5, [r2 + 0]
 
-    // Live Echo Hack: r2 - 1 is exactly 0xFF00 (Console Output)!!
-    sw   r4, [r2 + -1]
+    // Check if the user pressed Enter BEFORE we save it!
+    beq  r5, r4, .readln_done
 
-    // Check for Enter key: both \n (10) and \r (13)!!
-    movi r5, #10
-    beq  r4, r5, .done
-    movi r5, #13
-    beq  r4, r5, .done
+    sw   r5, [r1 + 0]       // It's a valid character, save it!
+    addi r1, r1, #1
+    beq  r0, r0, .readln_loop
 
-    sw   r4, [r1 + 0]       // Save the valid character to the buffer
-    addi r1, r1, #1         // Move buffer pointer forward
-    beq  r0, r0, .loop
+.readln_done:
+    sw   r0, [r1 + 0]
 
-.done:
-    sw   r0, [r1 + 0]       // Null-terminate exactly where the newline was!!
-
-    pop  r1                 // Restore original pointer for return value
+    pop  r1                 // Restore original pointer for main!!
     pop  r5
     pop  r4
     ret

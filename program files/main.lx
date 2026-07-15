@@ -1,31 +1,9 @@
 main:
     movi r6, [stack]
 
-    movi r1, [destination]  // r1 = Active pointer inside our buffer!!
-    movi r2, 0xFF01         // STDIN Read Register
-    movi r3, 0xFF02         // STDIN Status Register
-
-.loop:
-    lw   r5, [r3 + 0]       // Read input status
-    beq  r5, r0, .loop      // If no key pressed, keep polling!!
-
-    lw   r5, [r2 + 0]       // Read character from keyboard
-
-    sw   r5, [r1 + 0]       // Save character into active buffer slot!!
-
-    // Check if the user pressed Enter (\n, ASCII 10)
-    movi r7, #10
-    beq  r5, r7, .done      // If Enter pressed, break out of loop!!
-
-    addi r1, r1, #1         // Increment buffer pointer to the next word!!
-    beq  r0, r0, .loop
-
-.done:
-    addi r1, r1, #1         // Move past the newline character
-    sw   r0, [r1 + 0]       // Null-terminate the string safely!!
-
-
     movi r1, [destination]
+	call readln
+
     call prints
 
     halt

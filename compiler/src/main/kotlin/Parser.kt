@@ -173,7 +173,7 @@ class Parser(val file: File, val baseAddress: Short) {
 
             // 1. Process labels and update Scope FIRST!!
             if (tokens[0].endsWith(":")) {
-                var labelName = tokens[0].removeSuffix(":")
+                val labelName = tokens[0].removeSuffix(":")
 
                 if (!labelName.startsWith(".")) {
                     currentGlobalScope = labelName

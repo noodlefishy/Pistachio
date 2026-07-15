@@ -1,16 +1,16 @@
 main:
     movi r6, [stack]
 
-	movi r1 9934
-
-	call itoa
+	movi r1 2748
+	movi r2 [string_1]
+	call itox
 	call prints
 
     halt
 
 
 string_1:
-	.fill "12345"
+	.space 4
 	.space 0
 string_2:
 	.fill "World!"

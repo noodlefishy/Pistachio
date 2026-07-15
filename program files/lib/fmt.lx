@@ -119,3 +119,127 @@ str_rev:
 		pop  r5
 		pop  r4
 		ret
+// Inputs: r1 (16-bit Integer), r2 (Destination buffer pointer)
+// Outputs: r1 (Original pointer to the start of the buffer)
+itox:
+    push r4
+    push r5
+    push r7
+    push r2             // Save original buffer pointer for return!!
+
+    add  r4, r2, r0     // r4 = Active buffer writer pointer
+
+    // Check if negative ... (omit for itox, keep for itoa)
+    // Now, push the start of the digits (r4) onto the stack to protect it!!
+    push r4
+
+	.itox_loop:
+		// r1 = r1 / 16 (Quotient), r3 = r1 % 16 (Remainder)
+		movi r2, #16
+		call divide
+
+		// Convert Remainder (r3) to Hex ASCII
+		movi r5, #10
+
+		// Check if Remainder < 10
+		push r1             // Protect Quotient!
+		push r2
+		push r3             // Protect Remainder!
+		add  r1, r3, r0
+		add  r2, r5, r0
+		call lessThan       // Returns 0x8000 in r1 if Remainder < 10
+		add  r5, r1, r0
+		pop  r3             // Restore Remainder!
+		pop  r2
+		pop  r1
+
+		beq  r5, r0, .itox_alpha
+
+	.itox_digit:
+		addi r3, r3, #48    // Convert 0-9 to '0'-'9'
+		beq r0 r0  .itox_write
+
+	.itox_alpha:
+		addi r3, r3, #55    // Convert 10-15 to 'A'-'F' (10 + 55 = 65 = 'A')
+
+	.itox_write:
+		sw   r3, [r4 + 0]   // Write character to buffer
+		addi r4, r4, #1     // Advance writer pointer
+
+		// If Quotient (r1) is not 0, keep extracting!!
+		beq  r1, r0, .itox_done
+		beq r0 r0    .itox_loop
+
+	.itox_done:
+		sw   r0, [r4 + 0]   // Null-terminate the string
+
+		// Now, prepare to reverse!
+		// End of digits is r4 - 1
+		add  r2, r4, r0
+		addi r2, r2, #-1    // r2 = End Pointer
+
+		// Pop the digit-start pointer directly off the stack into r1!!
+		pop  r1             // r1 = Start Pointer (safe from r7 corruption!!)
+
+		call str_rev        // Reverse the string!
+
+		pop  r1             // Restore original buffer pointer
+		pop  r7
+		pop  r5
+		pop  r4
+		ret
+
+
+
+// Inputs: r1 (Pointer to null-terminated Hex string, e.g. "1A4F")
+// Outputs: r1 (Converted 16-bit Integer)
+str_tox:
+    push r4
+    push r5
+    push r7
+
+    add  r4, r1, r0     // r4 = Active string pointer
+    movi r5, #0         // r5 = Running sum (starts at 0)
+
+	.tox_loop:
+		lw   r3, [r4 + 0]   // Load current character
+		beq  r3, r0, .tox_done // Stop if null-terminator
+
+		movi r2, #65        // ASCII 'A'
+
+		// Check if char < 'A' (Meaning it is a digit '0'-'9')
+		push r1
+		push r2
+		add  r1, r3, r0
+		call lessThan       // Returns 1 in r1 if char < 'A'
+		add  r7, r1, r0
+		pop  r2
+		pop  r1
+
+		beq  r7, r0, .tox_alpha
+
+	.tox_digit:
+		addi r3, r3, #-48   // Convert '0'-'9' back to 0-9
+		beq r0 r0   .tox_accumulate
+
+	.tox_alpha:
+		addi r3, r3, #-55   // Convert 'A'-'F' back to 10-15
+
+	.tox_accumulate:
+		// Multiply running sum (r5) by 16 using 4 left shifts!!
+		add  r5, r5, r5
+		add  r5, r5, r5
+		add  r5, r5, r5
+		add  r5, r5, r5
+
+		add  r5, r5, r3     // r5 = (Running Sum * 16) + Value
+
+		addi r4, r4, #1     // Advance string pointer
+		beq r0 r0   .tox_loop
+
+	.tox_done:
+		add  r1, r5, r0     // Move final integer to r1 for return
+		pop  r7
+		pop  r5
+		pop  r4
+		ret

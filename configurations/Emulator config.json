@@ -14,7 +14,9 @@
     "printHistory": false,
     "printInstructions": true,
     "printRegistersOnHalt": true,
-    "printState": true
+    "printState": true,
+    "mapFile": "out.map",
+    "useMap:": true
   }
 }
 

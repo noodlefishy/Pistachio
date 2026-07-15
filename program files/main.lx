@@ -1,36 +1,20 @@
 main:
     movi r6, [stack]
 
-	movi r3 [destination]
-	movi r1 #1234
-	movi r2 #10
+	movi r1 [string_1]
+	movi r2 [string_2]
 
-	call modulus
-	// r1 = 4
-	addi r1 r1 #48
-	// r1 = 52
-	sw r1 [r3 + 0]
-	// mem[destination] = 52
-//	lw r1 [r3 + 0]
-
-
-	movi r1 [destination]
+	call str_cat
 	call prints
-
-
 
     halt
 
 
-
-destination:
-	.space 1
-	.fill 10
-	.fill 0
-
-other:
-	.fill "hi guys"
-
+string_1:
+	.fill "Hello "
+	.space 10
+string_2:
+	.fill "World!"
 
 
 .space 30

@@ -4,6 +4,8 @@ import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.config.*
 import io.cuttlefish.instructions.*
+import kotlinx.serialization.json.*
+import java.io.*
 
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
@@ -16,6 +18,28 @@ class Cpu(val mmu: MemoryBus) {
     val history = ArrayDeque<String>(50)
     private var registerEdit = registers::oldWrite
     private var oldRegisterEdit: Pair<RegisterType, Short>? = null
+
+    init {
+
+    }
+
+
+    private val mapFile = if (GlobalConfig.debug.useMap) {
+        try {
+            Json.decodeFromString<Map<String, UShort>>(File(GlobalConfig.debug.mapFile).readText())
+                .map { it.value to it.key }.toMap()
+        } catch (e: Exception) {
+            println("[WARNING] Failed to load symbol map: ${e.message}")
+            emptyMap()
+        }
+    } else emptyMap()
+
+    private val maxLabelLength = (mapFile.values.maxOfOrNull { it.length } ?: 4).coerceAtLeast(4)
+
+    private fun getLabelOrHex(address: UShort): String {
+        val label = mapFile[address] ?: address.toString(16).uppercase().padStart(4, '0')
+        return label.padEnd(maxLabelLength)
+    }
 
     suspend fun tick() {
         val oldR = registers.registerData.copyOf()
@@ -39,7 +63,7 @@ class Cpu(val mmu: MemoryBus) {
         val instruction = backend.decode(rawInstruction.toUShort())
 
         if (GlobalConfig.debug.printInstructions) {
-            println("$currentPc | $instruction")
+            println(formatInstruction(currentPc, instruction))
         }
 
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
@@ -66,7 +90,7 @@ class Cpu(val mmu: MemoryBus) {
         }
 
         if (history.size == 50) history.removeFirst()
-        history.addLast("${pc.toString(16).uppercase().padStart(4, '0')} | $instruction | $registers")
+        history.addLast("${getLabelOrHex(pc)} | $instruction | $registers")
 
 
         // 3. EXECUTE
@@ -92,7 +116,6 @@ class Cpu(val mmu: MemoryBus) {
                 val regInt = reg.toInt()
                 val newValInt = newValue.toInt()
 
-                val hexPC = pc.toString(16).padStart(4, '0').uppercase()
                 val regHex = (regInt and 0xFFFF).toString(16).padStart(4, '0').uppercase()
                 val hexValue = (newValInt and 0xFFFF).toString(16).padStart(4, '0').uppercase()
 
@@ -102,7 +125,7 @@ class Cpu(val mmu: MemoryBus) {
                 val newDecStr = "#$newValue".padEnd(7)
 
                 println(
-                    "$hexPC | $regName (0x$regHex / $oldDecStr)  <- $newDecStr (0x$hexValue)"
+                    "${getLabelOrHex(pc)} | $regName (0x$regHex / $oldDecStr)  <- $newDecStr (0x$hexValue)"
                 )
             }
         }
@@ -111,6 +134,78 @@ class Cpu(val mmu: MemoryBus) {
         oldRegisterEdit = registerEdit.get()
 
     }
+
+    private fun formatInstruction(pc: UShort, inst: Instruction): String {
+        val opStr: String
+        val argsStr: String
+        var annotation = ""
+
+        when (inst) {
+            is Instruction.Add -> {
+                opStr = "add"
+                argsStr = "${inst.register1}, ${inst.register2}, ${inst.register3}"
+            }
+
+            is Instruction.Addi -> {
+                opStr = "addi"
+                argsStr = "${inst.register1}, ${inst.register2}, #${inst.immediate}"
+            }
+
+            is Instruction.Nand -> {
+                opStr = "nand"
+                argsStr = "${inst.register1}, ${inst.register2}, ${inst.register3}"
+            }
+
+            is Instruction.Lui -> {
+                opStr = "lui"
+                argsStr = "${inst.register1}, #${inst.immediate}"
+            }
+
+            is Instruction.Lw -> {
+                opStr = "lw"
+                argsStr = "${inst.register1}, [${inst.register2} + ${inst.immediate}]"
+            }
+
+            is Instruction.Sw -> {
+                opStr = "sw"
+                argsStr = "${inst.register1}, [${inst.register2} + ${inst.immediate}]"
+            }
+
+            is Instruction.Beq -> {
+                opStr = "beq"
+                argsStr = "${inst.register1}, ${inst.register2}, #${inst.immediate}"
+                // Calculate absolute target address for PC-relative branches!!
+                val target = (pc.toInt() + 1 + inst.immediate.toInt()) and 0xFFFF
+                val hexTarget = target.toString(16).uppercase().padStart(4, '0')
+                annotation = "// branch to ${mapFile.toMap().getOrDefault(target.toUShort(), null) ?: "0x$hexTarget" }"
+            }
+
+            is Instruction.Jalr -> {
+                opStr = "jalr"
+                argsStr = "${inst.register1}, ${inst.register2}, #${inst.immediate}"
+                if (inst.immediate != 0.toShort()) {
+                    val trapName = when (inst.immediate.toInt()) {
+                        1 -> "halt"
+                        15 -> "rti"
+                        else -> "syscall ${inst.immediate}"
+                    }
+                    annotation = "; trap: $trapName"
+                }
+            }
+
+            is Instruction.DataWord -> {
+                opStr = ".fill"
+                argsStr = "#${inst.value}"
+            }
+        }
+
+        val paddedOp = opStr.padEnd(8)
+        val paddedArgs = argsStr.padEnd(25)
+        val comment = if (annotation.isNotEmpty()) "  $annotation" else ""
+
+        return "${getLabelOrHex(pc)} | $paddedOp $paddedArgs$comment\n${"-".repeat(100)} "
+    }
+
 
     private suspend fun handleTrap(trapId: Short) {
         epc = pc

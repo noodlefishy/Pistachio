@@ -43,6 +43,8 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     fun passOne(): Map<String, UShort> {
         val layout = assignLayout()
         val absolute = generateSymbolTable(layout)
+        @Suppress("JSON_FORMAT_REDUNDANT")
+        File("out.map").writeText(Json { prettyPrint = true }.encodeToString(absolute))
         return absolute
     }
 
@@ -92,7 +94,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
                 ?: throw IllegalStateException("File layout not assigned for ${file.name} in $fileBaseAddresses")
             for (relocatable in obj.relocationTable) { // O(n^2) type shit
                 val targetAbsoluteAddress = labelAddresses[relocatable.name]
-                    ?: throw  LinkerException(file.absolutePath, relocatable.name,"Unresolved External Symbol")
+                    ?: throw LinkerException(file.absolutePath, relocatable.name, "Unresolved External Symbol")
                 val instructionAbsoluteAddress = fileBaseAddress + relocatable.offset
                 val indexInBuffer = instructionAbsoluteAddress - startAddress
                 val instruction = buffer[indexInBuffer.toInt()]

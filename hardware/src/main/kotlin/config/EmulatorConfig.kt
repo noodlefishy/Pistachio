@@ -1,11 +1,10 @@
 package io.cuttlefish.config
 
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.*
 
 @Serializable
 data class EmulatorConfig(
-    val clock: ClockConfig = ClockConfig(),
-    val debug: DebugConfig = DebugConfig()
+    val clock: ClockConfig = ClockConfig(), val debug: DebugConfig = DebugConfig()
 )
 
 @Serializable
@@ -27,6 +26,8 @@ data class DebugConfig(
     val printHistory: Boolean = false,
     val printHex16Dump: Boolean = true,
     val use16wordAddressInDump: Boolean = false,
+    val mapFile: String = "map.out",
+    val useMap: Boolean = true
 )
 
 object GlobalConfig {

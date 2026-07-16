@@ -112,7 +112,11 @@ private fun expandPaths(inputPaths: List<String>): List<String> {
 }
 
 private suspend fun runCpuSafely(
-    cpu: Cpu, memory: MemoryBus, shouldDump: Boolean, dumpBaseAddr: UShort, dumpLength: Int,
+    cpu: Cpu,
+    memory: MemoryBus,
+    shouldDump: Boolean,
+    dumpBaseAddr: UShort,
+    dumpLength: Int,
     onHaltOrCrash: (suspend (Exception?) -> Unit)? = null
 ) {
     var crashException: Exception? = null
@@ -326,11 +330,7 @@ private suspend fun handleHexDumpFile(args: List<String>) {
 
     // Set printToConsole to true ONLY if we aren't outputting to a file.
     val string = printHexDump(
-        memory,
-        baseAddress.toUShort(),
-        length.toInt(),
-        returnData = true,
-        printToConsole = outIndex == -1
+        memory, baseAddress.toUShort(), length.toInt(), returnData = true, printToConsole = outIndex == -1
     )!!
 
     if (outIndex != -1) {
@@ -349,7 +349,9 @@ private suspend fun generateDebugFiles(
 ) {
     if (map != null) {
         val json = Json { prettyPrint = true }
-        File("debug/$baseName.map").writeText(json.encodeToString(map.map { it.key to it.value.toString(16).uppercase().padStart(4, '0') }))
+        File("debug/$baseName.map").writeText(json.encodeToString(map.map {
+            it.key to it.value.toString(16).uppercase().padStart(4, '0')
+        }.toMap()))
     }
 
     // 2. Disassembled Instructions (.disasm)
@@ -436,11 +438,7 @@ private suspend fun throwRuntimeError(cpu: Cpu, e: Exception, baseAddr: UShort, 
 }
 
 suspend fun printHexDump(
-    memory: MemoryBus,
-    startAddress: UShort,
-    length: Int,
-    returnData: Boolean = false,
-    printToConsole: Boolean = true
+    memory: MemoryBus, startAddress: UShort, length: Int, returnData: Boolean = false, printToConsole: Boolean = true
 ): String? {
     val start = startAddress.toInt() and 0xFFFF
     val end = (start + length) and 0xFFFF

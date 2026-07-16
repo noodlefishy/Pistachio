@@ -23,16 +23,18 @@ fun printUsage() {
           -r     <file.bin>                    Run a pre-compiled machine code file.
           -os    <kernel.lx> <main.lx>         Compile and run an OS kernel with a userland program.
           -t     <file.lx>                     Tokenize and parse a file (prints instructions).
-          -d.    <file.lx>                     Parses and decodes a file.bin (prints instructions).
+          -d     <file.lx>                     Parses and decodes a file.bin (prints instructions).
           -x     <file.bin> [length]           Produces a static hex dump of compiled binary. 
+          
+        Options:
           -h, --help                           Show this help menu.
+          --dump                               Prints the hex dump to the console on completion.
+          --debug                              Generates full debug files based on output name:
+                                               (.disasm, .hex, .map.json, .regs). Works on crashes too!
           
         Examples:
-          lx -b main.lx math.lx -o program.bin
-          lx -i main.lx "program files/lib" 
-          lx -i main.lx "program files/lib" --dump
-          lx -x out.bin -1
-          lx -os kernel.lx main.lx
+          lx -i main.lx "program files/lib" -o program.bin --debug
+          lx -b main.lx math.lx -o program.bin --debug
         """.trimIndent()
     )
 }
@@ -110,10 +112,16 @@ private fun expandPaths(inputPaths: List<String>): List<String> {
 }
 
 private suspend fun runCpuSafely(
-    cpu: Cpu, memory: MemoryBus, shouldDump: Boolean, dumpBaseAddr: UShort, dumpLength: Int
+    cpu: Cpu, memory: MemoryBus, shouldDump: Boolean, dumpBaseAddr: UShort, dumpLength: Int,
+    onHaltOrCrash: (suspend (Exception?) -> Unit)? = null
 ) {
+    var crashException: Exception? = null
     Signal.handle(Signal("INT")) { _ ->
-        runBlocking { throwRuntimeError(cpu, Exception("Keyboard Interrupt"), dumpBaseAddr, dumpLength) }
+        runBlocking {
+            crashException = Exception("Keyboard Interrupt")
+            onHaltOrCrash?.invoke(crashException)
+            throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
+        }
     }
     try {
         while (!cpu.isHalted) {
@@ -122,7 +130,10 @@ private suspend fun runCpuSafely(
         if (shouldDump) {
             printHexDump(memory, dumpBaseAddr, dumpLength)
         }
+        onHaltOrCrash?.invoke(null) // Clean exit callback
     } catch (e: Exception) {
+        crashException = e
+        onHaltOrCrash?.invoke(crashException) // Crash callback
         throwRuntimeError(cpu, e, dumpBaseAddr, dumpLength)
     }
 }
@@ -158,12 +169,18 @@ private fun handleCompile(args: List<String>) {
 private fun handleBuild(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -b")
 
+    val isDebug = args.contains("--debug")
     val outIndex = args.indexOf("-o")
-    val inputPaths = if (outIndex != -1) args.subList(0, outIndex) else args
     val outPath = if (outIndex != -1 && outIndex + 1 < args.size) args[outIndex + 1] else "out.bin"
-    if (inputPaths.isEmpty()) throw IllegalArgumentException("No input files provided")
+    val baseName = outPath.substringBeforeLast(".")
 
-    val expandedPaths = expandPaths(inputPaths)
+    val cleanArgs = args.filterIndexed { index, arg ->
+        arg != "--debug" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
+    }
+
+    if (cleanArgs.isEmpty()) throw IllegalArgumentException("No input files provided")
+
+    val expandedPaths = expandPaths(cleanArgs)
     val objects = expandedPaths.map { path -> ObjectExcreter(getFileOrThrow(path)).generate() }
 
     val baseAddr = MemoryMapRanges.userLandRange.first // 0x3000
@@ -173,18 +190,24 @@ private fun handleBuild(args: List<String>) {
     val finalBinary = linker.passTwo(p1)
 
     File(outPath).writeText("@$baseAddr\n" + finalBinary.joinToString("\n"))
+
+    if (isDebug) {
+        runBlocking { generateDebugFiles(baseName, baseAddr.toUShort(), finalBinary.toList(), p1, null, null) }
+    }
 }
 
 private suspend fun handleCompileAndRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -i")
     val shouldDump = args.contains("--dump")
+    val isDebug = args.contains("--debug")
 
     val outIndex = args.indexOf("-o")
-    val outPath = if (outIndex != -1 && outIndex + 1 < args.size) args[outIndex + 1] else "out.hex"
+    val outPath = if (outIndex != -1 && outIndex + 1 < args.size) args[outIndex + 1] else "out.bin"
+    val baseName = outPath.substringBeforeLast(".")
 
     // Safe argument extraction
     val cleanArgs = args.filterIndexed { index, arg ->
-        arg != "--dump" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
+        arg != "--dump" && arg != "--debug" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
     }
 
     val expandedPaths = expandPaths(cleanArgs)
@@ -196,8 +219,13 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val p1 = linker.passOne()
     val machineCode = linker.passTwo(p1)
 
-    if (outIndex != -1) {
+    // Save binary if -o is specified, OR if we are generating debug files
+    if (outIndex != -1 || isDebug) {
         File(outPath).writeText("@$baseAddr\n" + machineCode.joinToString("\n"))
+    }
+
+    if (isDebug) {
+        generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), p1, null, null)
     }
 
     val memory = MemoryBus(PhysicalMemory())
@@ -207,18 +235,30 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     val cpu = Cpu(memory)
     cpu.pc = baseAddr.toUShort()
-    runCpuSafely(cpu, memory, shouldDump, baseAddr.toUShort(), machineCode.size)
+
+    // Inject callback to grab memory/registers the moment it halts or crashes!
+    runCpuSafely(cpu, memory, shouldDump, baseAddr.toUShort(), machineCode.size) {
+        if (isDebug) generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory)
+    }
 }
 
 private suspend fun handleRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -r")
     val shouldDump = args.contains("--dump")
-    val cleanArgs = args.filter { it != "--dump" }
+    val isDebug = args.contains("--debug")
+
+    val cleanArgs = args.filter { it != "--dump" && it != "--debug" }
 
     val file = getFileOrThrow(cleanArgs[0])
+    val baseName = file.nameWithoutExtension
+
     val lines = file.readLines().filter { it.isNotBlank() }
     val baseAddress = if (lines[0].startsWith("@")) lines[0].drop(1).toShort() else 0.toShort()
     val machineCode = (if (lines[0].startsWith("@")) lines.drop(1) else lines).map { it.trim().toUShort() }
+
+    if (isDebug) {
+        generateDebugFiles(baseName, baseAddress.toUShort(), machineCode, null, null, null)
+    }
 
     val memory = MemoryBus(PhysicalMemory())
     for ((index, word) in machineCode.withIndex()) {
@@ -227,7 +267,10 @@ private suspend fun handleRun(args: List<String>) {
 
     val cpu = Cpu(memory)
     cpu.pc = baseAddress.toUShort()
-    runCpuSafely(cpu, memory, shouldDump, baseAddress.toUShort(), machineCode.size)
+
+    runCpuSafely(cpu, memory, shouldDump, baseAddress.toUShort(), machineCode.size) {
+        if (isDebug) generateDebugFiles(baseName, baseAddress.toUShort(), machineCode, null, cpu, memory)
+    }
 }
 
 private suspend fun handleRunOs(args: List<String>) {
@@ -279,10 +322,64 @@ private suspend fun handleHexDumpFile(args: List<String>) {
         memory.write((baseAddress + index).toShort().toUShort(), word.toShort())
     }
     val length = machineCode.size.toUShort()
-    val string = printHexDump(memory, baseAddress.toUShort(), length.toInt(), true)!!
+
+    // Set printToConsole to true ONLY if we aren't outputting to a file.
+    val string = printHexDump(memory, baseAddress.toUShort(), length.toInt(), returnData = true, printToConsole = outIndex == -1)!!
 
     if (outIndex != -1) {
         File(outPath).writeText(string)
+        println("Hex dump saved to $outPath")
+    }
+}
+
+private suspend fun generateDebugFiles(
+    baseName: String,
+    baseAddr: UShort,
+    machineCode: List<UShort>,
+    map: Map<String, UShort>?,
+    cpu: Cpu?,
+    memory: MemoryBus?
+) {
+    // 1. Symbol Map (.map.json)
+    if (map != null) {
+        val json = Json { prettyPrint = true }
+        File("$baseName.map.json").writeText(json.encodeToString(map))
+    }
+
+    // 2. Disassembled Instructions (.disasm)
+    if (map != null || cpu == null) { // Prevents generating this twice per run
+        val decoded = Backend().decode(machineCode)
+        val disasmText = decoded.mapIndexed { index, inst ->
+            val addr = (baseAddr + index.toUInt()).toString(16).uppercase().padStart(4, '0')
+            "0x$addr | $inst"
+        }.joinToString("\n")
+        File("$baseName.disasm").writeText(disasmText)
+    }
+
+    // 3. Hex Dump of actual memory memory state (.hex)
+    if (memory != null) {
+        val hexString = printHexDump(memory, baseAddr, machineCode.size, returnData = true, printToConsole = false)!!
+        File("$baseName.hex").writeText(hexString)
+    }
+
+    // 4. Register State & Run History (.regs)
+    if (cpu != null) {
+        val regsText = StringBuilder()
+        val pcHex = "0x" + (cpu.pc.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+        regsText.append("--- Final CPU State ---\n")
+        regsText.append("PC  : ${cpu.pc} ($pcHex)\n")
+        regsText.append("Halted: ${cpu.isHalted}\n\n")
+
+        regsText.append("--- Registers ---\n")
+        cpu.registers.registerData.forEachIndexed { index, value ->
+            val regName = RegisterType.entries[index].name
+            val hexVal = "0x" + (value.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+            regsText.append("$regName : $value ($hexVal)\n")
+        }
+        regsText.append("\n--- CPU History (Last ${cpu.history.size} steps) ---\n")
+        cpu.history.forEach { regsText.append(it).append("\n") }
+
+        File("$baseName.regs").writeText(regsText.toString())
     }
 }
 
@@ -327,13 +424,13 @@ private suspend fun throwRuntimeError(cpu: Cpu, e: Exception, baseAddr: UShort, 
     System.err.println(" History of ${cpu.history.size} entries:")
     cpu.history.forEach { System.err.println("    $it") }
     System.err.println("==================================================\n")
-    printHexDump(cpu.mmu, baseAddr, dumpLength)
+    printHexDump(cpu.mmu, baseAddr, dumpLength, returnData = false, printToConsole = true)
     System.err.println("==================================================\n")
 
     exitProcess(1)
 }
 
-suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int, returnData: Boolean = false): String? {
+suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int, returnData: Boolean = false, printToConsole: Boolean = true): String? {
     val start = startAddress.toInt() and 0xFFFF
     val end = (start + length) and 0xFFFF
     var returnD = ""
@@ -362,7 +459,7 @@ suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int, r
     val line = "$borderLine\n$leftDashes$title$rightDashes\n$columnLabels\n$borderLine\n"
     returnD += line
 
-    System.err.print(line)
+    if (printToConsole) System.err.print(line)
 
     val alignedStart = start - (start % 8)
 
@@ -393,10 +490,10 @@ suspend fun printHexDump(memory: MemoryBus, startAddress: UShort, length: Int, r
         }
         val lineOutput = "$hexAddr: $wordsHex| $asciiChars"
         returnD += "$lineOutput\n"
-        System.err.println(lineOutput)
+        if (printToConsole) System.err.println(lineOutput)
     }
 
-    System.err.println(borderLine)
+    if (printToConsole) System.err.println(borderLine)
 
     return if (returnData) returnD else null
 }

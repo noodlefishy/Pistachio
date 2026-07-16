@@ -278,8 +278,7 @@ private suspend fun handleHexDumpFile(args: List<String>) {
     for ((index, word) in machineCode.withIndex()) {
         memory.write((baseAddress + index).toShort().toUShort(), word.toShort())
     }
-
-    val length = if (args.size >= 2) args[1].toUShort() else machineCode.size.toUShort()
+    val length = machineCode.size.toUShort()
     val string = printHexDump(memory, baseAddress.toUShort(), length.toInt(), true)!!
 
     if (outIndex != -1) {

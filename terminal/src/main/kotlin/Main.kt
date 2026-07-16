@@ -349,7 +349,7 @@ private suspend fun generateDebugFiles(
 ) {
     if (map != null) {
         val json = Json { prettyPrint = true }
-        File("debug/$baseName.map").writeText(json.encodeToString(map))
+        File("debug/$baseName.map").writeText(json.encodeToString(map.map { it.key to it.value.toString(16).uppercase().padStart(4, '0') }))
     }
 
     // 2. Disassembled Instructions (.disasm)

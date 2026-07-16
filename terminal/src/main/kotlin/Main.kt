@@ -36,7 +36,6 @@ fun printUsage() {
 }
 
 suspend fun main(args: Array<String>) {
-    println("xxx")
     if (args.isEmpty() || args[0] in listOf("-h", "--help", "help")) {
         printUsage()
         exitProcess(0)

@@ -1,69 +1,11 @@
 main:
     movi r6, [stack]
 
-    movi r1, [numbers]
-    lw   r1, [r1 + 0]       // r1 = 10
-    movi r2, [itoaBuffer1]
-    call itoa               // Buffer 1 now holds: 10
+	movi r1 5
+	movi r2 1
+	call lessThan
+	halt
 
-    //  Append " + " to Buffer 1
-    movi r1, [itoaBuffer1]  // Destination
-    movi r2, [plus_str]     // Source
-    call str_cat            // Buffer 1 now holds: "10 + "
-
-    // Convert 20 to string in Buffer 2 (temp)
-    movi r1, [numbers]
-    lw   r1, [r1 + 1]       // r1 = 20
-    movi r2, [itoaBuffer2]
-    call itoa               // Buffer 2 now holds: "20"
-
-    // Append Buffer 2 to Buffer 1
-    movi r1, [itoaBuffer1]
-    movi r2, [itoaBuffer2]
-    call str_cat            // Buffer 1 now holds: "10 + 20"
-
-    // Append " = " to Buffer 1
-    movi r1, [itoaBuffer1]
-    movi r2, [equals_str]
-    call str_cat            // Buffer 1 now holds: "10 + 20 = "
-
-    // Calculate 10 + 20 = 30
-    movi r1, [numbers]
-    lw   r2, [r1 + 0]       // r2 = 10
-    lw   r3, [r1 + 1]       // r3 = 20
-    add  r1, r2, r3         // r1 = 30
-
-    // Convert 30 to string in Buffer 2
-    movi r2, [itoaBuffer2]
-    call itoa               // Buffer 2 now holds: "30"
-
-    // Append Buffer 2 to Buffer 1
-    movi r1, [itoaBuffer1]
-    movi r2, [itoaBuffer2]
-    call str_cat            // Buffer 1 now holds: "10 + 20 = 30"
-
-    // Append newline
-    movi r1, [itoaBuffer1]
-    movi r2, [newline_str]
-    call str_cat            // Buffer 1 now holds: "10 + 20 = 30\n"
-
-    // Print the final masterpiece!!
-    movi r1, [itoaBuffer1]
-    call prints
-
-    halt
-
-// --- Data Section ---
-numbers:
-    .fill 15 // Number 1
-    .fill 20 // Number 2
-
-plus_str:    .fill " + "
-equals_str:  .fill " = "
-newline_str: .fill "\n"
-
-itoaBuffer1: .space 30
-itoaBuffer2: .space 10
 
 .space 30
 stack:

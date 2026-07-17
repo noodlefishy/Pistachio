@@ -27,6 +27,21 @@ void lessThan() { // if r1 is less than r2(r1 < r2)  , r1 = 0x8000 else r1 = 0
     r3 = pop();
 }
 
+/*
+if (n <= 1){
+        return n;
+    }
+    return nthFibonacci(n - 1) + nthFibonacci(n - 2);
+*/
+void fib() {
+	r2 = 1
+	lessThan()
+	if (r1 == 0) {
+		return
+	}
+	if
+}
+
 
 int main() {
 	r6 = 0;

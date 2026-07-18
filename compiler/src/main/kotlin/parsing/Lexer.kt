@@ -14,7 +14,7 @@ class Lexer(private val source: String) {
 
             for (rule in rules) {
                 val result = rule.match(source, index, line, column)
-
+                println(result)
                 if (result != null) {
                     matched = true
 

@@ -20,7 +20,7 @@ class Lexer(private val source: String) {
 
                     if (result.token !is SkipToken) {
                         tokens.add(result.token)
-                        // some work function
+                        advance(result.charactersConsumed)
                         break
                     }
                 }
@@ -31,5 +31,18 @@ class Lexer(private val source: String) {
             }
         }
         return tokens
+    }
+
+    private fun advance(count: Int) {
+        for (i in 0 until count) {
+            if (index >= source.length) break
+            val char = source[index]
+            index++
+
+            if (char == '\n') {
+                line++
+                column = 1
+            } else column++
+        }
     }
 }

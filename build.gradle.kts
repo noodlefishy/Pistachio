@@ -16,6 +16,14 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+sourceSets {
+    main {
+        kotlin {
+            exclude("**/C Assist/**")
+        }
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 }

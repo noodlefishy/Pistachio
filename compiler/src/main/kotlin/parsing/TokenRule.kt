@@ -1,6 +1,6 @@
 package io.cuttlefish.parsing
 
-interface Rule {
+interface TokenRule {
 
     fun match(source: String, index: Int, line: Int, column: Int): MatchResult?
 

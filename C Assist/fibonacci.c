@@ -34,21 +34,39 @@ if (n <= 1){
     return nthFibonacci(n - 1) + nthFibonacci(n - 2);
 */
 void fib() {
-	r2 = 1
-	lessThan()
-	if (r1 == 0) {
-		return
+  	push(r4);
+    push(r5);
+
+	r4 = r1;
+
+	r1 = r4;
+	r2 = 2;
+	lessThan();
+	if (r1 != 0) {
+		r1 = r4;
+		goto complete;
 	}
-	if
+	r1 = (uint16_t)(r4 - 1);
+	fib();
+	r5 = r1;
+
+    r1 = (uint16_t)(r4 - 2);
+    fib();
+
+    r1 = (uint16_t)(r5 + r1); // r1 = fib(n - 1) + fib(n - 2)
+
+	complete:
+		r5 = pop();
+		r4 = pop();
+
 }
 
 
 int main() {
 	r6 = 0;
 
-	r1 = 5;
-	r2 = 1;
-	lessThan();
+    r1 = 10;
+    fib();
 	printf("%d",r1);
 
 }

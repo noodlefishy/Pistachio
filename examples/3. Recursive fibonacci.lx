@@ -1,6 +1,6 @@
 main:
 	movi r6 [stack]
-	movi r1 5 // N
+	movi r1 10 // N
 	call fib
 	halt
 
@@ -14,7 +14,9 @@ fib:
     add r1 r4 r0
 	addi r2 r0 #2
 
+	push r7
 	call lessThan // L44 .c
+	pop r7
 
 	beq r1 r0 .completeRecursion // Goto L49
 

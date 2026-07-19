@@ -4,7 +4,7 @@ import io.cuttlefish.parsing.*
 
 class SkipTokenRule : TokenRule {
 
-    private val regularExpression = Regex("""^(\s+|//.*|/\*[\s\S]*?\*\|[\[\],])""")
+    private val regularExpression = Regex("""^(\s+|//.*|/\*[\s\S]*?\*/|[\[\],+])""")
 
     override fun match(
         source: String, index: Int, line: Int, column: Int

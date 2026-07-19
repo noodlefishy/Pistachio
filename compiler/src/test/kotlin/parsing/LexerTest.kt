@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 class LexerTest {
 
     @Test
-    fun testRegisterTokenizing() {
+    fun testRegisterTokenising() {
         val input = "r1 R6 r0"
         val lexer = Lexer(input)
         val tokens = lexer.tokenise()
@@ -27,7 +27,7 @@ class LexerTest {
     }
 
     @Test
-    fun testOpcodeAndDirectiveTokenizing() {
+    fun testOpcodeAndDirectiveTokenising() {
         val input = "add .fill movi .space"
         val lexer = Lexer(input)
         val tokens = lexer.tokenise()
@@ -48,7 +48,7 @@ class LexerTest {
     }
 
     @Test
-    fun testNumberAndMagicTokenizing() {
+    fun testNumberAndMagicTokenising() {
         // Tests decimal, positive hex, negative hex, and $SBIT magic value
         val input = "10 0x1A -0x10 \$SBIT"
         val lexer = Lexer(input)
@@ -74,7 +74,7 @@ class LexerTest {
     }
 
     @Test
-    fun testStringLiteralTokenizing() {
+    fun testStringLiteralTokenising() {
         val input = "\"Hello World\\n\""
         val lexer = Lexer(input)
         val tokens = lexer.tokenise()
@@ -87,7 +87,7 @@ class LexerTest {
     }
 
     @Test
-    fun testSymbolReferenceTokenizing() {
+    fun testSymbolReferenceTokenising() {
         val input = "my_var .local_symbol stack"
         val lexer = Lexer(input)
         val tokens = lexer.tokenise()
@@ -105,7 +105,7 @@ class LexerTest {
     }
 
     @Test
-    fun testComplexAssemblyLineTokenization() {
+    fun testComplexAssemblyLineTokenisation() {
         // Test an actual line of assembly with brackets, commas, plus signs, and offsets
         val input = "sw r2, [r6 + 10] // Save r2 to stack with offset"
         val lexer = Lexer(input)

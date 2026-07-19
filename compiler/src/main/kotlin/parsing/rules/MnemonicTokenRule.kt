@@ -1,14 +1,10 @@
 package io.cuttlefish.parsing.rules
 
-import io.cuttlefish.parsing.MnemonicToken
-import io.cuttlefish.parsing.TokenRule
+import io.cuttlefish.*
+import io.cuttlefish.parsing.*
 
 class MnemonicTokenRule : TokenRule {
-    private val validOpcodes = setOf(
-        "add", "addi", "nand", "lui", "lw", "sw", "beq", "jalr",
-        "movi", "lli", "push", "pop", "call", "ret", "syscall", "halt", "nop",
-        ".fill", ".space"
-    )
+    private val validOpcodes = Mnemonics.entries.map { it.name.lowercase() } + ".fill" + ".space"
 
     // Note this matches any word, opcode or not, we check later if it is valid
     private val regex = Regex("""^(?i)(\.?[a-z_]+)\b""")
@@ -22,8 +18,7 @@ class MnemonicTokenRule : TokenRule {
         if (lexeme !in validOpcodes) return null
 
         return TokenRule.MatchResult(
-            MnemonicToken(lexeme, line, column),
-            match.value.length
+            MnemonicToken(lexeme, line, column), match.value.length
         )
     }
 }

@@ -3,7 +3,11 @@ package io.cuttlefish.backend
 import io.cuttlefish.*
 import io.cuttlefish.instructions.*
 
-class Backend() {
+class Backend {
+    private enum class InstructionType {
+        Add, Addi, Nand, Lui, Lw, Sw, Beq, Jalr
+    }
+
     private fun registerEncode(start: Int, end: Int, reg: RegisterType): UShort {
         val regA = reg.ordinal
         val preMerge = (regA shl (start - (start - end))).toUShort()

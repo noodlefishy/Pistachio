@@ -4,7 +4,7 @@ import io.cuttlefish.*
 import io.cuttlefish.parsing.syntaxTree.*
 
 
-class MacroNot(val rA: RegisterType, line: Int, val rB: RegisterType, col: Int) : Statement(line, col) {
+class MacroNot(val rA: RegisterType, val rB: RegisterType, line: Int, col: Int) : Statement(line, col) {
     override val size = 1
     override fun generate(context: ParserContext, address: Short): List<Instruction> =
         listOf(Instruction.Nand(rA, rB, rB))
@@ -27,8 +27,7 @@ class MacroOr(val rA: RegisterType, val rB: RegisterType, val rC: RegisterType, 
             rB == rC -> {
                 // Optimisation: "or r1, r2, r2" is mathematically just a register copy!
                 listOf(
-                    Instruction.Nand(rA, rB, rB),
-                    Instruction.Nand(rA, rA, rA)
+                    Instruction.Nand(rA, rB, rB), Instruction.Nand(rA, rA, rA)
                 )
             }
 

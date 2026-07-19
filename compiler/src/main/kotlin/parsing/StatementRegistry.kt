@@ -21,6 +21,10 @@ object StatementRegistry {
         "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },
 
         // Macros
+        "or" to { r, line, col -> MacroOr(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
+        "and" to { r, line, col -> MacroAnd(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
+
+        "not" to { r, line, col -> MacroNot(r.nextReg(), r.nextReg(), line, col) },
         "mov" to { r, line, col -> MacroMov(r.nextReg(), r.nextReg(), line, col) },
         "clr" to { r, line, col -> MacroClr(r.nextReg(), line, col) },
         "bne" to { r, line, col -> MacroBne(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },

@@ -83,7 +83,8 @@ class DirectiveFillImmediate(val valueShort: Argument, line: Int, col: Int) : St
     }
 
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
-        return listOf(Instruction.DataWord((valueShort is ImmArg).toShort()))
+        val value = resolve(valueShort, context, address, RelocationType.ABS_16)
+        return listOf(Instruction.DataWord(value))
     }
 }
 

@@ -3,7 +3,6 @@
 package io.cuttlefish
 
 import io.cuttlefish.parsing.*
-import io.cuttlefish.Parser as P_Old // Required
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.config.*

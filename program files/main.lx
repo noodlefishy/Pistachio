@@ -3,7 +3,9 @@ main:
 
 	movi r1 5
 	movi r2 10
-	call lessThan
+
+	add r2 r1 r0
+
 	halt
 
 

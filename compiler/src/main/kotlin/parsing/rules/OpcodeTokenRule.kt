@@ -3,7 +3,7 @@ package io.cuttlefish.parsing.rules
 import io.cuttlefish.parsing.OpcodeToken
 import io.cuttlefish.parsing.TokenRule
 
-class OpcodeRule : TokenRule {
+class OpcodeTokenRule : TokenRule {
     private val validOpcodes = setOf(
         "add", "addi", "nand", "lui", "lw", "sw", "beq", "jalr",
         "movi", "lli", "push", "pop", "call", "ret", "syscall", "halt", "nop",

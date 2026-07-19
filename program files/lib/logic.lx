@@ -52,46 +52,46 @@ nor:
     nand r1 r1 r1
     ret
 
-// "improved"
-nor_2:
-    call or
-    call not
-    ret
-
-// not improved
-nor_2_2:
-    // push r7
-    sw r7, r6, 0
-    addi r6, r6, 1
-
-    // movi r7 or
-    lui r7 or
-    lli r7 or
-
-    // call or
-    jalr r7 r7 0
-
-    // pop or
-    addi r6, r6, -1
-    lw r7, r6, 0
-
-    // push r7
-    sw r7, r6, 0
-    addi r6, r6, 1
-
-    // movi r7
-    lui r7 not
-    lli r7 not
-
-    // call not
-    jalr r7 r7 0
-
-    // pop r7
-    addi r6, r6, -1
-    lw r7, r6, 0
-
-    // ret
-    jalr r0 r7 0
+//// "improved"
+//nor_2:
+//    call or
+//    call not
+//    ret
+//
+//// not improved
+//nor_2_2:
+//    // push r7
+//    sw r7, r6, 0
+//    addi r6, r6, 1
+//
+//    // movi r7 or
+//    lui r7 or
+//    lli r7 or
+//
+//    // call or
+//    jalr r7 r7 0
+//
+//    // pop or
+//    addi r6, r6, -1
+//    lw r7, r6, 0
+//
+//    // push r7
+//    sw r7, r6, 0
+//    addi r6, r6, 1
+//
+//    // movi r7
+//    lui r7 not
+//    lli r7 not
+//
+//    // call not
+//    jalr r7 r7 0
+//
+//    // pop r7
+//    addi r6, r6, -1
+//    lw r7, r6, 0
+//
+//    // ret
+//    jalr r0 r7 0
 
 not:
     nand r1 r1 r1

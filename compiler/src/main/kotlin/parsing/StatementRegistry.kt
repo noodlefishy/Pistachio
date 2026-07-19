@@ -18,7 +18,10 @@ object StatementRegistry {
         "beq" to { r, line, col -> RRIStatement("beq", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "jalr" to { r, line, col -> RRIStatement("jalr", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
 
+        "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },
+
         // Macros
+        "lli" to { r, line, col -> MacroLli(r.nextReg(), r.nextArg(), line, col) },
         "push" to { r, line, col -> MacroPush(r.nextReg(), line, col) },
         "pop" to { r, line, col -> MacroPop(r.nextReg(), line, col) },
         "movi" to { r, line, col -> MacroMovi(r.nextReg(), r.nextArg(), line, col) },
@@ -32,8 +35,8 @@ object StatementRegistry {
         ".fill" to { r, line, col ->
             if (r.peek() is StringLiteralToken) DirectiveFillString(r.nextString(), line, col)
             else DirectiveFillImmediate(r.nextArg(), line, col)
-        }
-    )
+        })
+
     @Suppress("Unused")
     fun register(opcode: String, builder: StatementBuilder) {
         builders[opcode.lowercase()] = builder

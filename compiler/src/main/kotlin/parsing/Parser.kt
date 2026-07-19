@@ -23,8 +23,12 @@ class Parser(val file: File, val baseAddress: Short) {
 
     fun decode(): List<Instruction> {
         // 1. Lexing
-        val lexer = Lexer(rawSource)
-        val tokens = lexer.tokenise()
+        val tokens = try {
+            val lexer = Lexer(rawSource)
+            lexer.tokenise()
+        } catch (e: LexerException) {
+            throwCompileError(e.message ?: "Lexer error", e.line, e.column)
+        }
 
         // 2. Syntax Analysis (Tokens -> AST Statements)
         val statements = mutableListOf<Statement>()

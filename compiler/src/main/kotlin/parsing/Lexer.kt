@@ -26,13 +26,18 @@ class Lexer(private val source: String) {
             }
             if (!matched) {
                 val errorCharacter = source[index]
-                throw IllegalArgumentException("Unexpected character '$errorCharacter' at line $line, column $column")
+                throw LexerException(
+                    line,
+                    column,
+                    "Unexpected character '$errorCharacter'"
+                )
             }
         }
         return tokens
     }
 
     private fun advance(count: Int) {
+        @Suppress("unused")
         for (i in 0 until count) {
             if (index >= source.length) break
             val char = source[index]

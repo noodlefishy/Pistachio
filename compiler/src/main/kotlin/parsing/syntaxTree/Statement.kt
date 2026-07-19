@@ -64,6 +64,24 @@ class RRIStatement(
     }
 }
 
+class RIStatement(
+    val op: String, val r1: RegisterType, val arg: Argument, line: Int, col: Int
+) : Statement(line, col) {
+    override val size = 1
+    override fun generate(context: ParserContext, address: Short): List<Instruction> {
+        // Resolve value: Linker handles ABS_LUI shifting for labels,
+        // literals are returned directly.
+        val value = resolve(arg, context, address, RelocationType.ABS_LUI)
+
+        return listOf(
+            when (op) {
+                "lui" -> Instruction.Lui(r1, value)
+                else -> throw Exception("Unknown RI opcode: $op")
+            }
+        )
+    }
+}
+
 // --- EXTENSIBLE MACROS ---
 
 class DirectiveFillString(val text: String, line: Int, col: Int) : Statement(line, col) {
@@ -89,7 +107,7 @@ class DirectiveFillImmediate(val valueShort: Argument, line: Int, col: Int) : St
 }
 
 
-class DirectiveSpace(val countArg: Argument, line: Int, col: Int) : Statement(line, col) {
+class DirectiveSpace(countArg: Argument, line: Int, col: Int) : Statement(line, col) {
     override val size: Int
 
     init {

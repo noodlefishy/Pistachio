@@ -2,7 +2,7 @@ package io.cuttlefish.parsing
 
 import io.cuttlefish.*
 
-data class OpcodeToken(
+data class MnemonicToken(
     override val lexeme: String, override val line: Int, override val column: Int
 ) : Token
 

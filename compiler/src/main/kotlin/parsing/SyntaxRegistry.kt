@@ -7,7 +7,7 @@ class SyntaxRegistry {
     val rules = mutableListOf<TokenRule>()
 
     init {
-        rules += CommentsAndWhiteSpaceTokenTokenRule()
+        rules += SkipTokenRule()
         rules += LabelTokenRule()
 
         val loader = ServiceLoader.load(TokenRule::class.java)

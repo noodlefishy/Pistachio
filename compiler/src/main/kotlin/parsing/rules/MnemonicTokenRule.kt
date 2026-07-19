@@ -1,9 +1,9 @@
 package io.cuttlefish.parsing.rules
 
-import io.cuttlefish.parsing.OpcodeToken
+import io.cuttlefish.parsing.MnemonicToken
 import io.cuttlefish.parsing.TokenRule
 
-class OpcodeTokenRule : TokenRule {
+class MnemonicTokenRule : TokenRule {
     private val validOpcodes = setOf(
         "add", "addi", "nand", "lui", "lw", "sw", "beq", "jalr",
         "movi", "lli", "push", "pop", "call", "ret", "syscall", "halt", "nop",
@@ -22,7 +22,7 @@ class OpcodeTokenRule : TokenRule {
         if (lexeme !in validOpcodes) return null
 
         return TokenRule.MatchResult(
-            OpcodeToken(lexeme, line, column),
+            MnemonicToken(lexeme, line, column),
             match.value.length
         )
     }

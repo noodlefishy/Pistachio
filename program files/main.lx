@@ -5,10 +5,10 @@ main:
 	movi r2 #10
 	push r1
 	push r2
-	 Call feq
+//	call feq
 
-//	movi r7 feq
-//	jalr r7 r7 0
+	movi r7 feq
+	jalr r7 r7 0
 
 //	beq r1 r2 #1
 //	beq r0 r0 fne
@@ -18,8 +18,8 @@ main:
 	halt
 
 
-.space 30
 stack:
+.space 30
 
 feq:
 	movi r1 [eq]

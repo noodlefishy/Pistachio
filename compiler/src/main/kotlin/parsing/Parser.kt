@@ -1,7 +1,6 @@
 package io.cuttlefish.parsing
 
 import io.cuttlefish.*
-import io.cuttlefish.parsing.macros.*
 import io.cuttlefish.parsing.syntaxTree.*
 import java.io.*
 
@@ -16,6 +15,7 @@ class Parser(val file: File, val baseAddress: Short) {
     val imports get() = ctx.imports
     val relocations get() = ctx.relocations
 
+    @Suppress("unused")
     private fun throwCompileError(message: String, line: Int, col: Int): Nothing {
         val rawText = rawLines.getOrElse(line - 1) { "" }
         throw CompilationException(file.name, SourceLine(line, rawText), message)

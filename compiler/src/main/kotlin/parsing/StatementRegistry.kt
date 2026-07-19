@@ -23,8 +23,8 @@ object StatementRegistry {
         "pop" to { r, line, col -> MacroPop(r.nextReg(), line, col) },
         "movi" to { r, line, col -> MacroMovi(r.nextReg(), r.nextArg(), line, col) },
         "call" to { r, line, col -> MacroCall(r.nextArg(), line, col) },
-        "ret" to { r, line, col -> MacroRet(line, col) },
-        "halt" to { r, line, col -> MacroHalt(line, col) },
+        "ret" to { _, line, col -> MacroRet(line, col) },
+        "halt" to { _, line, col -> MacroHalt(line, col) },
         "syscall" to { r, line, col -> MacroSyscall(r.nextArg(), line, col) },
 
         // Directives
@@ -34,7 +34,7 @@ object StatementRegistry {
             else DirectiveFillImmediate(r.nextArg(), line, col)
         }
     )
-
+    @Suppress("Unused")
     fun register(opcode: String, builder: StatementBuilder) {
         builders[opcode.lowercase()] = builder
     }

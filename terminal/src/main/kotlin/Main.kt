@@ -72,7 +72,7 @@ suspend fun main(args: Array<String>) {
     } catch (e: CompilationException) {
         System.err.println("\u001B[31m[COMPILER ERROR]\u001B[0m in file '${e.fileName}' on line ${e.sourceLine.lineNumber}:")
         System.err.println("  ${e.sourceLine.lineNumber.toString().padStart(4, ' ')} | ${e.sourceLine.rawText.trim()}")
-        System.err.println("  Error: ${e.message}!!")
+        System.err.println("  Error: ${e.errorMessage}!!")
         System.err.println()
         exitProcess(1)
     } catch (e: LinkerException) {

@@ -33,7 +33,7 @@ class Lexer(private val source: String) {
     }
 
     private fun advance(count: Int) {
-        for (i in 0 until count) {
+        for (_ in 0 until count) {
             if (index >= source.length) break
             val char = source[index]
             index++

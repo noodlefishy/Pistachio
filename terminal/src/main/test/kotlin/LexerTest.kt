@@ -1,3 +1,5 @@
+package io.cuttlefish
+
 import io.cuttlefish.MagicValues
 import io.cuttlefish.RegisterType
 import io.cuttlefish.parsing.ImmediateToken

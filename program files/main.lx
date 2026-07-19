@@ -2,7 +2,7 @@ main:
     movi r6, [stack]
 
 	movi r1 5
-	movi r2 1
+	movi r2 10
 	call lessThan
 	halt
 

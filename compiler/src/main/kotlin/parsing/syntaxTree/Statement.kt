@@ -1,9 +1,7 @@
 package io.cuttlefish.parsing.syntaxTree
 
-import io.cuttlefish.Instruction
-import io.cuttlefish.RegisterType
-import io.cuttlefish.linking.RelocationTable
-import io.cuttlefish.linking.RelocationType
+import io.cuttlefish.*
+import io.cuttlefish.linking.*
 
 
 abstract class Statement(val line: Int, val col: Int) {
@@ -77,12 +75,27 @@ class DirectiveFillString(val text: String, line: Int, col: Int) : Statement(lin
     }
 }
 
+class DirectiveFillImmediate(val valueShort: Argument, line: Int, col: Int) : Statement(line, col) {
+    override val size = 1
+
+    init {
+        if (valueShort !is ImmArg) throw Exception("Line $line: .space requires an immediate number!")
+    }
+
+    override fun generate(context: ParserContext, address: Short): List<Instruction> {
+        return listOf(Instruction.DataWord((valueShort is ImmArg).toShort()))
+    }
+}
+
+
 class DirectiveSpace(val countArg: Argument, line: Int, col: Int) : Statement(line, col) {
     override val size: Int
+
     init {
         if (countArg !is ImmArg) throw Exception("Line $line: .space requires an immediate number!")
         size = countArg.value.toInt()
     }
+
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
         return List(size) { Instruction.DataWord(0) }
     }

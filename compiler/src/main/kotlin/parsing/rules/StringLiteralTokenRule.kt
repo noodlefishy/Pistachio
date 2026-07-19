@@ -12,7 +12,7 @@ class StringLiteralTokenRule : TokenRule {
         if (match.range.first != 0) return null
 
 
-        val textContent = match.groupValues[1]
+        val textContent = match.groupValues[1].replace("\\n", "\n")
 
         return TokenRule.MatchResult(
             StringLiteralToken(textContent, match.value, line, column),

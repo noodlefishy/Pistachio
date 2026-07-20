@@ -39,6 +39,10 @@ abstract class ExecutionTestBase {
     protected fun assertRegister(cpu: Cpu, reg: RegisterType, expected: Int) {
         val actual = cpu.registers.registerData[reg.ordinal].toInt() and 0xFFFF
         val exp = expected and 0xFFFF
-        assertEquals(exp, actual, "Register $reg mismatch. Expected 0x${exp.toString(16)}, got 0x${actual.toString(16)}")
+        assertEquals(
+            exp,
+            actual,
+            "Register $reg mismatch. Expected 0x${exp.toString(16)}, got 0x${actual.toString(16)}"
+        )
     }
 }

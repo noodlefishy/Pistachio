@@ -3,7 +3,7 @@ package io.cuttlefish.backend
 import io.cuttlefish.*
 import io.cuttlefish.instructions.*
 
-class Backend {
+object Backend {
     private enum class InstructionType {
         Add, Addi, Nand, Lui, Lw, Sw, Beq, Jalr
     }
@@ -227,13 +227,4 @@ class Backend {
     fun encode(instructions: List<Instruction>): List<UShort> = instructions.map { encode(it) }
 
     fun decode(instructions: List<UShort>): List<Instruction> = instructions.map { decode(it) }
-}
-
-
-fun main() {
-//    val ins = Instruction.Add(RegisterType.RZ, RegisterType.PC, RegisterType.SP)
-//    val b = Backend()
-//    val s = b.encode(ins)
-//    val d = b.decode(s)
-//    println(d)
 }

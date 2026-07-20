@@ -168,7 +168,7 @@ private fun handleCompile(args: List<String>) {
     }
 
     val parse = Parser(file, 0).decode()
-    val machineCode = Backend().encode(parse)
+    val machineCode = Backend.encode(parse)
 
     val outFile = File(outPath)
     outFile.writeText(machineCode.joinToString("\n"))
@@ -290,8 +290,8 @@ private suspend fun handleRunOs(args: List<String>) {
     val kernelFile = getFileOrThrow(cleanArgs[0])
     val mainFile = getFileOrThrow(cleanArgs[1])
 
-    val kernelCode = Backend().encode(Parser(kernelFile, MemoryMapRanges.vectorRange.first.toShort()).decode())
-    val mainCode = Backend().encode(Parser(mainFile, MemoryMapRanges.userLandRange.first.toShort()).decode())
+    val kernelCode = Backend.encode(Parser(kernelFile, MemoryMapRanges.vectorRange.first.toShort()).decode())
+    val mainCode = Backend.encode(Parser(mainFile, MemoryMapRanges.userLandRange.first.toShort()).decode())
 
     val memory = MemoryBus(PhysicalMemory(65536))
 
@@ -312,7 +312,7 @@ private fun handleDecode(args: List<String>) {
     val linesData = file.readLines()
     val linesInfo = if (linesData[0].startsWith("@")) linesData.drop(1) else linesData
 
-    val parse = Backend().decode(linesInfo.map { it.toUShort() })
+    val parse = Backend.decode(linesInfo.map { it.toUShort() })
     parse.forEachIndexed { index, instruction -> println("$index | $instruction") }
 }
 
@@ -360,7 +360,7 @@ private suspend fun generateDebugFiles(
 
     // 2. Disassembled Instructions (.disasm)
     if (map != null || cpu == null) { // Prevents generating this twice per run
-        val decoded = Backend().decode(machineCode)
+        val decoded = Backend.decode(machineCode)
         val disasmText = decoded.mapIndexed { index, inst ->
             val addr = (baseAddr + index.toUInt()).toString(16).uppercase().padStart(4, '0')
             "0x$addr | $inst"

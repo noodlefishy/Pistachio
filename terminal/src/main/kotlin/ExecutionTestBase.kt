@@ -20,7 +20,7 @@ abstract class ExecutionTestBase {
 
         val parser = Parser(file, 0.toShort())
         val instructions = parser.decode()
-        val machineCode = Backend().encode(instructions)
+        val machineCode = Backend.encode(instructions)
 
         val memory = MemoryBus(PhysicalMemory())
         machineCode.forEachIndexed { i, word ->

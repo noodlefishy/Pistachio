@@ -1,7 +1,7 @@
 package io.cuttlefish.debugging
 
 import io.cuttlefish.*
-
+@Deprecated("", level = DeprecationLevel.ERROR)
 data class CpuState(
     val pcCurrent: UShort,
     val memoryCurrent: Short,

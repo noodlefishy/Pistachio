@@ -3,6 +3,7 @@ package io.cuttlefish.debugging
 
 import io.cuttlefish.*
 import io.cuttlefish.config.*
+import io.cuttlefish.debug.*
 import kotlinx.serialization.json.*
 import java.io.*
 
@@ -20,7 +21,7 @@ private val mapFile = if (GlobalConfig.debug.useMap) {
 private val maxLabelLength = (mapFile.values.maxOfOrNull { it.length } ?: 4).coerceAtLeast(4)
 
 
-fun formatInstruction(pc: UShort, inst: Instruction): String {
+fun formatInstruction(pc: UShort, inst: Instruction, delta: Debugger.RegisterDelta?): String {
     val opStr: String
     val argsStr: String
     var annotation = ""
@@ -87,8 +88,22 @@ fun formatInstruction(pc: UShort, inst: Instruction): String {
     val paddedOp = opStr.padEnd(8)
     val paddedArgs = argsStr.padEnd(25)
     val comment = if (annotation.isNotEmpty()) "  $annotation" else ""
+    val instructionColumn = "$paddedOp $paddedArgs$comment".padEnd(55)
+    val deltaColumn = if (delta != null) {
+        val oldHex = (delta.oldValue.toInt() and 0xFFFF).toString(16).padStart(4, '0').uppercase()
+        val newHex = (delta.newValue.toInt() and 0xFFFF).toString(16).padStart(4, '0').uppercase()
 
-    return "${getLabelOrHex(pc)} | $paddedOp $paddedArgs$comment\n${"-".repeat(100)} "
+        val oldDec = delta.oldValue.toString().padEnd(6)
+        val newDec = delta.newValue.toString().padEnd(6)
+
+        val regName = delta.registerType.name.padEnd(3)
+
+        "$regName (0x$oldHex / #$oldDec) <- 0x$newHex / #$newDec"
+    } else {
+        "No register change"
+    }
+
+    return "${getLabelOrHex(pc)} | $instructionColumn | $deltaColumn"
 }
 
 

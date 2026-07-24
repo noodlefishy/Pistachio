@@ -3,6 +3,7 @@ package io.cuttlefish.debug
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
+import io.cuttlefish.debugging.formatInstruction
 
 class Debugger(val cpu: Cpu, val memory: MemoryBus) {
     val symbolMap: Map<String, UShort> = mapOf()
@@ -49,10 +50,17 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus) {
         return null
     }
 
+    fun formatTrace(pc: UShort, inst: Instruction, delta: RegisterDelta?) {
+        formatInstruction(pc, inst,delta)
+    }
+
     private fun decipherLabel(label: UShort): String? {
         val labels: Map<UShort, String> =
             symbolMap.map { it.value to it.key }.toMap()
         return labels[label]
     }
 
+    suspend fun peekNextInstruction(): Instruction {
+        return Backend.decode(memory.read(cpu.pc).toUShort())
+    }
 }

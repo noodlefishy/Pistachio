@@ -7,7 +7,7 @@ import io.cuttlefish.debugging.*
 
 class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>,val baseAddress: UShort = 0x3000u) {
     val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
-    val history = ArrayDeque<String>(50)
+    val historyX = ArrayDeque<String>(50)
     val breakPoints = mutableSetOf<UShort>()
     var lastCommand = "s"
 
@@ -30,8 +30,8 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, U
         val delta = findRegisterDelta(preRegisters, postRegisters)
         val traceString = formatTrace(prePc, decodedInstruction, delta)
 
-        if (history.size >= 50) history.removeFirst()
-        history.addFirst(traceString)
+        if (historyX.size >= 50) historyX.removeFirst()
+        historyX.addFirst(traceString)
 
     }
 

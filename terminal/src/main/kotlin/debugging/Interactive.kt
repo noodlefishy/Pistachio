@@ -12,7 +12,7 @@ suspend fun Debugger.interactive() {
 
         // The "Empty Enter" trick: repeat the last command
         if (input.isEmpty()) {
-            input = lastCommand
+            continue
         } else {
             lastCommand = input
         }
@@ -27,7 +27,7 @@ suspend fun Debugger.interactive() {
                 for (i in 0 until count) {
                     if (cpu.isHalted) break
                     executeStep()
-                    println("\t${history.last()}")
+                    println("\t${historyX}")
                 }
             }
 
@@ -87,7 +87,7 @@ suspend fun Debugger.interactive() {
             "trace", "t" -> {
                 val count = arg?.toIntOrNull() ?: 10
                 println("--- Last $count Steps ---")
-                history.takeLast(count).forEach { println("  $it") }
+                historyX.takeLast(count).forEach { println("  $it") }
             }
 
             "mem", "x" -> {

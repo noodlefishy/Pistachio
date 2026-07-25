@@ -115,36 +115,6 @@ private fun expandPaths(inputPaths: List<String>): List<String> {
     return expanded
 }
 
-private suspend fun runCpuSafely(
-    cpu: Cpu,
-    memory: MemoryBus,
-    shouldDump: Boolean,
-    dumpBaseAddr: UShort,
-    dumpLength: Int,
-    onHaltOrCrash: (suspend (Exception?) -> Unit)? = null
-) {
-    var crashException: Exception?
-    Signal.handle(Signal("INT")) { _ ->
-        runBlocking {
-            crashException = Exception("Keyboard Interrupt")
-            onHaltOrCrash?.invoke(crashException)
-            throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
-        }
-    }
-    try {
-        while (!cpu.isHalted) {
-            cpu.tick()
-        }
-        if (shouldDump) {
-            printHexDump(memory, dumpBaseAddr, dumpLength)
-        }
-        onHaltOrCrash?.invoke(null) // Clean exit callback
-    } catch (e: Exception) {
-        crashException = e
-        onHaltOrCrash?.invoke(crashException) // Crash callback
-        throwRuntimeError(cpu, e, dumpBaseAddr, dumpLength)
-    }
-}
 
 // ---------------------------------------------------------
 // CLI Handlers

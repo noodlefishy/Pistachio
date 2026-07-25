@@ -202,11 +202,11 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     // Save binary if -o is specified, OR if we are generating debug files
     if (outIndex != -1 || isDebug) {
-        val inPath = if (isDebug) "debug/$outPath.bin" else "$outPath.bin"
+        val inPath = if (isDebug || isDebugF) "debug/$outPath.bin" else "$outPath.bin"
         File(inPath).writeText("@$baseAddr\n" + machineCode.joinToString("\n"))
     }
 
-    if (isDebug) {
+    if (isDebug || isDebugF) {
         generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), p1, null, null)
     }
 
@@ -220,7 +220,14 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val debugger = Debugger(cpu, memory, p1)
     // Inject callback to grab memory/registers the moment it halts or crashes!
     runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size) {
-        if (isDebug || isDebugF) generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory)
+        if (isDebug || isDebugF) generateDebugFiles(
+            baseName,
+            baseAddr.toUShort(),
+            machineCode.toList(),
+            null,
+            cpu,
+            memory
+        )
     }
 }
 
@@ -372,7 +379,7 @@ private suspend fun generateDebugFiles(
             disasmText.append("0x$hexAddr | $label ${dis.text}\n")
             currentAddr = (currentAddr + dis.wordCount.toUInt()).toUShort()
         }
-        File("$baseName.disasm").writeText(disasmText.toString())
+        File("debug/$baseName.disasm").writeText(disasmText.toString())
     }
 
     if (memory != null) {

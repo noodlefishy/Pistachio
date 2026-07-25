@@ -4,7 +4,7 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 C Assist/build/
-debug/
+debug_old/
 out.*
 
 ### IntelliJ IDEA ###

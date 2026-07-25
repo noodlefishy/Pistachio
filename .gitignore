@@ -4,7 +4,7 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 C Assist/build/
-debug_old/
+debug/
 out.*
 
 ### IntelliJ IDEA ###
@@ -46,3 +46,5 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/wrapper/gradle-wrapper.properties

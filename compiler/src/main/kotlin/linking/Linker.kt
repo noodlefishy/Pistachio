@@ -154,7 +154,7 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
             buffer[2] = 0xE380.toUShort()
         } else {
             // fallBack
-            val halt = Backend().encode(listOf(Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)))[0]
+            val halt = Backend.encode(listOf(Instruction.Jalr(RegisterType.R0, RegisterType.R0, immediate = 1)))[0]
             buffer[0] = halt
             buffer[1] = halt
             buffer[2] = halt

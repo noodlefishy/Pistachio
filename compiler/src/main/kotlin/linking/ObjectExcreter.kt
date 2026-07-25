@@ -9,7 +9,7 @@ class ObjectExcreter(val file: File) {
     fun generate(): ObjectFile {
         val parser = Parser(file, 0)
         val instructions: List<Instruction> = parser.decode()
-        val machineCode: List<UShort> = Backend().encode(instructions)
+        val machineCode: List<UShort> = Backend.encode(instructions)
         val symbols: MutableList<SymbolTable> = mutableListOf()
 
         for ((name: String, address: Short) in parser.symbolTable) {

@@ -12,7 +12,7 @@ class Cpu(val mmu: MemoryBus) {
     var pc: UShort = 0u // Program Counter
     var isHalted = false
     var isKernelMode = true        // Flag to track CPU privilege level
-    private val backend = Backend()
+    private val backend = Backend
 
     suspend fun tick() {
         if (isHalted) return

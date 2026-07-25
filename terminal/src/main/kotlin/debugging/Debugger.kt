@@ -5,16 +5,14 @@ import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.debugging.*
 
-class Debugger(val cpu: Cpu, val memory: MemoryBus) {
-    val symbolMap: Map<String, UShort> = mapOf()
-
-    private val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
+class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>) {
+    val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
     val history = ArrayDeque<String>(50)
     val breakPoints = mutableSetOf<UShort>()
 
     data class RegisterDelta(val registerType: RegisterType, val oldValue: Short, val newValue: Short)
 
-    private suspend fun executeStep() {
+    suspend fun executeStep() {
         if (cpu.isHalted) return
 
         val prePc = cpu.pc
@@ -40,9 +38,7 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus) {
         while (!cpu.isHalted) {
             if (cpu.pc in breakPoints) {
                 println(
-                    "\n[DEBUG] Breakpoint hit at ${
-                        decipherLabel(cpu.pc) ?: "0x${cpu.pc.toString(16).padStart(4, '0')}"
-                    }"
+                    "\n[DEBUG] Breakpoint hit at ${decipherLabel(cpu.pc)}"
                 )
             }
             executeStep()
@@ -63,9 +59,8 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus) {
         return formatInstruction(pc, inst, delta)
     }
 
-    private fun decipherLabel(label: UShort): String? {
-        val labels: Map<UShort, String> = symbolMap.map { it.value to it.key }.toMap()
-        return labels[label]
+    fun decipherLabel(label: UShort): String {
+        return addressToLabelMap[label] ?: "0x${cpu.pc.toString(16).padStart(4, '0')}"
     }
 
     suspend fun peekNextInstruction(): Instruction {

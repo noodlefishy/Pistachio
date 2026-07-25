@@ -21,7 +21,7 @@ private val mapFile = if (GlobalConfig.debug.useMap) {
 private val maxLabelLength = (mapFile.values.maxOfOrNull { it.length } ?: 4).coerceAtLeast(4)
 
 
-fun formatInstruction(pc: UShort, inst: Instruction, delta: Debugger.RegisterDelta?): String {
+fun Debugger.formatInstruction(pc: UShort, inst: Instruction, delta: Debugger.RegisterDelta?): String {
     val opStr: String
     val argsStr: String
     var annotation = ""
@@ -63,7 +63,7 @@ fun formatInstruction(pc: UShort, inst: Instruction, delta: Debugger.RegisterDel
             // Calculate absolute target address for PC-relative branches!!
             val target = (pc.toInt() + 1 + inst.immediate.toInt()) and 0xFFFF
             val hexTarget = target.toString(16).uppercase().padStart(4, '0')
-            annotation = "// branch to ${mapFile.toMap().getOrDefault(target.toUShort(), null) ?: "0x$hexTarget"}"
+            annotation = "// branch to ${addressToLabelMap.toMap().getOrDefault(target.toUShort(), null) ?: "0x$hexTarget"}"
         }
 
         is Instruction.Jalr -> {
@@ -103,11 +103,11 @@ fun formatInstruction(pc: UShort, inst: Instruction, delta: Debugger.RegisterDel
         "No register change"
     }
 
-    return "${getLabelOrHex(pc)} | $instructionColumn | $deltaColumn"
+    return "${decipherLabel(pc)} | $instructionColumn | $deltaColumn"
 }
 
 
-fun getLabelOrHex(address: UShort): String {
-    val label = mapFile[address] ?: address.toString(16).uppercase().padStart(4, '0')
-    return label.padEnd(maxLabelLength)
-}
+//fun getLabelOrHex(address: UShort): String {
+//    val label = mapFile[address] ?: address.toString(16).uppercase().padStart(4, '0')
+//    return label.padEnd(maxLabelLength)
+//}

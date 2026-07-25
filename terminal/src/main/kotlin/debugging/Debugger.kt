@@ -5,10 +5,12 @@ import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.debugging.*
 
-class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>) {
+class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>,val baseAddress: UShort = 0x3000u) {
     val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
     val history = ArrayDeque<String>(50)
     val breakPoints = mutableSetOf<UShort>()
+    var lastCommand = "s"
+
 
     data class RegisterDelta(val registerType: RegisterType, val oldValue: Short, val newValue: Short)
 
@@ -65,5 +67,13 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, U
 
     suspend fun peekNextInstruction(): Instruction {
         return Backend.decode(memory.read(cpu.pc).toUShort())
+    }
+
+    fun resolveTarget(target: String?): UShort? {
+        if (target == null) return null
+        if (target.startsWith("0x", ignoreCase = true)) {
+            return target.substring(2).toUIntOrNull(16)?.toUShort()
+        }
+        return symbolMap[target]
     }
 }

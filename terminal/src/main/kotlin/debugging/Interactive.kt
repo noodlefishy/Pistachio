@@ -1,6 +1,7 @@
 package io.cuttlefish.debugging
 
 import io.cuttlefish.*
+import io.cuttlefish.backend.*
 import io.cuttlefish.debug.*
 import kotlin.system.*
 
@@ -27,7 +28,8 @@ suspend fun Debugger.interactive() {
                 for (i in 0 until count) {
                     if (cpu.isHalted) break
                     executeStep()
-                    println("\t${historyX}")
+                    println("\t${historyX.first()}")
+
                 }
             }
 
@@ -104,6 +106,22 @@ suspend fun Debugger.interactive() {
                     }
                     val hexWord = (word.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
                     println("\t0x${addr.toString(16).uppercase()}: $hexWord")
+                }
+            }
+
+            "xvon" -> {
+                val target = resolveTarget(arg) ?: cpu.pc
+                val count = tokens.getOrNull(2)?.toIntOrNull() ?: 8
+                println("--- Von Numan Memory Dump ---")
+                for (i in 0 until count) {
+                    val addr = (target + i.toUInt()).toUShort()
+                    val word = try {
+                        memory.read(addr)
+                    } catch (_: Exception) {
+                        0.toShort()
+                    }
+                    val hexWord = (word.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+                    println("\t0x${addr.toString(16).uppercase()}: $hexWord //\t${Backend.decode(word.toUShort())}")
                 }
             }
 

@@ -179,6 +179,8 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input files for -i")
     val shouldDump = args.contains("--dump")
     val isDebug = args.contains("--debug")
+    val isDebugF = args.contains("--debugf")
+
 
     val outIndex = args.indexOf("-o")
     val outPath = if (outIndex != -1 && outIndex + 1 < args.size) args[outIndex + 1] else "out.bin"
@@ -186,7 +188,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     // Safe argument extraction
     val cleanArgs = args.filterIndexed { index, arg ->
-        arg != "--dump" && arg != "--debug" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
+        arg != "--dump" && arg != "--debug" && arg != "--debugf" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
     }
 
     val expandedPaths = expandPaths(cleanArgs)
@@ -218,7 +220,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val debugger = Debugger(cpu, memory, p1)
     // Inject callback to grab memory/registers the moment it halts or crashes!
     runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size) {
-        if (isDebug) generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory)
+        if (isDebug || isDebugF) generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory)
     }
 }
 

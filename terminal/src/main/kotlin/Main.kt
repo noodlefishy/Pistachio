@@ -284,10 +284,27 @@ private fun handleDecode(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -d")
     val file = getFileOrThrow(args[0])
     val linesData = file.readLines()
+    val baseAddr = if (linesData[0].startsWith("@")) linesData[0].drop(1).toUShort() else 0u
     val linesInfo = if (linesData[0].startsWith("@")) linesData.drop(1) else linesData
+    val machineCode = linesInfo.map { it.toUShort() }
 
-    val parse = Backend.decode(linesInfo.map { it.toUShort() })
-    parse.forEachIndexed { index, instruction -> println("$index | $instruction") }
+    val memory = MemoryBus(PhysicalMemory())
+    for ((index, word) in machineCode.withIndex()) {
+        memory.ram.internals[(baseAddr + index.toUInt()).toInt()] = word.toShort()
+    }
+
+    println("--- Disassembly of ${file.name} ---")
+    var currentAddr = baseAddr
+    val endAddr = (baseAddr + machineCode.size.toUInt()).toUShort()
+
+    runBlocking {
+        while (currentAddr < endAddr) {
+            val dis = SmartDisassembler.disassembleAt(memory, currentAddr)
+            val hexAddr = "0x" + currentAddr.toString(16).uppercase().padStart(4, '0')
+            println("$hexAddr | ${dis.text}")
+            currentAddr = (currentAddr + dis.wordCount.toUInt()).toUShort()
+        }
+    }
 }
 
 private suspend fun handleHexDumpFile(args: List<String>) {
@@ -333,13 +350,27 @@ private suspend fun generateDebugFiles(
     }
 
     // 2. Disassembled Instructions (.disasm)
-    if (map != null || cpu == null) { // Prevents generating this twice per run
-        val decoded = Backend.decode(machineCode)
-        val disasmText = decoded.mapIndexed { index, inst ->
-            val addr = (baseAddr + index.toUInt()).toString(16).uppercase().padStart(4, '0')
-            "0x$addr | $inst"
-        }.joinToString("\n")
-        File("debug/$baseName.disasm").writeText(disasmText)
+    if (map != null || cpu == null) {
+        // We need a fake memory bus if the cpu isn't provided
+        val memToUse = memory ?: MemoryBus(PhysicalMemory()).apply {
+            machineCode.forEachIndexed { i, w -> this.ram.internals[(baseAddr + i.toUInt()).toInt()] = w.toShort() }
+        }
+
+        val disasmText = StringBuilder()
+        var currentAddr = baseAddr
+        val endAddr = (baseAddr + machineCode.size.toUInt()).toUShort()
+
+        while (currentAddr < endAddr) {
+            val dis = SmartDisassembler.disassembleAt(
+                memToUse, currentAddr, map?.map { it.value to it.key }?.toMap() ?: emptyMap()
+            )
+            val hexAddr = currentAddr.toString(16).uppercase().padStart(4, '0')
+            val label = map?.entries?.find { it.value == currentAddr }?.key?.let { "$it:" }?.padEnd(12) ?: "".padEnd(12)
+
+            disasmText.append("0x$hexAddr | $label ${dis.text}\n")
+            currentAddr = (currentAddr + dis.wordCount.toUInt()).toUShort()
+        }
+        File("$baseName.disasm").writeText(disasmText.toString())
     }
 
     if (memory != null) {

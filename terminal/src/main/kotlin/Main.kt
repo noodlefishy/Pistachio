@@ -2,12 +2,13 @@
 
 package io.cuttlefish
 
-import io.cuttlefish.parsing.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.config.*
+import io.cuttlefish.debug.*
+import io.cuttlefish.debugging.*
 import io.cuttlefish.linking.*
-import io.cuttlefish.parsing.CompilationException
+import io.cuttlefish.parsing.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.*
 import kotlinx.serialization.json.*
@@ -214,9 +215,9 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     val cpu = Cpu(memory)
     cpu.pc = baseAddr.toUShort()
-
+    val debugger = Debugger(cpu, memory, p1)
     // Inject callback to grab memory/registers the moment it halts or crashes!
-    runCpuSafely(cpu, memory, shouldDump, baseAddr.toUShort(), machineCode.size) {
+    runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size) {
         if (isDebug) generateDebugFiles(baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory)
     }
 }
@@ -247,8 +248,10 @@ private suspend fun handleRun(args: List<String>) {
     val cpu = Cpu(memory)
     cpu.pc = baseAddress.toUShort()
 
-    runCpuSafely(cpu, memory, shouldDump, baseAddress.toUShort(), machineCode.size) {
-        if (isDebug) generateDebugFiles(baseName, baseAddress.toUShort(), machineCode, null, cpu, memory)
+    val debugger = Debugger(cpu, memory, mapFile.map { it.value to it.key }.toMap())
+
+    runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddress.toUShort(), machineCode.size) {
+        if (isDebug) generateDebugFiles(baseName, baseAddress.toUShort(), machineCode.toList(), null, cpu, memory)
     }
 }
 
@@ -273,7 +276,8 @@ private suspend fun handleRunOs(args: List<String>) {
     }
 
     val cpu = Cpu(memory)
-    runCpuSafely(cpu, memory, shouldDump, MemoryMapRanges.userLandRange.first.toUShort(), mainCode.size)
+    TODO("Run Cpu Safety is not yet implemented for enviroments with such little context")
+//    runCpuSafely(cpu, memory, shouldDump, MemoryMapRanges.userLandRange.first.toUShort(), mainCode.size)
 }
 
 private fun handleDecode(args: List<String>) {
@@ -473,4 +477,43 @@ suspend fun printHexDump(
     if (printToConsole) System.err.println(borderLine)
 
     return if (returnData) returnD else null
+}
+
+private suspend fun runCpuSafely(
+    cpu: Cpu,
+    memory: MemoryBus,
+    debugger: Debugger,
+    isInteractive: Boolean,
+    shouldDump: Boolean,
+    dumpBaseAddr: UShort,
+    dumpLength: Int,
+    onHaltOrCrash: (suspend (Exception?) -> Unit)? = null
+) {
+    var crashException: Exception? = null
+    Signal.handle(Signal("INT")) { _ ->
+        runBlocking {
+            crashException = Exception("Keyboard Interrupt")
+            onHaltOrCrash?.invoke(crashException)
+            throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
+        }
+    }
+
+    try {
+        if (isInteractive) {
+            println("[lx-dbg] Interactive Debugger attached")
+            debugger.interactive()
+        } else {
+            debugger.runContinuously()
+        }
+
+        if (shouldDump) {
+            printHexDump(memory, dumpBaseAddr, dumpLength)
+        }
+        onHaltOrCrash?.invoke(null)
+
+    } catch (e: Exception) {
+        crashException = e
+        onHaltOrCrash?.invoke(crashException)
+        throwRuntimeError(cpu, e, dumpBaseAddr, dumpLength)
+    }
 }

@@ -8,7 +8,7 @@ import kotlinx.serialization.json.*
 import java.io.*
 
 
-private val mapFile = if (GlobalConfig.debug.useMap) {
+val mapFile = if (GlobalConfig.debug.useMap) {
     try {
         Json.decodeFromString<Map<String, UShort>>(File(GlobalConfig.debug.mapFile).readText())
             .map { it.value to it.key }.toMap()

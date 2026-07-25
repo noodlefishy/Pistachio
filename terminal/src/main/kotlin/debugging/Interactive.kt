@@ -113,15 +113,23 @@ suspend fun Debugger.interactive() {
                 val target = resolveTarget(arg) ?: cpu.pc
                 val count = tokens.getOrNull(2)?.toIntOrNull() ?: 8
                 println("--- Von Numan Memory Dump ---")
-                for (i in 0 until count) {
-                    val addr = (target + i.toUInt()).toUShort()
-                    val word = try {
-                        memory.read(addr)
-                    } catch (_: Exception) {
-                        0.toShort()
-                    }
-                    val hexWord = (word.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
-                    println("\t0x${addr.toString(16).uppercase()}: $hexWord //\t${Backend.decode(word.toUShort())}")
+                var currentAddr = target
+                var instructionsCount = 0
+
+                while (instructionsCount < count && currentAddr <= 0xFFFFu) {
+                    val dis = SmartDisassembler.disassembleAt(memory, currentAddr, addressToLabelMap)
+                    val hexAddr = "0x" + currentAddr.toString(16).uppercase().padStart(4, '0')
+
+                    val rawHex = dis.rawWords.joinToString(" ") {
+                        (it.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
+                    }.padEnd(16)
+
+                    val label = addressToLabelMap[currentAddr]?.let { "$it:" }?.padEnd(12) ?: "".padEnd(12)
+
+                    println("\t$hexAddr: $rawHex // $label ${dis.text}")
+
+                    currentAddr = (currentAddr + dis.wordCount.toUInt()).toUShort()
+                    instructionsCount++
                 }
             }
 

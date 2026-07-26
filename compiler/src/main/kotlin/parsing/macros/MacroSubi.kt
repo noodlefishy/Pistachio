@@ -8,10 +8,10 @@ class MacroSubi(
 ) : Statement(line, col) {
 
     // The compiler automatically calculates the exact binary size!
-    override val size = if (rA != rB) 3 else 5
+    override val size = 1
 
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
 //        TODO("Should have error checking") // Should NOT  have error checking <3
-        return listOf(Instruction.Addi(rA, rB, (imm as ImmArg).value))
+        return listOf(Instruction.Addi(rA, rB, (-(imm as ImmArg).value).toShort()))
     }
 }

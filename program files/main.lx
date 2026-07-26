@@ -1,15 +1,14 @@
 main:
     movi r6, [stack]
 
-	movi r1 [s]
-	call readln
-	call prints
+	movi r1 [fillPlease]
+	movi r2 0x40
+	movi r3 #19
+	call mem_set
 	halt
 
 
 stack:
 .space 30
 
-s: .space 1
-// HELP!!! I AM TOO BIG AND'LL CAUSE EXTREMELY BAD UNDEFINED BEHAVIOUR!
-// 69 -> 0x3071
+fillPlease: .space #19

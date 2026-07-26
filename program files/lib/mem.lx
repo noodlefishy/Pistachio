@@ -1,0 +1,41 @@
+// Inputs: r1 = destination, r2 = value, r3 = count
+// Output: r1 = original destination pointer
+mem_set:
+	push r4
+	mov r4 r1
+
+	.set_loop:
+		beq r3 r0 .set_done
+		sw r2 [r1 + 0]
+		addi r1 r1 #1
+		subi r3 r3 #1
+
+		beq r0 r0 .set_loop
+	.set_done:
+		mov r1 r4
+		pop r4
+		ret
+
+
+// Inputs: r1 = destination, r2 = source, r3 = count
+// Output: r1 = original destination pointer
+mem_cpy:
+	push r4
+	push r5
+	mov r4 r1
+
+	.cpy_loop:
+		beq r3 r0 .cpy_done		// if count == 0 return
+		lw r5 [r2 + 0]			// read word
+		sw r5 [r1 + 0] 			// write to destination
+
+		addi r1 r1 #1
+		addi r2 r2 #1
+		subi r3 r3 #1
+		beq r0 r0 .cpy_loop
+
+	.cpy_done:
+		mov r1 r4
+		pop r5
+		pop r4
+		ret

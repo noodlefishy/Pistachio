@@ -221,12 +221,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     // Inject callback to grab memory/registers the moment it halts or crashes!
     runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size) {
         if (isDebug || isDebugF) generateDebugFiles(
-            baseName,
-            baseAddr.toUShort(),
-            machineCode.toList(),
-            null,
-            cpu,
-            memory
+            baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory, debugger
         )
     }
 }
@@ -260,7 +255,9 @@ private suspend fun handleRun(args: List<String>) {
     val debugger = Debugger(cpu, memory, mapFile.map { it.value to it.key }.toMap())
 
     runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddress.toUShort(), machineCode.size) {
-        if (isDebug) generateDebugFiles(baseName, baseAddress.toUShort(), machineCode.toList(), null, cpu, memory)
+        if (isDebug) generateDebugFiles(
+            baseName, baseAddress.toUShort(), machineCode.toList(), null, cpu, memory, debugger
+        )
     }
 }
 
@@ -349,7 +346,9 @@ private suspend fun generateDebugFiles(
     machineCode: List<UShort>,
     map: Map<String, UShort>?,
     cpu: Cpu?,
-    memory: MemoryBus?
+    memory: MemoryBus?,
+    debugger: Debugger? = null // <-- 1. Add optional debugger parameter
+
 ) {
     if (map != null) {
         val json = Json { prettyPrint = true }
@@ -402,6 +401,13 @@ private suspend fun generateDebugFiles(
             regsText.append("$regName : $value ($hexVal)\n")
         }
         File("debug/$baseName.regs").writeText(regsText.toString())
+    }
+
+    if (debugger != null && debugger.historyX.isNotEmpty()) {
+        val historyText = StringBuilder()
+        historyText.append("--- Execution History Trace (${debugger.historyX.size} steps) ---\n")
+        debugger.historyX.reversed().forEach { historyText.append(it).append("\n") }
+        File("debug/$baseName.history").writeText(historyText.toString())
     }
 }
 

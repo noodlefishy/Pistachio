@@ -5,9 +5,15 @@ import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.debugging.*
 
-class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>,val baseAddress: UShort = 0x3000u) {
+class Debugger(
+    val cpu: Cpu,
+    val memory: MemoryBus,
+    val symbolMap: Map<String, UShort>,
+    val baseAddress: UShort = 0x3000u
+) {
     val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
-    val historyX = ArrayDeque<String>(50)
+    val historySize = 1000
+    val historyX = ArrayDeque<String>(historySize)
     val breakPoints = mutableSetOf<UShort>()
     var lastCommand = "s"
 
@@ -28,9 +34,9 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, U
         val postRegisters = cpu.registers.registerData.copyOf()
 
         val delta = findRegisterDelta(preRegisters, postRegisters)
-        val traceString = formatTrace(prePc, decodedInstruction, delta)
+        val traceString = formatTrace(prePc, delta)
 
-        if (historyX.size >= 50) historyX.removeFirst()
+        if (historyX.size >= historySize) historyX.removeFirst()
         historyX.addFirst(traceString)
 
     }
@@ -57,8 +63,8 @@ class Debugger(val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, U
         return null
     }
 
-    fun formatTrace(pc: UShort, inst: Instruction, delta: RegisterDelta?): String {
-        return formatInstruction(pc, inst, delta)
+    suspend fun formatTrace(pc: UShort, delta: RegisterDelta?): String {
+        return formatInstruction(pc, delta)
     }
 
     fun decipherLabel(label: UShort): String {

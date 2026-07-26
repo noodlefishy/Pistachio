@@ -1,9 +1,10 @@
 main:
     movi r6, [stack]
 
-	call readln
+	call heap_init
 
-	movi r1 [string]
+	call readln_dynamic
+
 	call prints
 
     halt_l: halt
@@ -11,4 +12,6 @@ main:
 stack:
     .space 30
 .space 1
-string: .fill "Hello World\n"
+//string: .fill "Hello World\n"
+
+//You know... You remind me of somebody, a stinky somebody

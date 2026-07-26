@@ -47,3 +47,54 @@ readln:
 		pop  r5
 		pop  r4
 		ret
+
+// Reads arbitrary user input from STDIN and returns a dynamically allocated string.
+// Output: r1 = Pointer to heap-allocated string (Caller MUST call 'free' when done!)
+readln_dynamic:
+    push r7
+    push r4                 // r4 = Active Buffer Pointer
+    push r5                 // r5 = Current Length
+
+    // 1. Initial Capacity = 8 words
+    movi r5, 0              // Length = 0
+    movi r1, 8              // Initial Capacity = 8
+    call alloc              // r1 = newly allocated buffer pointer
+    mov  r4, r1             // Store buffer pointer in r4
+
+    push r4                 // Track initial capacity (8) on stack
+
+	.read_loop:
+		// 2. Poll Keyboard MMIO (0xFF02)
+		movi r2, 0xFF02
+		lw   r3, [r2 + 0]
+		beq  r3, r0, .read_loop
+
+		// 3. Read key character from 0xFF01
+		movi r2, 0xFF01
+		lw   r3, [r2 + 0]
+
+		// If Enter ('\n' = 10) was pressed, finish up!
+		movi r2, #10
+		beq  r3, r2, .readln_dynamic_done
+
+		// 4. Save character into buffer[length]
+		add  r2, r4, r5         // Address = buffer + length
+		sw   r3, [r2 + 0]
+		addi r5, r5, #1         // length++
+
+		// TODO: If length == capacity - 1, call alloc(capacity * 2),
+		//       mem_cpy, free(old), and update r4!
+
+		beq  r0, r0, .read_loop
+
+	.readln_dynamic_done:
+		// 5. Null-terminate the string at buffer[length]
+		add  r2, r4, r5
+		sw   r0, [r2 + 0]
+
+		pop  r2                 // Clean up capacity from stack
+		mov  r1, r4             // Return buffer pointer in r1!
+		pop  r5
+		pop  r4
+		pop  r7
+		ret

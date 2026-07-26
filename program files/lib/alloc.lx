@@ -11,70 +11,72 @@ heap_init:
 // Inputs: r1 = Requested payload size
 // Output: r1 = Pointer to allocated memory
 alloc:
-	push r4
-	push r5
+    push r7                 // <-- SAVE RETURN ADDRESS TO STACK!
+    push r4
+    push r5
 
-	addi r1 r1 #1		// Needed block size is PL + 1
+    // 1. Needed size = payload + 1
+    addi r1, r1, #1
 
-	// Even-ify block size
-	// So Bit 0 is always free to be used as a flag
-	movi r2 #1
-	and r2 r1 r2
-	beq r2 r0 .size_even
-	addi r1 r1 #1
+    // 2. Force block size to be EVEN
+    movi r2, 1
+    and  r2, r1, r2
+    beq  r2, r0, .size_even
+    addi r1, r1, #1
+	.size_even:
 
-	.size_even: movi r4 alloc_internal_heap_start
+		// 3. Scan heap from start
+		movi r4, alloc_internal_heap_start
 
 	.alloc_loop:
-		lw r5 [r4 + 0]
+		lw   r5, [r4 + 0]
+		beq  r5, r0, .out_of_memory
 
-		beq r5 r0 .out_of_memory
-
-		// check if block is used (r5 & 1)
-		movi r2 #1
-		and r2 r5 r2
-		bne r2 r0 .next_block
-
-
-		// r3 = r5 & 0xFFFE(-2) | extract block size
-		movi r2 #-2
-		and r3 r5 r2
-
-		blt r3 r1 .next_block		// if block_size (3) < needed_size (r1)
-
-		// Therefor this is the 'found free block'
-		// mark as used (needed_size(r1) | 1)
+		// Check if Used
 		movi r2, 1
-       	or   r2, r1, r2
-       	sw   r2, [r4 + 0]
+		and  r2, r5, r2
+		bne  r2, r0, .next_block
 
+		// Get block size
+		movi r2, -2
+		and  r3, r5, r2
+		blt  r3, r1, .next_block
+
+		// --- FOUND BLOCK ---
+		// Mark as USED
+		movi r2, 1
+		or   r2, r1, r2
+		sw   r2, [r4 + 0]
+
+		// Calculate remaining = block_size (r3) - needed_size (r1)
 		sub  r2, r3, r1
 
-		movi r3 #2
-		blt r2 r3 .done_alloc
+		// If remaining < 2, don't split
+		movi r3, 2
+		blt  r2, r3, .done_alloc
 
+		// --- SPLIT BLOCK ---
+		add  r3, r4, r1         // r3 = new split header address
+		sw   r2, [r3 + 0]       // write remaining free size into split header
 
-		// Create a new FREE header for the leftover space at (r4 + needed_size)
-		add r3 r4 r1
-		sw r2 [r3 0]
-
-
-	.next_block:
-		// Advance to next block pointer
-		// r4 = r4 + block_size (r3)
-		add r4 r4 r3
-		beq r0 r0 .alloc_loop
-
-	.out_of_memory:
-		clr r1
-		pop r5
-		pop r4
-		ret
+		beq  r0, r0, .done_alloc // Jump over .next_block to return!
 
 	.done_alloc:
-		addi r1 r4 #1
-		pop r5
-		pop r4
+		addi r1, r4, #1         // Return payload pointer (header + 1)
+		pop  r5
+		pop  r4
+		pop  r7                 // <-- RESTORE RETURN ADDRESS!
+		ret
+
+	.next_block:
+		add  r4, r4, r3         // Advance pointer by old block size
+		beq  r0, r0, .alloc_loop
+
+	.out_of_memory:
+		clr  r1                 // Return NULL
+		pop  r5
+		pop  r4
+		pop  r7                 // <-- RESTORE RETURN ADDRESS!
 		ret
 
 // Inputs: r1 = Pointer to payload from alloc

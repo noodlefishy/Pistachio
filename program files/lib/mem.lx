@@ -39,3 +39,82 @@ mem_cpy:
 		pop r5
 		pop r4
 		ret
+
+// Inputs: r1 = pointer 1, r2 = pointer 2, r3 = count
+// Output: r1 = 0 if identical, or difference if mismatched
+mem_cmp:
+    push r4
+    push r5
+
+	.cmp_loop:
+		beq  r3, r0, .cmp_equal // If we compared all words without mismatch, return 0
+		lw   r4, [r1 + 0]       // Word 1
+		lw   r5, [r2 + 0]       // Word 2
+
+		bne  r4, r5, .cmp_mismatch // If words differ, jump!
+
+		addi r1, r1, #1         // pointer_1++
+		addi r2, r2, #1         // pointer_2++
+		subi r3, r3, #1         // count--
+		beq  r0, r0, .cmp_loop
+
+	.cmp_mismatch:
+		sub  r1, r4, r5         // r1 = word1 - word2 (returns difference)
+		pop  r5
+		pop  r4
+		ret
+
+	.cmp_equal:
+		clr  r1                 // Return 0
+		pop  r5
+		pop  r4
+		ret
+
+// Inputs: r1 = dest, r2 = src, r3 = count
+// Output: r1 = original dest pointer
+mem_move:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1					// Save original dest in r4
+    mov  r5, r2					// Save original src in r5
+
+    // 1. Check if dest < src
+    call lessThan
+
+    // 2. If dest < src, we can safely copy forward!
+    bne  r1, r0, .copy_forward
+
+    // --- BACKWARD COPY (dest >= src) ---
+    // ptr = start + count - 1
+    add  r1, r4, r3
+    subi r1, r1, #1				// r1 = dest end pointer
+
+    add  r2, r5, r3
+    subi r2, r2, #1				// r2 = src end pointer
+
+	.backward_loop:
+		beq  r3, r0, .move_done
+		lw   r7, [r2 + 0]		// Read word from end of src
+		sw   r7, [r1 + 0]		// Write word to end of dest
+		subi r1, r1, #1			// Move pointers backward!
+		subi r2, r2, #1
+		subi r3, r3, #1
+		bne  r3, r0, .backward_loop
+		beq  r0, r0, .move_done
+
+	.copy_forward:
+		// Restore original args and let mem_cpy do the work!
+		mov  r1, r4				// r1 = dest
+		mov  r2, r5				// r2 = src
+		// r3 is still count!
+		call mem_cpy
+		// mem_cpy automatically returns original dest in r1!
+
+	.move_done:
+		mov  r1, r4
+		pop  r5
+		pop  r4
+		pop  r7
+		ret

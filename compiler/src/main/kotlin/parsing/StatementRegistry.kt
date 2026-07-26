@@ -21,6 +21,9 @@ object StatementRegistry {
         "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },
 
         // Macros
+        "blt" to { r, line, col -> MacroBlt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
+        "bgt" to { r, line, col -> MacroBgt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
+
         "or" to { r, line, col -> MacroOr(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
         "and" to { r, line, col -> MacroAnd(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
 

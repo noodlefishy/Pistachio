@@ -11,7 +11,7 @@ class MacroSubi(
     override val size = if (rA != rB) 3 else 5
 
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
-        TODO("Should have error checking")
+//        TODO("Should have error checking") // Should NOT  have error checking <3
         return listOf(Instruction.Addi(rA, rB, (imm as ImmArg).value))
     }
 }

@@ -105,7 +105,7 @@ class Parser(val file: File, val baseAddress: Short) {
         for (stmt in statements) {
             val generated = stmt.generate(ctx, currentGenAddress)
             finalInstructions.addAll(generated)
-            currentGenAddress = (currentGenAddress + stmt.size).toShort()
+            currentGenAddress = (currentGenAddress + generated.size).toShort()
         }
 
         return finalInstructions

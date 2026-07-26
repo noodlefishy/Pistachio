@@ -4,14 +4,19 @@ main:
 	call heap_init
 
 	call readln_dynamic
-
+	push r1
 	call prints
 
+	movi r1 [newline]
+	call prints
+	pop r1
+	call free
     halt_l: halt
 
 stack:
     .space 30
 .space 1
+newline: .fill "\n"
 //string: .fill "Hello World\n"
 
 //You know... You remind me of somebody, a stinky somebody

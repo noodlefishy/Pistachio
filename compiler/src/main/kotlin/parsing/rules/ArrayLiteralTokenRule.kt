@@ -8,7 +8,7 @@ import io.cuttlefish.parsing.syntaxTree.SymArg
 
 class ArrayLiteralTokenRule : TokenRule {
     // Matches anything enclosed in curly braces { ... }
-    private val regex = Regex("""^\{([^}]*)\}""")
+    private val regex = Regex("""^\{([^}]*)}""")
 
     override fun match(source: String, index: Int, line: Int, column: Int): TokenRule.MatchResult? {
         val match = regex.find(source.substring(index)) ?: return null

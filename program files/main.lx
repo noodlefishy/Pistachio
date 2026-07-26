@@ -10,11 +10,11 @@ main:
     addi r1, r1, #4     // dest = f1 + 2 (0x3027)
 
     movi r2, f1         // src  = f1     (0x3025)
-    movi r3, #8         // count = 6 words
+    movi r3, #12         // count = 6 words
 
     // 'mem_cpy' would corrupt '30' and '40' here!
     // 'mem_move' safely copies backwards from right-to-left!
-    call mem_cpy
+    call mem_mov
 
 
     halt_l: halt
@@ -23,13 +23,5 @@ stack:
     .space 30
 
 .space 2
-f1:
-	.fill 0x10
-	.fill 0x20
-	.fill 0x30
-	.fill 0x40
-	.fill 0x50
-	.fill 0x60
-	.fill 0x70
-	.fill 0x80
-    .space 8
+f1: .fill { 0x10 0x20 0x30 0x40 0x50 0x60 0x70 0x80}
+.space 8

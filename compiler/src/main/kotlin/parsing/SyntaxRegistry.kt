@@ -10,6 +10,7 @@ class SyntaxRegistry {
         // DO NOT ever change this order ✨
         rules += SkipTokenRule()
         rules += EndOfLineTokenRule()
+        rules += ArrayLiteralTokenRule()
         rules += StringLiteralTokenRule()
         rules += LabelTokenRule()
         rules += RegisterTokenRule()

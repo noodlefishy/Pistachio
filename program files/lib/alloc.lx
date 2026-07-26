@@ -77,5 +77,18 @@ alloc:
 		pop r4
 		ret
 
+// Inputs: r1 = Pointer to payload from alloc
+free:
+	beq r1 r0 .done
+
+	subi r1 r1 #1
+	lw r2 [r1 0]
+
+	movi r3 -2
+	and r2 r2 r3
+	sw r2 [r1 + 0]
+	
+	.done: ret
+
 .heap_start: .space 101
 .heap_end

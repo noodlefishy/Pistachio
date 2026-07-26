@@ -125,3 +125,25 @@ class DirectiveSpace(countArg: Argument, line: Int, col: Int) : Statement(line, 
         return List(size) { Instruction.DataWord(0) }
     }
 }
+
+class DirectiveFillArray(
+    val elements: List<Argument>,
+    line: Int,
+    col: Int
+) : Statement(line, col) {
+    override val size = elements.size
+
+    override fun generate(context: ParserContext, address: Short): List<Instruction> {
+        val instructions = mutableListOf<Instruction>()
+        var currentAddr = address
+
+        for (element in elements) {
+            // Resolve each element (numbers return as-is, labels get relocations registered!)
+            val value = resolve(element, context, currentAddr, RelocationType.ABS_16)
+            instructions.add(Instruction.DataWord(value))
+            currentAddr++
+        }
+
+        return instructions
+    }
+}

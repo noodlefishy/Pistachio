@@ -8,6 +8,12 @@ import io.cuttlefish.parsing.syntaxTree.SymArg
 
 class TokenReader(val tokens: List<Token>, var index: Int = 0) {
 
+    fun nextArray(): ArrayLiteralToken {
+        val t = tokens.getOrNull(index++)
+        if (t is ArrayLiteralToken) return t
+        throw SyntaxException("Expected Array Literal { ... }")
+    }
+
     fun hasNext(): Boolean = index < tokens.size
 
     fun peek(): Token? = tokens.getOrNull(index)

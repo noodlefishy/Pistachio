@@ -42,8 +42,11 @@ object StatementRegistry {
         // Directives
         ".space" to { r, line, col -> DirectiveSpace(r.nextArg(), line, col) },
         ".fill" to { r, line, col ->
-            if (r.peek() is StringLiteralToken) DirectiveFillString(r.nextString(), line, col)
-            else DirectiveFillImmediate(r.nextArg(), line, col)
+            when (r.peek()) {
+                is StringLiteralToken -> DirectiveFillString(r.nextString(), line, col)
+                is ArrayLiteralToken -> DirectiveFillArray(r.nextArray().elements, line, col)
+                else -> DirectiveFillImmediate(r.nextArg(), line, col)
+            }
         })
 
     @Suppress("Unused")

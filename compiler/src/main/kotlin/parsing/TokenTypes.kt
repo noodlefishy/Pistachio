@@ -1,6 +1,7 @@
 package io.cuttlefish.parsing
 
 import io.cuttlefish.*
+import io.cuttlefish.parsing.syntaxTree.Argument
 
 data class MnemonicToken(
     override val lexeme: String, override val line: Int, override val column: Int
@@ -26,6 +27,9 @@ data class StringLiteralToken(
     val text: String, override val lexeme: String, override val line: Int, override val column: Int
 ) : Token
 
+data class ArrayLiteralToken(
+    val elements: List<Argument>, override val lexeme: String, override val line: Int, override val column: Int
+) : Token
 
 // Special token to indicate comments or whitespace to be skipped
 object SkipToken : Token {

@@ -1,5 +1,6 @@
 package io.cuttlefish.parsing
 
+import MacroBlt
 import io.cuttlefish.parsing.macros.*
 import io.cuttlefish.parsing.syntaxTree.*
 

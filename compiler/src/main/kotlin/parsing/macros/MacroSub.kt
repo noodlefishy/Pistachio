@@ -1,28 +1,34 @@
 package io.cuttlefish.parsing.macros
 
-import io.cuttlefish.Instruction
-import io.cuttlefish.RegisterType
-import io.cuttlefish.parsing.syntaxTree.ParserContext
-import io.cuttlefish.parsing.syntaxTree.Statement
+import io.cuttlefish.*
+import io.cuttlefish.parsing.syntaxTree.*
 
 class MacroSub(
     val rA: RegisterType, val rB: RegisterType, val rC: RegisterType, line: Int, col: Int
 ) : Statement(line, col) {
 
-    // The compiler automatically calculates the exact binary size!
-    override val size = if (rA != rB) 3 else 5
+    override val size = when {
+        rA == rB && rB == rC -> 1 // "sub r1, r1, r1" is just "clr r1"!
+        rA != rB -> 3
+        else -> 5
+    }
 
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
-        return if (rA != rB) {
-            // Optimised non-destructive
-            listOf(
+        return when {
+            // Case 1: Self-subtraction (sub r1, r1, r1) -> clr r1
+            rA == rB && rB == rC -> listOf(
+                Instruction.Add(rA, RegisterType.R0, RegisterType.R0)
+            )
+
+            // Case 2: Distinct registers (sub r1, r2, r3) -> 3 instructions
+            rA != rB -> listOf(
                 Instruction.Nand(rA, rC, rC),
                 Instruction.Add(rA, rA, rB),
                 Instruction.Addi(rA, rA, 1)
             )
-        } else {
-            // Safe 5-instruction self-restoring sequence (rA == rB)
-            listOf(
+
+            // Case 3: Cumulative subtraction (sub r1, r1, r2) -> 5 instructions
+            else -> listOf(
                 Instruction.Nand(rC, rC, rC),
                 Instruction.Addi(rC, rC, 1),
                 Instruction.Add(rA, rA, rC),

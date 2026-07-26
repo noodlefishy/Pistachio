@@ -1,14 +1,35 @@
 main:
     movi r6, [stack]
 
-	movi r1 [fillPlease]
-	movi r2 0x40
-	movi r3 #19
-	call mem_set
-	halt
+    // 1. Fill 'f1' with numbers using mem_set or manual writes
+    // f1 contains: [ 10, 20, 30, 40, 50, 60, 70, 80 ]
 
+    // 2. SHIFT ARRAY RIGHT BY 2 WORDS (OVERLAPPING COPY!)
+    // We want to move 6 words from 'f1' to 'f1 + 2'
+    movi r1, f1
+    addi r1, r1, #4     // dest = f1 + 2 (0x3027)
+
+    movi r2, f1         // src  = f1     (0x3025)
+    movi r3, #8         // count = 6 words
+
+    // 'mem_cpy' would corrupt '30' and '40' here!
+    // 'mem_move' safely copies backwards from right-to-left!
+    call mem_cpy
+
+
+    halt_l: halt
 
 stack:
-.space 30
+    .space 30
 
-fillPlease: .space #19
+.space 2
+f1:
+	.fill 0x10
+	.fill 0x20
+	.fill 0x30
+	.fill 0x40
+	.fill 0x50
+	.fill 0x60
+	.fill 0x70
+	.fill 0x80
+    .space 8

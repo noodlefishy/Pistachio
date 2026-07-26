@@ -72,7 +72,7 @@ mem_cmp:
 
 // Inputs: r1 = dest, r2 = src, r3 = count
 // Output: r1 = original dest pointer
-mem_move:
+mem_mov:
     push r7
     push r4
     push r5
@@ -81,7 +81,10 @@ mem_move:
     mov  r5, r2					// Save original src in r5
 
     // 1. Check if dest < src
+
+    push r3
     call lessThan
+	pop r3
 
     // 2. If dest < src, we can safely copy forward!
     bne  r1, r0, .copy_forward
@@ -95,14 +98,14 @@ mem_move:
     subi r2, r2, #1				// r2 = src end pointer
 
 	.backward_loop:
-		beq  r3, r0, .move_done
+		beq  r3, r0, .mov_done
 		lw   r7, [r2 + 0]		// Read word from end of src
 		sw   r7, [r1 + 0]		// Write word to end of dest
 		subi r1, r1, #1			// Move pointers backward!
 		subi r2, r2, #1
 		subi r3, r3, #1
 		bne  r3, r0, .backward_loop
-		beq  r0, r0, .move_done
+		beq  r0, r0, .mov_done
 
 	.copy_forward:
 		// Restore original args and let mem_cpy do the work!
@@ -112,7 +115,7 @@ mem_move:
 		call mem_cpy
 		// mem_cpy automatically returns original dest in r1!
 
-	.move_done:
+	.mov_done:
 		mov  r1, r4
 		pop  r5
 		pop  r4

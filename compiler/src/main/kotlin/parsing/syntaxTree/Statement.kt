@@ -2,6 +2,7 @@ package io.cuttlefish.parsing.syntaxTree
 
 import io.cuttlefish.*
 import io.cuttlefish.linking.*
+import io.cuttlefish.parsing.*
 
 
 abstract class Statement(val line: Int, val col: Int) {
@@ -22,7 +23,15 @@ abstract class Statement(val line: Int, val col: Int) {
 
                 if (type == RelocationType.REL_7 && context.symbolTable.containsKey(scopedName)) {
                     val target = context.symbolTable[scopedName]!!
-                    return (target - (address + 1)).toShort()
+                    val offset = (target - (address + 1)).toShort()
+                    if (offset !in -64..63) {
+                        throw CompilationException(
+                            "???",
+                            SourceLine(line, "???"),
+                            "Branch target '$scopedName' at line $line is out of 7-bit range ($offset instructions). Use a JALR jump for long loops!\""
+                        )
+                    }
+                    return offset
                 }
 
                 if (!context.symbolTable.containsKey(scopedName)) {

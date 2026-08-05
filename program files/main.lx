@@ -1,46 +1,27 @@
 main:
-    movi r6, [stack]
+    movi r6, stack
+    call heap_init
 
-	movi r1 0xFF60
-	movi r2 a
+    // 1. Execute SIMD addition
+    movi r1, a
+    movi r2, b
+    movi r3, r
+    call padd
 
-	lw r3 [r2 + #0]
-	sw r3 [r1 + #0]
-	lw r3 [r2 + #1]
-	sw r3 [r1 + #1]
-	lw r3 [r2 + #2]
-	sw r3 [r1 + #2]
-	lw r3 [r2 + #3]
-	sw r3 [r1 + #3]
+    // 2. Format and print using printf
+    movi r1, fs
+    movi r4, r              // Use r4 to keep base pointer safe
+    lw   r2, [r4 + 0]       // arg1 = r[0] (15)
+    lw   r3, [r4 + 1]       // arg2 = r[1] (25)
+    call printf
 
-	movi r2 b
+    halt
 
-	lw r3 [r2 + #0]
-	sw r3 [r1 + #4]
-	lw r3 [r2 + #1]
-	sw r3 [r1 + #5]
-	lw r3 [r2 + #2]
-	sw r3 [r1 + #6]
-	lw r3 [r2 + #3]
-	sw r3 [r1 + #7]
+fs:    .fill "Result 0: %d, or 0x%x\n"
+a:     .fill {10 20 30 40}
+b:     .fill {5 5 5 5}
+r:     .space 4
 
-	movi r2 1
-
-	pre_pack: sw r2 [r1 + #8] // padd
-
-
-	lw r7 [r1 + #9]
-	lw r6 [r1 + #10]
-	lw r5 [r1 + #11]
-	lw r4 [r1 + #12]
-
-	post_assign:
-
-	halt
-
-
-a: .fill {10 20 30 40}
-b: .fill {5 5 5 5}
-
+// Place stack at the END of the file with plenty of room!
 stack:
-	.space 30
+    .space 100

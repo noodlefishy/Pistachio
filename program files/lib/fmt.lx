@@ -6,26 +6,26 @@ str_toi:
     push r5
     push r7
 
-    add  r4, r1, r0     // r4 = Active string pointer
-    movi r5, #0         // r5 = Running sum (starts at 0)
+    add  r4 r1 r0     // r4 = Active string pointer
+    movi r5 #0         // r5 = Running sum (starts at 0)
 
 	.toi_loop:
-		lw   r3, [r4 + 0]   // Load current character
-		beq  r3, r0, .toi_done // Stop if we hit the null-terminator
+		lw   r3 [r4 + 0]   // Load current character
+		beq  r3 r0 .toi_done // Stop if we hit the null-terminator
 
-		addi r3, r3, #-48   // Convert ASCII char ('0'-'9') to digit (0-9)
+		addi r3 r3 #-48   // Convert ASCII char ('0'-'9') to digit (0-9)
 
-		add  r1, r5, r0     // r1 = running sum
-		movi r2, #10        // r2 = multiplier
+		add  r1 r5 r0     // r1 = running sum
+		movi r2 #10        // r2 = multiplier
 		call multiply       // r1 = r5 * 10!!
 
-		add  r5, r1, r3     // r5 = (running_sum * 10) + digit
+		add  r5 r1 r3     // r5 = (running_sum * 10) + digit
 
-		addi r4, r4, #1     // Advance string pointer
+		addi r4 r4 #1     // Advance string pointer
 		beq r0 r0 .toi_loop
 
 	.toi_done:
-		add  r1, r5, r0     // Move final integer to r1 for return
+		add  r1 r5 r0     // Move final integer to r1 for return
 		pop  r7
 		pop  r5
 		pop  r4
@@ -38,42 +38,42 @@ itoa:
     push r7
     push r2             // Save the original buffer pointer on the stack to return it!
 
-    add  r4, r2, r0     // r4 = Active buffer writer pointer
+    add  r4 r2 r0     // r4 = Active buffer writer pointer
 
     // Check if the integer is negative
-    movi r5, $SBIT
-    nand r5, r1, r5
-    nand r5, r5, r5
-    beq  r5, r0, .extract_digits
+    movi r5 $SBIT
+    nand r5 r1 r5
+    nand r5 r5 r5
+    beq  r5 r0 .extract_digits
 
     // It is negative!! Write '-' and negate r1
-    movi r5, #45
-    sw   r5, [r4 + 0]
-    addi r4, r4, #1
+    movi r5 #45
+    sw   r5 [r4 + 0]
+    addi r4 r4 #1
 
     // Negate r1
-    nand r1, r1, r1
-    addi r1, r1, #1
+    nand r1 r1 r1
+    addi r1 r1 #1
 
 	.extract_digits:
 		push r4             // <-- FIXED! Save digit-start pointer to the STACK!!
 
 	.extract_loop:
-		movi r2, #10
+		movi r2 #10
 		call divide
 
-		addi r3, r3, #48
-		sw   r3, [r4 + 0]
-		addi r4, r4, #1
+		addi r3 r3 #48
+		sw   r3 [r4 + 0]
+		addi r4 r4 #1
 
-		beq  r1, r0, .extraction_done
+		beq  r1 r0 .extraction_done
 		beq r0 r0    .extract_loop
 
 	.extraction_done:
-		sw   r0, [r4 + 0]   // Null-terminate
+		sw   r0 [r4 + 0]   // Null-terminate
 
-		add  r2, r4, r0
-		addi r2, r2, #-1    // r2 = End Pointer
+		add  r2 r4 r0
+		addi r2 r2 #-1    // r2 = End Pointer
 
 		pop  r1             // <-- FIXED! Pop digit-start pointer safely into r1!!
 		call str_rev
@@ -85,30 +85,30 @@ itoa:
 		ret
 
 
-// Inputs: r1 (Start Pointer), r2 (End Pointer)
+// Inputs: r1 (Start Pointer) r2 (End Pointer)
 str_rev:
     push r4
     push r5
     push r7
 
 	.rev_loop:
-		// Is r1 < r2? If not, we are finished!!
+		// Is r1 < r2? If not we are finished!!
 		push r1
 		push r2
 		call lessThan       // Returns 1 in r1 if r1 < r2
-		add  r3, r1, r0
+		add  r3 r1 r0
 		pop  r2
 		pop  r1
 
-		beq  r3, r0, .rev_done // Exit if pointers have crossed
+		beq  r3 r0 .rev_done // Exit if pointers have crossed
 
-		lw   r4, [r1 + 0]   // r4 = *start
-		lw   r5, [r2 + 0]   // r5 = *end
-		sw   r5, [r1 + 0]   // Swap them!!
-		sw   r4, [r2 + 0]
+		lw   r4 [r1 + 0]   // r4 = *start
+		lw   r5 [r2 + 0]   // r5 = *end
+		sw   r5 [r1 + 0]   // Swap them!!
+		sw   r4 [r2 + 0]
 
-		addi r1, r1, #1     // start++
-		addi r2, r2, #-1    // end--
+		addi r1 r1 #1     // start++
+		addi r2 r2 #-1    // end--
 		beq r0 r0    .rev_loop
 
 	.rev_done:
@@ -116,7 +116,7 @@ str_rev:
 		pop  r5
 		pop  r4
 		ret
-// Inputs: r1 (16-bit Integer), r2 (Destination buffer pointer)
+// Inputs: r1 (16-bit Integer) r2 (Destination buffer pointer)
 // Outputs: r1 (Original pointer to the start of the buffer)
 itox:
     push r4
@@ -124,56 +124,56 @@ itox:
     push r7
     push r2             // Save original buffer pointer for return!!
 
-    add  r4, r2, r0     // r4 = Active buffer writer pointer
+    add  r4 r2 r0     // r4 = Active buffer writer pointer
 
-    // Check if negative ... (omit for itox, keep for itoa)
-    // Now, push the start of the digits (r4) onto the stack to protect it!!
+    // Check if negative ... (omit for itox keep for itoa)
+    // Now push the start of the digits (r4) onto the stack to protect it!!
     push r4
 
 	.itox_loop:
-		// r1 = r1 / 16 (Quotient), r3 = r1 % 16 (Remainder)
-		movi r2, #16
+		// r1 = r1 / 16 (Quotient) r3 = r1 % 16 (Remainder)
+		movi r2 #16
 		call divide
 
 		// Convert Remainder (r3) to Hex ASCII
-		movi r5, #10
+		movi r5 #10
 
 		// Check if Remainder < 10
 		push r1             // Protect Quotient!
 		push r2
 		push r3             // Protect Remainder!
-		add  r1, r3, r0
-		add  r2, r5, r0
+		add  r1 r3 r0
+		add  r2 r5 r0
 		call lessThan       // Returns 0x8000 in r1 if Remainder < 10
-		add  r5, r1, r0
+		add  r5 r1 r0
 		pop  r3             // Restore Remainder!
 		pop  r2
 		pop  r1
 
-		beq  r5, r0, .itox_alpha
+		beq  r5 r0 .itox_alpha
 
 	.itox_digit:
-		addi r3, r3, #48    // Convert 0-9 to '0'-'9'
+		addi r3 r3 #48    // Convert 0-9 to '0'-'9'
 		beq r0 r0  .itox_write
 
 	.itox_alpha:
-		addi r3, r3, #55    // Convert 10-15 to 'A'-'F' (10 + 55 = 65 = 'A')
+		addi r3 r3 #55    // Convert 10-15 to 'A'-'F' (10 + 55 = 65 = 'A')
 
 	.itox_write:
-		sw   r3, [r4 + 0]   // Write character to buffer
-		addi r4, r4, #1     // Advance writer pointer
+		sw   r3 [r4 + 0]   // Write character to buffer
+		addi r4 r4 #1     // Advance writer pointer
 
-		// If Quotient (r1) is not 0, keep extracting!!
-		beq  r1, r0, .itox_done
+		// If Quotient (r1) is not 0 keep extracting!!
+		beq  r1 r0 .itox_done
 		beq r0 r0    .itox_loop
 
 	.itox_done:
-		sw   r0, [r4 + 0]   // Null-terminate the string
+		sw   r0 [r4 + 0]   // Null-terminate the string
 
-		// Now, prepare to reverse!
+		// Now prepare to reverse!
 		// End of digits is r4 - 1
-		add  r2, r4, r0
-		addi r2, r2, #-1    // r2 = End Pointer
+		add  r2 r4 r0
+		addi r2 r2 #-1    // r2 = End Pointer
 
 		// Pop the digit-start pointer directly off the stack into r1!!
 		pop  r1             // r1 = Start Pointer (safe from r7 corruption!!)
@@ -188,55 +188,173 @@ itox:
 
 
 
-// Inputs: r1 (Pointer to null-terminated Hex string, e.g. "1A4F")
+// Inputs: r1 (Pointer to null-terminated Hex string e.g. "1A4F")
 // Outputs: r1 (Converted 16-bit Integer)
 str_tox:
     push r4
     push r5
     push r7
 
-    add  r4, r1, r0     // r4 = Active string pointer
-    movi r5, #0         // r5 = Running sum (starts at 0)
+    add  r4 r1 r0     // r4 = Active string pointer
+    movi r5 #0         // r5 = Running sum (starts at 0)
 
 	.tox_loop:
-		lw   r3, [r4 + 0]   // Load current character
-		beq  r3, r0, .tox_done // Stop if null-terminator
+		lw   r3 [r4 + 0]   // Load current character
+		beq  r3 r0 .tox_done // Stop if null-terminator
 
-		movi r2, #65        // ASCII 'A'
+		movi r2 #65        // ASCII 'A'
 
 		// Check if char < 'A' (Meaning it is a digit '0'-'9')
 		push r1
 		push r2
-		add  r1, r3, r0
+		add  r1 r3 r0
 		call lessThan       // Returns 1 in r1 if char < 'A'
-		add  r7, r1, r0
+		add  r7 r1 r0
 		pop  r2
 		pop  r1
 
-		beq  r7, r0, .tox_alpha
+		beq  r7 r0 .tox_alpha
 
 	.tox_digit:
-		addi r3, r3, #-48   // Convert '0'-'9' back to 0-9
+		addi r3 r3 #-48   // Convert '0'-'9' back to 0-9
 		beq r0 r0   .tox_accumulate
 
 	.tox_alpha:
-		addi r3, r3, #-55   // Convert 'A'-'F' back to 10-15
+		addi r3 r3 #-55   // Convert 'A'-'F' back to 10-15
 
 	.tox_accumulate:
 		// Multiply running sum (r5) by 16 using 4 left shifts!!
-		add  r5, r5, r5
-		add  r5, r5, r5
-		add  r5, r5, r5
-		add  r5, r5, r5
+		add  r5 r5 r5
+		add  r5 r5 r5
+		add  r5 r5 r5
+		add  r5 r5 r5
 
-		add  r5, r5, r3     // r5 = (Running Sum * 16) + Value
+		add  r5 r5 r3     // r5 = (Running Sum * 16) + Value
 
-		addi r4, r4, #1     // Advance string pointer
+		addi r4 r4 #1     // Advance string pointer
 		beq r0 r0   .tox_loop
 
 	.tox_done:
-		add  r1, r5, r0     // Move final integer to r1 for return
+		add  r1 r5 r0     // Move final integer to r1 for return
 		pop  r7
 		pop  r5
 		pop  r4
 		ret
+
+
+// =========================================================
+// Subroutine: printf
+// Inputs:     r1 = Pointer to format string
+//             r2 = Argument 1 (%d %x %s %c)
+//             r3 = Argument 2 (%d %x %s %c)
+// =========================================================
+printf:
+    push r7
+    push r4                 // r4 = Format String Pointer
+    push r5                 // r5 = Argument Stack Pointer
+
+    mov  r4 r1             // r4 = format string pointer
+
+    // Save arguments r2 and r3 onto the stack
+    push r2                 // [SP - 2] = arg1
+    push r3                 // [SP - 1] = arg2
+    mov  r5 r6
+    subi r5 r5 #2         // r5 now points to arg1 on the stack!
+
+	.printf_loop:
+        lw   r1 [r4 + 0]       // Read character from format string
+
+        // --- LONG FORWARD BRANCH FIX ---
+        // If r1 != 0 (not null-terminator) skip over the 2-word absolute jump!
+        bne  r1 r0 .not_null_term
+        movi r7 .printf_done
+        jalr r0 r7 0          // Absolute jump across any distance in RAM!
+    .not_null_term:
+
+        movi r2 37             // ASCII 37 = '%'
+        beq  r1 r2 .parse_specifier
+
+        // Normal Character -> Print directly to Console MMIO (0xFF00)
+        movi r2 0xFF00
+        sw   r1 [r2 + 0]
+
+        // Absolute loop jump back to top of printf_loop
+        movi r7 .next_char
+        jalr r0 r7 0
+
+	.parse_specifier:
+		addi r4 r4 #1         // Advance past '%'
+		lw   r1 [r4 + 0]       // Read specifier character ('d' 'x' 's' 'c' '%')
+
+		// Read the current argument from our argument stack pointer (r5)
+		lw   r2 [r5 + 0]       // r2 = argument value
+		addi r5 r5 #1         // Advance argument pointer to next argument!
+
+		// Check specifiers:
+		movi r3 100            // ASCII 100 = 'd'
+		beq  r1 r3 .print_dec
+
+		movi r3 120            // ASCII 120 = 'x'
+		beq  r1 r3 .print_hex
+
+		movi r3 115            // ASCII 115 = 's'
+		beq  r1 r3 .print_str
+
+		movi r3 99             // ASCII 99 = 'c'
+		beq  r1 r3 .print_char
+
+		movi r3 37             // ASCII 37 = '%'
+		beq  r1 r3 .print_percent
+
+		beq  r0 r0 .next_char // Unknown specifier skip!
+
+	.print_dec:
+		mov  r1 r2             // r1 = argument integer
+		movi r2 printf_buf     // r2 = scratch buffer
+		call itoa               // Convert integer to decimal string
+		mov  r1 r2
+		call prints
+		beq  r0 r0 .next_char
+
+	.print_hex:
+		mov  r1 r2             // r1 = argument integer
+		movi r2 printf_buf     // r2 = scratch buffer
+		call itox               // Convert integer to hex string
+		mov  r1 r2
+		call prints
+		beq  r0 r0 .next_char
+
+	.print_str:
+		mov  r1 r2             // r1 = string pointer argument
+		call prints
+		beq  r0 r0 .next_char
+
+	.print_char:
+		movi r3 0xFF00
+		sw   r2 [r3 + 0]       // Write single character to MMIO
+		beq  r0 r0 .next_char
+
+	.print_percent:
+		movi r3 0xFF00
+		movi r2 37             // '%'
+		sw   r2 [r3 + 0]
+		subi r5 r5 #1         // '%%' doesn't use an arg rewind arg pointer!
+		beq  r0 r0 .next_char
+
+	.next_char:
+        addi r4 r4 #1
+
+        movi r7 .printf_loop
+        jalr r0 r7 0
+
+    .printf_done:
+        pop  r3
+        pop  r2
+        pop  r5
+        pop  r4
+        pop  r7
+        ret
+
+	// Internal Scratch Buffer for itoa/itox formatting
+	printf_buf:
+		.space 10

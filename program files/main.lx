@@ -20,6 +20,5 @@ a:     .fill {10 20 30 40}
 b:     .fill {5 5 5 5}
 r:     .space 4
 
-// Place stack at the END of the file with plenty of room!
 stack:
-    .space 100
+    .space 100 // hmmm

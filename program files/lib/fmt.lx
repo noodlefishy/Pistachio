@@ -242,119 +242,120 @@ str_tox:
 		ret
 
 
-// =========================================================
-// Subroutine: printf
 // Inputs:     r1 = Pointer to format string
-//             r2 = Argument 1 (%d %x %s %c)
-//             r3 = Argument 2 (%d %x %s %c)
-// =========================================================
+//             r2 = Pointer to argument array (.fill { arg1 arg2 ... })
 printf:
     push r7
-    push r4                 // r4 = Format String Pointer
-    push r5                 // r5 = Argument Stack Pointer
+    push r4                 // r4 = Active Format String Pointer
+    push r5                 // r5 = Active Argument Array Pointer
 
-    mov  r4 r1             // r4 = format string pointer
-
-    // Save arguments r2 and r3 onto the stack
-    push r2                 // [SP - 2] = arg1
-    push r3                 // [SP - 1] = arg2
-    mov  r5 r6
-    subi r5 r5 #2         // r5 now points to arg1 on the stack!
+    mov  r4 r1             // r4 = format string
+    mov  r5 r2             // r5 = argument array pointer
 
 	.printf_loop:
-        lw   r1 [r4 + 0]       // Read character from format string
-
-        // --- LONG FORWARD BRANCH FIX ---
-        // If r1 != 0 (not null-terminator) skip over the 2-word absolute jump!
-        bne  r1 r0 .not_null_term
-        movi r7 .printf_done
-        jalr r0 r7 0          // Absolute jump across any distance in RAM!
-    .not_null_term:
-
-        movi r2 37             // ASCII 37 = '%'
-        beq  r1 r2 .parse_specifier
-
-        // Normal Character -> Print directly to Console MMIO (0xFF00)
-        movi r2 0xFF00
-        sw   r1 [r2 + 0]
-
-        // Absolute loop jump back to top of printf_loop
-        movi r7 .next_char
-        jalr r0 r7 0
-
+		lw   r1 [r4 + 0]       // Read current character from format string
+		
+		// Check for null-terminator (\0)
+		bne  r1 r0 .not_null
+		movi r7 .printf_done
+		jalr r0 r7 0          // Long jump to done
+	.not_null:
+	
+		// Check if character is '%' (ASCII 37)
+		movi r2 37
+		beq  r1 r2 .parse_specifier
+	
+		// Normal Character -> Write directly to Console MMIO (0xFF00)
+		movi r2 0xFF00
+		sw   r1 [r2 + 0]
+	
+		movi r7 .next_char
+		jalr r0 r7 0          // Jump to next_char (r4++)
+	
 	.parse_specifier:
 		addi r4 r4 #1         // Advance past '%'
 		lw   r1 [r4 + 0]       // Read specifier character ('d' 'x' 's' 'c' '%')
-
-		// Read the current argument from our argument stack pointer (r5)
+	
+		// Read current argument value from array [r5]
 		lw   r2 [r5 + 0]       // r2 = argument value
-		addi r5 r5 #1         // Advance argument pointer to next argument!
-
-		// Check specifiers:
-		movi r3 100            // ASCII 100 = 'd'
+	
+		// Specifier: %d (Decimal)
+		movi r3 100            // 'd'
 		beq  r1 r3 .print_dec
-
-		movi r3 120            // ASCII 120 = 'x'
+	
+		// Specifier: %x (Hex)
+		movi r3 120            // 'x'
 		beq  r1 r3 .print_hex
-
-		movi r3 115            // ASCII 115 = 's'
+	
+		// Specifier: %s (String)
+		movi r3 115            // 's'
 		beq  r1 r3 .print_str
-
-		movi r3 99             // ASCII 99 = 'c'
+	
+		// Specifier: %c (Char)
+		movi r3 99             // 'c'
 		beq  r1 r3 .print_char
-
-		movi r3 37             // ASCII 37 = '%'
+	
+		// Specifier: %% (Literal %)
+		movi r3 37             // '%'
 		beq  r1 r3 .print_percent
-
-		beq  r0 r0 .next_char // Unknown specifier skip!
-
+	
+		movi r7 .next_char     // Unknown specifier skip!
+		jalr r0 r7 0
+	
 	.print_dec:
 		mov  r1 r2             // r1 = argument integer
-		movi r2 printf_buf     // r2 = scratch buffer
-		call itoa               // Convert integer to decimal string
-		mov  r1 r2
-		call prints
-		beq  r0 r0 .next_char
+		movi r2 printf_buf
+		call itoa               // Returns string pointer in r1!
+		call prints             // Print immediately (do NOT do mov r1, r2!)
+
+		addi r5 r5, #1
+		movi r7 .next_char
+		jalr r0 r7 0
 
 	.print_hex:
 		mov  r1 r2             // r1 = argument integer
-		movi r2 printf_buf     // r2 = scratch buffer
-		call itox               // Convert integer to hex string
-		mov  r1 r2
-		call prints
-		beq  r0 r0 .next_char
+		movi r2 printf_buf
+		call itox               // Returns string pointer in r1!
+		call prints             // Print immediately!
 
+		addi r5 r5 #1
+		movi r7 .next_char
+    	jalr r0 r7 0
+	
 	.print_str:
 		mov  r1 r2             // r1 = string pointer argument
 		call prints
-		beq  r0 r0 .next_char
-
+		
+		addi r5 r5 #1         // Advance argument array pointer!
+		movi r7 .next_char
+		jalr r0 r7 0
+	
 	.print_char:
 		movi r3 0xFF00
-		sw   r2 [r3 + 0]       // Write single character to MMIO
-		beq  r0 r0 .next_char
-
+		sw   r2 [r3 + 0]       // Print single character
+		
+		addi r5 r5 #1         // Advance argument array pointer!
+		movi r7 .next_char
+		jalr r0 r7 0
+	
 	.print_percent:
 		movi r3 0xFF00
 		movi r2 37             // '%'
 		sw   r2 [r3 + 0]
-		subi r5 r5 #1         // '%%' doesn't use an arg rewind arg pointer!
-		beq  r0 r0 .next_char
-
+		// Note: '%%' does NOT advance r5 because it doesn't consume an argument!
+		movi r7 .next_char
+		jalr r0 r7 0
+	
 	.next_char:
-        addi r4 r4 #1
-
-        movi r7 .printf_loop
-        jalr r0 r7 0
-
-    .printf_done:
-        pop  r3
-        pop  r2
-        pop  r5
-        pop  r4
-        pop  r7
-        ret
-
-	// Internal Scratch Buffer for itoa/itox formatting
+		addi r4 r4 #1         // Advance format string pointer
+		movi r7 .printf_loop
+		jalr r0 r7 0
+	
+	.printf_done:
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
+	
 	printf_buf:
-		.space 10
+		.space 20

@@ -10,14 +10,12 @@ main:
 
     // 2. Format and print using printf
     movi r1, fs
-    movi r4, r              // Use r4 to keep base pointer safe
-    lw   r2, [r4 + 0]       // arg1 = r[0] (15)
-    lw   r3, [r4 + 1]       // arg2 = r[1] (25)
+    movi r2 a
     call printf
 
     halt
 
-fs:    .fill "Result 0: %d, or 0x%x\n"
+fs:    .fill "Results of { %d %d %d %d } + { %d %d %d %d }:\n  %d\n  %d\n  %d\n  %d\n"
 a:     .fill {10 20 30 40}
 b:     .fill {5 5 5 5}
 r:     .space 4

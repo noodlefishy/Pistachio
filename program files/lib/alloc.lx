@@ -30,7 +30,12 @@ alloc:
 
 	.alloc_loop:
 		lw   r5, [r4 + 0]
-		beq  r5, r0, .out_of_memory
+
+		// --- LONG JUMP FIX (Replaced short beq with long jump) ---
+		bne  r5, r0, .not_oom
+		movi r7, .out_of_memory
+		jalr r0, r7, 0
+	.not_oom:
 
 		// Check if Used
 		movi r2, 1
@@ -70,7 +75,10 @@ alloc:
 
 	.next_block:
 		add  r4, r4, r3         // Advance pointer by old block size
-		beq  r0, r0, .alloc_loop
+
+		// Long backward jump
+		movi r7, .alloc_loop
+		jalr r0, r7, 0
 
 	.out_of_memory:
 		clr  r1                 // Return NULL

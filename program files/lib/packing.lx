@@ -1,0 +1,121 @@
+// Inputs: r1 = pointerA (4 words), r2 = pointerB (4 words), r3 = pointerDestination (4 words)
+padd:
+    push r7
+    push r4
+    movi r4, 1			// Command 1 = PADD
+    call pack_exec_4
+    pop  r4
+    pop  r7
+    ret
+
+// Inputs: r1 = pointerA (4 words), r2 = pointerB (4 words), r3 = pointerDestination (4 words)
+psub:
+    push r7
+    push r4
+    movi r4, 2			// Command 2 = PSUB
+    call pack_exec_4
+    pop  r4
+    pop  r7
+    ret
+
+// Inputs: r1 = pointerA (4 words), r2 = pointerB (4 words), r3 = pointerDestination (4 words)
+pmul:
+    push r7
+    push r4
+    movi r4, 3			// Command 3 = PMUL
+    call pack_exec_4
+    pop  r4
+    pop  r7
+    ret
+
+// Inputs: r1 = pointerA (4 words), r2 = pointerB (4 words), r3 = pointerDestination (4 words)
+padd8:
+    push r7
+    push r4
+    movi r4, 5			// Command 5 = PADD8
+    call pack_exec_4
+    pop  r4
+    pop  r7
+    ret
+
+// Inputs: r1 = pointerA (4 words), r2 = pointerB (4 words)
+// Output: r1 = 16-bit scalar dot product result
+pdot:
+    push r7
+    push r4
+    push r5
+
+    movi r5, 0xFF60          // MMIO Base Address
+
+    lw   r7, [r1 + 0]
+    sw   r7, [r5 + 0]
+    lw   r7, [r1 + 1]
+    sw   r7, [r5 + 1]
+    lw   r7, [r1 + 2]
+    sw   r7, [r5 + 2]
+    lw   r7, [r1 + 3]
+    sw   r7, [r5 + 3]
+
+    lw   r7, [r2 + 0]
+    sw   r7, [r5 + 4]
+    lw   r7, [r2 + 1]
+    sw   r7, [r5 + 5]
+    lw   r7, [r2 + 2]
+    sw   r7, [r5 + 6]
+    lw   r7, [r2 + 3]
+    sw   r7, [r5 + 7]
+
+    movi r4, 4
+    sw   r4, [r5 + 8]
+
+    // Read scalar result from Result 0 (0xFF69) into r1
+    lw   r1, [r5 + 9]
+
+    pop  r5
+    pop  r4
+    pop  r7
+    ret
+
+
+// INTERNAL MMIO DRIVER (pack_exec_4)
+// Inputs: r1 = pointerA, r2 = pointerB, r3 = pointerDestination, r4 = commandId
+pack_exec_4:
+    push r7
+    push r4
+    push r5
+
+    movi r5, 0xFF60			// Packing acceleration MMIO
+
+    lw   r7, [r1 + 0]
+    sw   r7, [r5 + 0]
+    lw   r7, [r1 + 1]
+    sw   r7, [r5 + 1]
+    lw   r7, [r1 + 2]
+    sw   r7, [r5 + 2]
+    lw   r7, [r1 + 3]
+    sw   r7, [r5 + 3]
+
+    lw   r7, [r2 + 0]
+    sw   r7, [r5 + 4]
+    lw   r7, [r2 + 1]
+    sw   r7, [r5 + 5]
+    lw   r7, [r2 + 2]
+    sw   r7, [r5 + 6]
+    lw   r7, [r2 + 3]
+    sw   r7, [r5 + 7]
+
+    sw   r4, [r5 + 8]
+
+    lw   r7, [r5 + 9]
+    sw   r7, [r3 + 0]
+    lw   r7, [r5 + 10]
+    sw   r7, [r3 + 1]
+    lw   r7, [r5 + 11]
+    sw   r7, [r3 + 2]
+    lw   r7, [r5 + 12]
+    sw   r7, [r3 + 3]
+
+    pop  r5
+    pop  r4
+    pop  r7
+    ret

@@ -4,42 +4,30 @@ import io.cuttlefish.*
 import io.cuttlefish.devices.*
 
 class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
-    val devices: Array<Device> = arrayOf(Console(), Display())
+    val addressMap = mutableMapOf<UShort, Device>()
+    val attachedDevices: MutableSet<Device> = mutableSetOf()
+
+    init {
+        registerDevice(Console())
+        registerDevice(Display())
+    }
 
     override suspend fun read(address: UShort): Short {
-        return when (address) {
-            in MemoryMapRanges.vectorRange -> ram.read(address)
-            in MemoryMapRanges.kernelRange -> ram.read(address)
-            in MemoryMapRanges.userLandRange -> ram.read(address)
-            in MemoryMapRanges.mmioRange -> {
-                for (device in devices) {
-                    if (address in device.memoryUsed) {
-                        return device.read(address)
-                    }
-                }
-                throw IllegalAccessException("Device $address not found")
-            }
+        val device = addressMap[address]
+        return device?.read(address) ?: ram.read(address)
 
-            else -> error("Unknown addresses?")
-        }
     }
 
     override suspend fun write(address: UShort, value: Short) {
-        when (address) {
-            in MemoryMapRanges.vectorRange -> ram.write(address, value)
-            in MemoryMapRanges.kernelRange -> ram.write(address, value)
-            in MemoryMapRanges.userLandRange -> ram.write(address, value)
-            in MemoryMapRanges.mmioRange -> {
-                for (device in devices) {
-                    if (address.toUInt() in device.memoryUsed ||address.toUInt() == device.memoryUsed.first) {
-                        device.write(address, value)
-                        return
-                    }
-                }
-                throw IllegalAccessException("Device $address not found")
-            }
+        val device = addressMap[address]
+        device?.write(address, value) ?: ram.write(address, value)
+    }
 
-            else -> error("Unknown addresses?")
+
+    private fun registerDevice(device: Device) {
+        attachedDevices += device
+        for (address in device.memoryUsed) {
+            addressMap[address.toUShort()] = device
         }
     }
 }

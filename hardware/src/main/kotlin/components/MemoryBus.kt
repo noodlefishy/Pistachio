@@ -10,6 +10,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
     init {
         registerDevice(Console())
         registerDevice(Display())
+        registerDevice(PackingAccelerator())
     }
 
     override suspend fun read(address: UShort): Short {

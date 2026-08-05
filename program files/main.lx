@@ -1,15 +1,46 @@
 main:
     movi r6, [stack]
 
-	movi r1 0xFF00
-	movi r2 97
+	movi r1 0xFF60
+	movi r2 a
 
-	sw r2 [r1 + 0]
-	movi r2 10
-	sw r2 [r1 + 0]
+	lw r3 [r2 + #0]
+	sw r3 [r1 + #0]
+	lw r3 [r2 + #1]
+	sw r3 [r1 + #1]
+	lw r3 [r2 + #2]
+	sw r3 [r1 + #2]
+	lw r3 [r2 + #3]
+	sw r3 [r1 + #3]
 
+	movi r2 b
+
+	lw r3 [r2 + #0]
+	sw r3 [r1 + #4]
+	lw r3 [r2 + #1]
+	sw r3 [r1 + #5]
+	lw r3 [r2 + #2]
+	sw r3 [r1 + #6]
+	lw r3 [r2 + #3]
+	sw r3 [r1 + #7]
+
+	movi r2 1
+
+	pre_pack: sw r2 [r1 + #8] // padd
+
+
+	lw r7 [r1 + #9]
+	lw r6 [r1 + #10]
+	lw r5 [r1 + #11]
+	lw r4 [r1 + #12]
+
+	post_assign:
 
 	halt
+
+
+a: .fill {10 20 30 40}
+b: .fill {5 5 5 5}
 
 stack:
 	.space 30

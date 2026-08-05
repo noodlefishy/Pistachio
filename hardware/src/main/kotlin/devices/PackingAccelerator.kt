@@ -25,14 +25,14 @@ class PackingAccelerator : Device {
         when (val addressInt = address.toInt()) {
             in 0xFF60..0xFF63 -> vectorA[addressInt - 0xFF60] = value
             in 0xFF64..0xFF67 -> vectorB[addressInt - 0xFF64] = value
-            0xFF68 -> packCommand(addressInt)
+            0xFF68 -> packCommand(value)
             in 0xFF69..0xFF6C -> vectorR[addressInt - 0xFF69] = value
         }
     }
 
-    private fun packCommand(command: Int) {
+    private fun packCommand(command: Short) {
         // Imagine it's parallel, to the VM this is bloody magical
-        when (command) {
+        when (command.toInt()) {
             1 -> { // PADD: parallel 16-bit addition (4 elements in parallel)
                 for (i in 0..3) {
                     vectorR[i] = (vectorA[i] + vectorB[i]).toShort()

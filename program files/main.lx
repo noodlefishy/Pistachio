@@ -1,22 +1,15 @@
 main:
     movi r6, [stack]
 
-	call heap_init
+	movi r1 0xFF00
+	movi r2 97
 
-	call readln_dynamic
-	push r1
-	call prints
+	sw r2 [r1 + 0]
+	movi r2 10
+	sw r2 [r1 + 0]
 
-	movi r1 [newline]
-	call prints
-	pop r1
-	call free
-    halt_l: halt
+
+	halt
 
 stack:
-    .space 30
-.space 1
-newline: .fill "\n"
-//string: .fill "Hello World\n"
-
-//You know... You remind me of somebody, a stinky somebody
+	.space 30

@@ -16,8 +16,8 @@ main:
     halt
 
 fs:    .fill "Results of { %d %d %d %d } + { %d %d %d %d }:\n  %d\n  %d\n  %d\n  %d\n"
-a:     .fill {10 20 30 40}
-b:     .fill {5 5 5 5}
+a:     .fill {1 1 1,1}
+b:     .fill {1 1 1 1}
 r:     .space 4
 
 stack:

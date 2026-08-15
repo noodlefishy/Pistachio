@@ -37,14 +37,17 @@ alloc:
 		jalr r0, r7, 0
 	.not_oom:
 
+		// Get block size FIRS
+		movi r2, -2
+		and  r3, r5, r2
+
+
 		// Check if Used
 		movi r2, 1
 		and  r2, r5, r2
 		bne  r2, r0, .next_block
 
-		// Get block size
-		movi r2, -2
-		and  r3, r5, r2
+
 		blt  r3, r1, .next_block
 
 		// --- FOUND BLOCK ---

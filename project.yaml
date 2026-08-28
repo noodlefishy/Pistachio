@@ -1,5 +1,4 @@
 modules:
-  - ./terminal
-  - ./compiler
-  - ./terminal
-
+  - compiler
+  - hardware
+  - terminal

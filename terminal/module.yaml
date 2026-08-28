@@ -1,8 +1,6 @@
 product:
   type: jvm/app
 
-
-
 settings:
   jvm:
     release: 17
@@ -13,3 +11,7 @@ dependencies:
   - ../hardware
   - org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1
   - org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0
+
+test-dependencies:
+  - org.jetbrains.kotlin:kotlin-test
+  - org.junit.jupiter:junit-jupiter:5.10.2

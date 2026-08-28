@@ -3,8 +3,6 @@ import java.nio.file.Files
 plugins {
     kotlin("jvm") version "2.4.0"
     application
-    id("dev.iurysouza.modulegraph") version "0.13.0"
-    id("io.github.euledge.code-atlas") version "1.2.0"
 }
 
 group = "io.cuttlefish"

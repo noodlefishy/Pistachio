@@ -1,8 +1,6 @@
 plugins {
     kotlin("jvm")
     kotlin("plugin.serialization") version "2.4.0"
-    id("dev.iurysouza.modulegraph") version "0.13.0"
-    id("io.github.euledge.code-atlas") version "1.2.0"
 }
 
 group = "io.cuttlefish"

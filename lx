@@ -1,1 +1,4 @@
-/Users/leuw/dev/gradleHorror/Pistachio/terminal/build/install/lx/bin/lx
+#!/bin/bash
+kotlin run terminal "$@"
+
+#

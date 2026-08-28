@@ -1,4 +1,9 @@
 #!/bin/bash
 kotlin run terminal "$@"
 
+# The JAR can be located at
 #
+# ./build/tasks/_terminal_executableJarJvm/terminal-jvm-executable.jar
+#
+# if you hate kotlin's build tool 🙄🖐️
+

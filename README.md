@@ -86,10 +86,10 @@ Build the entire toolchain and create a local executable command line tool in yo
 
 ```bash
 # macOS / Linux:
-./gradlew installDist
+./kotlin run terminal
 
 # Windows:
-gradlew.bat installDist
+kotlin.bat run terminal
 ```
 
 ### 2. Run your first file

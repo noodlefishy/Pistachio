@@ -11,9 +11,6 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
-            <option value="$PROJECT_DIR$/compiler" />
-            <option value="$PROJECT_DIR$/hardware" />
-            <option value="$PROJECT_DIR$/terminal" />
           </set>
         </option>
       </GradleProjectSettings>

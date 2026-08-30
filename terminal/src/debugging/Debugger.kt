@@ -3,7 +3,9 @@ package io.cuttlefish.debug
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
+import io.cuttlefish.config.GlobalConfig
 import io.cuttlefish.debugging.*
+import java.io.File
 
 class Debugger(
     val cpu: Cpu,
@@ -11,6 +13,12 @@ class Debugger(
     val symbolMap: Map<String, UShort>,
     val baseAddress: UShort = 0x3000u
 ) {
+
+    init {
+//        GlobalConfig.debug. TODO, use global config to set debug dir
+        File("Debug/linker").mkdirs()
+    }
+
     val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
     val historySize = 200
     val historyX = ArrayDeque<String>(historySize)

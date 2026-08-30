@@ -1,5 +1,5 @@
 #!/bin/bash
-kotlin run terminal "$@"
+kotlin run -- "$@"
 
 # The JAR can be located at
 #

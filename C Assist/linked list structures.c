@@ -43,8 +43,12 @@ int main() {
     Node* head = NULL;
 
     insertAtFront(&head, 30);
+    printf("> %d %p(%p)\n", (*head).data,(*head).next, head );
     insertAtFront(&head, 20);
+    printf("> %d %p(%p)\n", (*head).data,(*head).next, &head );
     insertAtFront(&head, 10);
+    printf("> %d %p(%p)\n", (*head).data,(*head).next, &head );
+
 
     printf("Linked List Elements: ");
     printList(head); // Output: 10 -> 20 -> 30 -> NULL

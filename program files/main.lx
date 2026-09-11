@@ -14,19 +14,37 @@ insert_node:
 
 
 create_node:
-	push r2
+//	push r2
+	sw r2 [r6 + #0]
+	addi r6 r6 #1
+
 
 	add r2 r1 r0
 	movi r1 #2
-	call alloc
+
+//	push r7
+	sw r7 [r6 + #0]
+    addi r6 r6 #1
+
+//	call alloc
+	movi r7 [alloc]
+	jalr r7 r7 #0
+
+//	pop r7
+	addi r6 r6 #-1
+	lw r7 [r6 #0]
+
 
 	lw r2 [r1 + #0] // data
 	lw r0 [r1 + #1] // pointer
 
-	pop r2 // non destructive for testing
+//	pop r2 // non destructive for testing
+	addi r6 r6 #-1
+	lw r2 [r6 #0]
 
-	ret
 
+//	ret
+	jalr r0 r7 #0
 
 
 stack:

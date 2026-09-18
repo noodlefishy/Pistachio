@@ -8,11 +8,34 @@ main: // DYNAMIC ARRAY ^^
     halt
 
 
+
+// Inputs:	r1 = head reference variable
+// 			r2 = data
 insert_node:
-	call create_node
+	push r4
+	push r5
+
+	mov r4 r1	// r4 = head reference
+	mov r5 r2	// r5 = data
+
+	mov r1 r5
+	push r7
+	call create_node	// r1 = new node
+	pop r7
+
+	// newNode->next = *head reference
+	lw r2 [r4 + #0]		// r2 = *headReference
+	sw r2 [r1 + #1] 	// newNode->next = r2
+
+	sw r1 [r4 + #0]
+
+	pop r5
+	pop r4
+	ret
 
 
-
+// Inputs: r1 = data
+// Outputs: r1 = pointer to new Node on heap
 create_node:
 	push r4
 	mov r4 r1 // save r4

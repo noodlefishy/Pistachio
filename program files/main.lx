@@ -41,7 +41,7 @@ print_linked_list:
 		call prints
 		pop r7
 		pop r4
-		return
+		ret
 
 
 

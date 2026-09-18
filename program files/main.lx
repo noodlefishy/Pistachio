@@ -9,6 +9,42 @@ main: // DYNAMIC ARRAY ^^
 
 
 
+print_linked_list:
+	push r4
+	mov r4 r1
+
+	.print_loop:
+		beq r4 r0 .print_null
+
+		lw r1 [r4 + #0]
+		movi r2 [itoa_buffer]
+
+		push r7
+		call itoa
+		pop r7
+		push r7
+		call prints
+		pop r7
+
+		movi r1 [arrow_string]
+
+		push r7
+		call prints
+		pop r7
+
+		// current = current -> next
+		lw r4 [r4 + #1]
+		beq r0 r0 .print_loop
+	.print_null:
+		movi r1 [null_string]
+		push r7
+		call prints
+		pop r7
+		pop r4
+		return
+
+
+
 // Inputs:	r1 = head reference variable
 // 			r2 = data
 insert_node:
@@ -59,6 +95,11 @@ formats:
 // Node
 // 0: data
 // 1: [next]
+head:      .fill 0
+arrow_string: .fill " -> "
+null_string:  .fill "NULL\n"
+itoa_buffer:  .space 10
+
 
 // data proposal
 data:

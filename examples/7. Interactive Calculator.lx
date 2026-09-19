@@ -1,0 +1,53 @@
+main:
+    movi r6, stack
+
+    // 1. Prompt for Number 1
+    movi r1, prompt1
+    call prints
+
+    movi r1, input_buf
+    call readln             // Polls STDIN until Enter (\n)
+    call str_toi            // Convert input ASCII to 16-bit integer
+    mov  r4, r1             // r4 = Number 1
+
+    // 2. Prompt for Number 2
+    movi r1, prompt2
+    call prints
+
+    movi r1, input_buf
+    call readln
+    call str_toi
+    mov  r5, r1             // r5 = Number 2
+
+    // 3. Compute Add (r1 + r2) and Multiply (r1 * r2)
+    add  r3, r4, r5         // Sum
+
+    mov  r1, r4
+    mov  r2, r5
+    call multiply           // r1 = Product
+
+    // 4. Fill arguments for printf: { N1, N2, Sum, N1, N2, Product }
+    movi r2, print_args
+    sw   r4, [r2 + 0]       // N1
+    sw   r5, [r2 + 1]       // N2
+    sw   r3, [r2 + 2]       // Sum
+    sw   r4, [r2 + 3]       // N1
+    sw   r5, [r2 + 4]       // N2
+    sw   r1, [r2 + 5]       // Product
+
+    // 5. Print results
+    movi r1, result_fmt
+    movi r2, print_args
+    call printf
+
+    halt
+
+prompt1:    .fill "Enter first number: "
+prompt2:    .fill "Enter second number: "
+result_fmt: .fill "\nResults:\n  Addition:       %d + %d = %d\n  Multiplication: %d * %d = %d\n"
+
+input_buf:  .space 20
+print_args: .space 6
+
+stack:
+    .space 60

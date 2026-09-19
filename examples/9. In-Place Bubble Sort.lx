@@ -1,0 +1,111 @@
+main:
+    movi r6, stack
+
+    // Print pre-sort header
+    movi r1, msg_unsorted
+    call prints
+
+    // Print original array elements
+    movi r1, numbers
+    call print_array
+
+    // Sort the array: bubble_sort(numbers, length)
+    movi r1, numbers
+    movi r2, 8
+    call bubble_sort
+
+    // Print post-sort header
+    movi r1, msg_sorted
+    call prints
+
+    // Print sorted array elements
+    movi r1, numbers
+    call print_array
+
+    halt
+// bubble_sort(r1 = array_ptr, r2 = length)
+bubble_sort:
+    push r7
+    push r4
+    push r5
+    push r3
+
+    mov  r4, r1             // r4 = Base Array Pointer (stays constant!)
+    mov  r5, r2             // r5 = Outer Loop Counter (i = length)
+
+.outer_loop:
+    subi r5, r5, 1
+    beq  r5, r0, .sort_done // If outer counter == 0, finished
+
+    mov  r3, r5             // r3 = Inner Loop Counter (j = i)
+    mov  r1, r4             // r1 = Reset walker pointer to start of array!
+
+.inner_loop:
+    beq  r3, r0, .outer_loop
+
+    lw   r2, [r1 + 0]       // element A
+    lw   r7, [r1 + 1]       // element B
+
+    // If A > B, swap them
+    bgt  r2, r7, .swap
+
+.continue_inner:
+    addi r1, r1, 1          // Advance walker pointer
+    subi r3, r3, 1          // Decrement inner counter
+    beq  r0, r0, .inner_loop
+
+.swap:
+    sw   r7, [r1 + 0]       // Write B into position 0
+    sw   r2, [r1 + 1]       // Write A into position 1
+    beq  r0, r0, .continue_inner
+
+.sort_done:
+    pop  r3
+    pop  r5
+    pop  r4
+    pop  r7
+    ret
+
+// Helper: Prints all 8 numbers sequentially
+print_array:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1             // r4 = current pointer
+    movi r5, 8              // count = 8
+
+.print_loop:
+    beq  r5, r0, .print_done
+
+    lw   r1, [r4 + 0]
+    movi r2, itoa_buf
+    call itoa
+    call prints
+
+    movi r1, space_str
+    call prints
+
+    addi r4, r4, 1
+    subi r5, r5, 1
+    beq  r0, r0, .print_loop
+
+.print_done:
+    movi r1, newline_str
+    call prints
+
+    pop  r5
+    pop  r4
+    pop  r7
+    ret
+
+// --- Data Section ---
+numbers:      .fill { 54 12 89 7 32 99 2 45 }
+msg_unsorted: .fill "Unsorted Array: "
+msg_sorted:   .fill "Sorted Array:   "
+space_str:    .fill " "
+newline_str:  .fill "\n"
+itoa_buf:     .space 10
+
+stack:
+    .space 50

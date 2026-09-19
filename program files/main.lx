@@ -1,122 +1,145 @@
-main: // DYNAMIC ARRAY ^^(resizable)
-    // this is not a resizable array lmfao, it works
+main:
     movi r6, stack
     call heap_init
 
-	movi r1 [head]
-	movi r2 #30
-	call [insert_node]
+	movi r1 1
+	call alloc
 
-	movi r1 [head]
-	movi r2 #40
-	call [insert_node]
+	mov r5 r1
 
-	movi r1 [head]
-	movi r2 #10
-	call [insert_node]
+    mov r1 r5
+    movi r2, #30
+    call insert_at_front
 
-	movi r1 [head]
-	lw r1 [r1 + #0] // r1 = *head
-	call print_linked_list
+    mov r1 r5
+    movi r2, #20
+    call insert_at_front
 
+    mov r1 r5
+    movi r2, #10
+    call insert_at_front
+
+    mov r1 r5
+    lw   r1, [r1 + #0]
+    call print_list
+
+    mov r1 r5
+    lw   r1, [r1 + #0]
+    call free_list
+
+    mov r1 r5
+    sw   r0, [r1 + #0]
 
     halt
 
+create_node:
+    push r7
+    push r4
+
+    mov  r4, r1             // Preserve data
+
+    movi r1, #2              // Size = 2 words [0: data, 1: next]
+    call alloc              // r1 = newly allocated pointer
+
+    sw   r4, [r1 + #0]       // node->data = data
+    sw   r0, [r1 + #1]       // node->next = NULL (r0 is 0x0000)
+
+    pop  r4
+    pop  r7
+    ret
+
+insert_at_front:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1             // r4 = headRef
+    mov  r5, r2             // r5 = data
+
+    mov  r1, r5
+    call create_node        // r1 = newNode
+
+    lw   r2, [r4 + #0]      // r2 = *headRef
+    sw   r2, [r1 + #1]      // newNode->next = *headRef
+    sw   r1, [r4 + #0]      // *headRef = newNode
+
+    pop  r5
+    pop  r4
+    pop  r7
+    ret
 
 
-print_linked_list:
-	push r4
-	mov r4 r1
+// print_list(r1 = head)
+// Uses scoped local literals + local stack buffer for itoa
+print_list:
+    push r7
+    push r4
+    push r5
 
+    mov  r4, r1
+
+    // Allocate only 10 words on stack for dynamic itoa_buf
+    mov  r5, r6             // r5 = local itoa_buf
+    addi r6, r6, 10
 
 	.print_loop:
-		beq r4 r0 .print_null
+		beq  r4, r0, .print_null
 
-		lw r1 [r4 + #0]
-		movi r2 [itoa_buffer]
-
-		push r7
+		// 1. Convert integer into stack itoa_buf
+		lw   r1, [r4 + #0]
+		mov  r2, r5             // Destination: stack itoa_buf
 		call itoa
-		pop r7
-		push r7
 		call prints
-		pop r7
 
-		movi r1 [arrow_string]
-
-		push r7
+		// 2. Print local arrow literal
+		movi r1, .arrow_str
 		call prints
-		pop r7
 
-		// current = current -> next
-		lw r4 [r4 + #1]
-		beq r0 r0 .print_loop
+		// 3. Next node
+		lw   r4, [r4 + #1]
+    beq  r0, r0, .print_loop
+
 	.print_null:
-		movi r1 [null_string]
-		push r7
+		movi r1, .null_str
 		call prints
-		pop r7
-		pop r4
+
+		// Deallocate stack buffer
+		subi r6, r6, 10
+		pop  r5
+		pop  r4
+		pop  r7
 		ret
 
+	// --- Subroutine-Local Data (Scoped to print_list!) ---
+	.arrow_str: .fill " -> "
+	.null_str:  .fill "NULL\n"
 
 
-// Inputs:	r1 = head reference variable
-// 			r2 = data
-insert_node:
-	push r4
-	push r5
-
-	mov r4 r1	// r4 = head reference
-	mov r5 r2	// r5 = data
-
-	mov r1 r5
-	push r7
-	call create_node	// r1 = new node
-	pop r7
-
-	// newNode->next = *head reference
-	lw r2 [r4 + #0]		// r2 = *headReference
-	sw r2 [r1 + #1] 	// newNode->next = r2
-
-	sw r1 [r4 + #0]
-
-	pop r5
-	pop r4
-	ret
 
 
-// Inputs: r1 = data
-// Outputs: r1 = pointer to new Node on heap
-create_node:
-	push r4
-	mov r4 r1 // save r4
 
-	movi r1 #2 // [data, next]
+// free_list(r1 = head)
+free_list:
+    push r7
+    push r4
 
-	push r7
-	call [alloc]
-	pop r7
+    mov  r4, r1
 
-	sw r4 [r1 + #0] // new node -> data = data
-	sw r0 [r1 + #1] // new node -> next = NULL(0)
+	.free_loop:
+		beq  r4, r0, .free_done
 
-	pop r4
+		lw   r1, [r4 + #1]
+		push r1
 
-	ret
-stack:
-    .space #100
-formats:
-    .fill "%d\n"
-// Node
-// 0: data
-// 1: [next]
-head:      .fill 0
-arrow_string: .fill " -> "
-null_string:  .fill "NULL\n"
-itoa_buffer:  .space 10
+		mov  r1, r4
+		call free
 
+		pop  r4
+		beq  r0, r0, .free_loop
 
-// data proposal
-data:
-    .fill {10 20 30 40 50}
+	.free_done:
+		pop  r4
+		pop  r7
+		ret
+
+stack:    .space 100

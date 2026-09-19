@@ -33,38 +33,38 @@ bubble_sort:
     mov  r4, r1             // r4 = Base Array Pointer (stays constant!)
     mov  r5, r2             // r5 = Outer Loop Counter (i = length)
 
-.outer_loop:
-    subi r5, r5, 1
-    beq  r5, r0, .sort_done // If outer counter == 0, finished
+	.outer_loop:
+		subi r5, r5, 1
+		beq  r5, r0, .sort_done // If outer counter == 0, finished
 
-    mov  r3, r5             // r3 = Inner Loop Counter (j = i)
-    mov  r1, r4             // r1 = Reset walker pointer to start of array!
+		mov  r3, r5             // r3 = Inner Loop Counter (j = i)
+		mov  r1, r4             // r1 = Reset walker pointer to start of array!
 
-.inner_loop:
-    beq  r3, r0, .outer_loop
+	.inner_loop:
+		beq  r3, r0, .outer_loop
 
-    lw   r2, [r1 + #0]       // element A
-    lw   r7, [r1 + #1]       // element B
+		lw   r2, [r1 + #0]       // element A
+		lw   r7, [r1 + #1]       // element B
 
-    // If A > B, swap them
-    bgt  r2, r7, .swap
+		// If A > B, swap them
+		bgt  r2, r7, .swap
 
-.continue_inner:
-    addi r1, r1, #1          // Advance walker pointer
-    subi r3, r3, #1          // Decrement inner counter
-    beq  r0, r0, .inner_loop
+	.continue_inner:
+		addi r1, r1, #1          // Advance walker pointer
+		subi r3, r3, #1          // Decrement inner counter
+		beq  r0, r0, .inner_loop
 
-.swap:
-    sw   r7, [r1 + #0]       // Write B into position 0
-    sw   r2, [r1 + #1]       // Write A into position 1
-    beq  r0, r0, .continue_inner
+	.swap:
+		sw   r7, [r1 + #0]       // Write B into position 0
+		sw   r2, [r1 + #1]       // Write A into position 1
+		beq  r0, r0, .continue_inner
 
-.sort_done:
-    pop  r3
-    pop  r5
-    pop  r4
-    pop  r7
-    ret
+	.sort_done:
+		pop  r3
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
 
 // Helper: Prints all 8 numbers sequentially
 print_array:
@@ -75,29 +75,29 @@ print_array:
     mov  r4, r1             // r4 = current pointer
     movi r5, #8              // count = 8
 
-.print_loop:
-    beq  r5, r0, .print_done
+	.print_loop:
+		beq  r5, r0, .print_done
 
-    lw   r1, [r4 + #0]
-    movi r2, itoa_buf
-    call itoa
-    call prints
+		lw   r1, [r4 + #0]
+		movi r2, itoa_buf
+		call itoa
+		call prints
 
-    movi r1, space_str
-    call prints
+		movi r1, space_str
+		call prints
 
-    addi r4, r4, #1
-    subi r5, r5, #1
-    beq  r0, r0, .print_loop
+		addi r4, r4, #1
+		subi r5, r5, #1
+		beq  r0, r0, .print_loop
 
-.print_done:
-    movi r1, newline_str
-    call prints
+	.print_done:
+		movi r1, newline_str
+		call prints
 
-    pop  r5
-    pop  r4
-    pop  r7
-    ret
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
 
 // --- Data Section ---
 numbers:      .fill { 54 12 89 7 32 99 2 45 }

@@ -13,21 +13,21 @@ fib_itr:
     movi r3 #1			// F_curr = 1 (r3)
     add r4 r1 r0		// r4 = Loop Counter (N)
 
-.loop:
-    addi r4 r4 #-1
-    beq r4 r0 .done
+	.loop:
+		addi r4 r4 #-1
+		beq r4 r0 .done
 
-    add r5 r3 r2		// temp (r5) = F_curr + F_prev
-    add r2 r3 r0		// F_prev = F_curr
-    add r3 r5 r0		// F_curr = temp
-    beq r0 r0 .loop
+		add r5 r3 r2		// temp (r5) = F_curr + F_prev
+		add r2 r3 r0		// F_prev = F_curr
+		add r3 r5 r0		// F_curr = temp
+		beq r0 r0 .loop
 
-.done:
-    add r1 r2 r0		// Return F_prev in r1
-    pop r3
-    pop r5
-    pop r4
-    ret
+	.done:
+		add r1 r2 r0		// Return F_prev in r1
+		pop r3
+		pop r5
+		pop r4
+		ret
 
 .space 3
 stack:

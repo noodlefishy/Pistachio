@@ -27,8 +27,8 @@ copy_string:
     addi r1, r1, 1
     addi r2, r2, 1
     beq  r0, r0, copy_string
-.copy_done:
-    ret
+	.copy_done:
+		ret
 
 
 .space 10
@@ -43,7 +43,7 @@ input_string:
 //    .fill 1
     .fill 1
     .fill 1
-.fill 0
+	.fill 0
     // The 6th word: Overwrites 'target_fn_ptr' with the
     // absolute address of the payload
     .fill payload

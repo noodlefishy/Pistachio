@@ -3,33 +3,42 @@ main:
 
     // 1. Initialise and open the Swing Canvas
     // DD_CTRL (0xFF03): Write 1 to launch the window
-    movi r1, 1
+    movi r1, #1
     movi r2, 0xFF03
-    sw   r1, [r2 + 0]
+    sw   r1, [r2 + #0]
 
     // 2. Render our 8x8 Heart sprite to the Frame Buffer
     // Frame buffer begins at MMIO address 0xFF0F (64 contiguous words)
     movi r1, sprite_heart
     movi r2, 0xFF0F
-    movi r3, 64             // Total pixels (8 x 8)
+    movi r3, #64             // Total pixels (8 x 8)
 
-.draw_loop:
-    beq  r3, r0, .draw_done
-    lw   r4, [r1 + 0]       // Read RGB565 pixel colour from sprite
-    sw   r4, [r2 + 0]       // Write pixel colour to Display MMIO
-    addi r1, r1, 1
-    addi r2, r2, 1
-    subi r3, r3, 1
-    beq  r0, r0, .draw_loop
+	draw_loop:
+		beq  r3, r0, draw_done
+		lw   r4, [r1 + #0]       // Read RGB565 pixel colour from sprite
+		sw   r4, [r2 + #0]       // Write pixel colour to Display MMIO
+		addi r1, r1, #1
+		addi r2, r2, #1
+		subi r3, r3, #1
 
-.draw_done:
-    // 3. Force canvas repaint
-    // DD_CTRL (0xFF03): Write 4 to trigger a hardware refresh
-    movi r1, 4
-    movi r2, 0xFF03
-    sw   r1, [r2 + 0]
+		push r1
+		push r2
+		movi r1, #4
+        movi r2, 0xFF03
+        sw   r1, [r2 + #0]
+		pop r2
+		pop r1
 
-    halt
+		debug_iteration: beq  r0, r0, draw_loop
+
+	draw_done:
+		// 3. Force canvas repaint
+		// DD_CTRL (0xFF03): Write 4 to trigger a hardware refresh
+		movi r1, #4
+		movi r2, 0xFF03
+		sw   r1, [r2 + 0]
+
+		halt
 
 // --- Data Section ---
 // Common RGB565 Colours:

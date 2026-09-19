@@ -11,7 +11,7 @@ main:
 
     // Sort the array: bubble_sort(numbers, length)
     movi r1, numbers
-    movi r2, 8
+    movi r2, #8
     call bubble_sort
 
     // Print post-sort header
@@ -43,20 +43,20 @@ bubble_sort:
 .inner_loop:
     beq  r3, r0, .outer_loop
 
-    lw   r2, [r1 + 0]       // element A
-    lw   r7, [r1 + 1]       // element B
+    lw   r2, [r1 + #0]       // element A
+    lw   r7, [r1 + #1]       // element B
 
     // If A > B, swap them
     bgt  r2, r7, .swap
 
 .continue_inner:
-    addi r1, r1, 1          // Advance walker pointer
-    subi r3, r3, 1          // Decrement inner counter
+    addi r1, r1, #1          // Advance walker pointer
+    subi r3, r3, #1          // Decrement inner counter
     beq  r0, r0, .inner_loop
 
 .swap:
-    sw   r7, [r1 + 0]       // Write B into position 0
-    sw   r2, [r1 + 1]       // Write A into position 1
+    sw   r7, [r1 + #0]       // Write B into position 0
+    sw   r2, [r1 + #1]       // Write A into position 1
     beq  r0, r0, .continue_inner
 
 .sort_done:
@@ -73,12 +73,12 @@ print_array:
     push r5
 
     mov  r4, r1             // r4 = current pointer
-    movi r5, 8              // count = 8
+    movi r5, #8              // count = 8
 
 .print_loop:
     beq  r5, r0, .print_done
 
-    lw   r1, [r4 + 0]
+    lw   r1, [r4 + #0]
     movi r2, itoa_buf
     call itoa
     call prints
@@ -86,8 +86,8 @@ print_array:
     movi r1, space_str
     call prints
 
-    addi r4, r4, 1
-    subi r5, r5, 1
+    addi r4, r4, #1
+    subi r5, r5, #1
     beq  r0, r0, .print_loop
 
 .print_done:

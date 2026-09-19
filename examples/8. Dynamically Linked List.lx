@@ -4,31 +4,31 @@ main:
 
     // 1. insert_at_front(&head, 30)
     movi r1, head_ptr
-    movi r2, 30
+    movi r2, #30
     call insert_at_front
 
     // 2. insert_at_front(&head, 20)
     movi r1, head_ptr
-    movi r2, 20
+    movi r2, #20
     call insert_at_front
 
     // 3. insert_at_front(&head, 10)
     movi r1, head_ptr
-    movi r2, 10
+    movi r2, #10
     call insert_at_front
 
     // 4. Print list: Expected "10 -> 20 -> 30 -> NULL"
     movi r1, head_ptr
-    lw   r1, [r1 + 0]
+    lw   r1, [r1 + #0]
     call print_list
 
     // 5. Clean up allocated nodes
     movi r1, head_ptr
-    lw   r1, [r1 + 0]
+    lw   r1, [r1 + #0]
     call free_list
 
     movi r1, head_ptr
-    sw   r0, [r1 + 0]       // head = NULL
+    sw   r0, [r1 + #0]       // head = NULL
 
     halt
 
@@ -39,11 +39,11 @@ create_node:
 
     mov  r4, r1             // Preserve data
 
-    movi r1, 2              // Size = 2 words [0: data, 1: next]
+    movi r1, #2              // Size = 2 words [0: data, 1: next]
     call alloc              // r1 = newly allocated pointer
 
-    sw   r4, [r1 + 0]       // node->data = data
-    sw   r0, [r1 + 1]       // node->next = NULL (r0 is 0x0000)
+    sw   r4, [r1 + #0]       // node->data = data
+    sw   r0, [r1 + #1]       // node->next = NULL (r0 is 0x0000)
 
     pop  r4
     pop  r7
@@ -63,9 +63,9 @@ insert_at_front:
     mov  r1, r5
     call create_node        // r1 = newNode
 
-    lw   r2, [r4 + 0]       // r2 = *headRef
-    sw   r2, [r1 + 1]       // newNode->next = *headRef
-    sw   r1, [r4 + 0]       // *headRef = newNode
+    lw   r2, [r4 + #0]       // r2 = *headRef
+    sw   r2, [r1 + #1]       // newNode->next = *headRef
+    sw   r1, [r4 + #0]       // *headRef = newNode
 
     pop  r5
     pop  r4
@@ -82,7 +82,7 @@ print_list:
 .print_loop:
     beq  r4, r0, .print_null
 
-    lw   r1, [r4 + 0]       // Load node->data
+    lw   r1, [r4 + #0]       // Load node->data
     movi r2, itoa_buf
     call itoa
     call prints
@@ -90,7 +90,7 @@ print_list:
     movi r1, arrow_str
     call prints
 
-    lw   r4, [r4 + 1]       // current = current->next
+    lw   r4, [r4 + #1]       // current = current->next
     beq  r0, r0, .print_loop
 
 .print_null:
@@ -111,7 +111,7 @@ free_list:
 .free_loop:
     beq  r4, r0, .free_done
 
-    lw   r1, [r4 + 1]       // tmp = current->next
+    lw   r1, [r4 + #1]       // tmp = current->next
     push r1                 // Preserve tmp across free()
 
     mov  r1, r4

@@ -28,12 +28,12 @@ main:
 
     // 4. Fill arguments for printf: { N1, N2, Sum, N1, N2, Product }
     movi r2, print_args
-    sw   r4, [r2 + 0]       // N1
-    sw   r5, [r2 + 1]       // N2
-    sw   r3, [r2 + 2]       // Sum
-    sw   r4, [r2 + 3]       // N1
-    sw   r5, [r2 + 4]       // N2
-    sw   r1, [r2 + 5]       // Product
+    sw   r4, [r2 + #0]       // N1
+    sw   r5, [r2 + #1]       // N2
+    sw   r3, [r2 + #2]       // Sum
+    sw   r4, [r2 + #3]       // N1
+    sw   r5, [r2 + #4]       // N2
+    sw   r1, [r2 + #5]       // Product
 
     // 5. Print results
     movi r1, result_fmt

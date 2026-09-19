@@ -1,0 +1,107 @@
+linked_list_create_node:
+    push r7
+    push r4
+
+    mov  r4, r1             // Preserve data
+
+    movi r1, #2              // Size = 2 words [0: data, 1: next]
+    call alloc              // r1 = newly allocated pointer
+
+    sw   r4, [r1 + #0]       // node->data = data
+    sw   r0, [r1 + #1]       // node->next = NULL (r0 is 0x0000)
+
+    pop  r4
+    pop  r7
+    ret
+
+
+
+linked_list_insert_at_front:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1             // r4 = headRef
+    mov  r5, r2             // r5 = data
+
+    mov  r1, r5
+    call create_node        // r1 = newNode
+
+    lw   r2, [r4 + #0]      // r2 = *headRef
+    sw   r2, [r1 + #1]      // newNode->next = *headRef
+    sw   r1, [r4 + #0]      // *headRef = newNode
+
+    pop  r5
+    pop  r4
+    pop  r7
+    ret
+
+// print_list(r1 = head)
+// Uses scoped local literals + local stack buffer for itoa
+linked_list_print_list:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1
+
+    // Allocate only 10 words on stack for dynamic itoa_buf
+    mov  r5, r6             // r5 = local itoa_buf
+    addi r6, r6, 10
+
+	.print_loop:
+		beq  r4, r0, .print_null
+
+		// 1. Convert integer into stack itoa_buf
+		lw   r1, [r4 + #0]
+		mov  r2, r5             // Destination: stack itoa_buf
+		call itoa
+		call prints
+
+		// 2. Print local arrow literal
+		movi r1, .arrow_str
+		call prints
+
+		// 3. Next node
+		lw   r4, [r4 + #1]
+    beq  r0, r0, .print_loop
+
+	.print_null:
+		movi r1, .null_str
+		call prints
+
+		// Deallocate stack buffer
+		subi r6, r6, 10
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
+
+	// --- Subroutine-Local Data (Scoped to print_list!) ---
+	.arrow_str: .fill " -> "
+	.null_str:  .fill "NULL\n"
+
+
+// free_list(r1 = head)
+linked_list_free_list:
+    push r7
+    push r4
+
+    mov  r4, r1
+
+	.free_loop:
+		beq  r4, r0, .free_done
+
+		lw   r1, [r4 + #1]
+		push r1
+
+		mov  r1, r4
+		call free
+
+		pop  r4
+		beq  r0, r0, .free_loop
+
+	.free_done:
+		pop  r4
+		pop  r7
+		ret

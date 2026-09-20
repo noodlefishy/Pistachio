@@ -2,7 +2,7 @@
   "clock": {
     "calculationTimeMs": 0,
     "memoryReadTimeMs": 0,
-    "memoryWriteTimeMs": 10,
+    "memoryWriteTimeMs": 0,
     "registerReadTimeMs": 0,
     "registerWriteTimeMs": 0,
     "deviceConsoleWriteTimeMs": 0,

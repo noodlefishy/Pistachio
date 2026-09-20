@@ -25,7 +25,7 @@ linked_list_insert_at_front:
     mov  r5, r2             // r5 = data
 
     mov  r1, r5
-    call create_node        // r1 = newNode
+    call linked_list_create_node        // r1 = newNode
 
     lw   r2, [r4 + #0]      // r2 = *headRef
     sw   r2, [r1 + #1]      // newNode->next = *headRef
@@ -64,7 +64,7 @@ linked_list_print_list:
 
 		// 3. Next node
 		lw   r4, [r4 + #1]
-    beq  r0, r0, .print_loop
+    	beq  r0, r0, .print_loop
 
 	.print_null:
 		movi r1, .null_str
@@ -105,3 +105,102 @@ linked_list_free_list:
 		pop  r4
 		pop  r7
 		ret
+
+
+// insert_at_index(r1 = headRef, r2 = data, r3 = index)
+linked_list_insert_at_index:
+    // Special Case: Index 0 is just insert_at_front!
+    beq  r3, r0, insert_at_front
+
+    push r7
+    push r4
+    push r5
+
+    mov  r5, r2             // r5 = data (safe across function calls)
+    lw   r4, [r1 + #0]      // r4 = current = *headRef
+    subi r3, r3, 1          // We want to stop at node (index - 1)
+
+	.insert_walk:
+		beq  r4, r0, .insert_done   // Out of bounds: list ended before index
+		beq  r3, r0, .insert_found  // Reached node (index - 1)
+
+		lw   r4, [r4 + #1]      // current = current->next
+		subi r3, r3, 1
+		beq  r0, r0, .insert_walk
+
+	.insert_found:
+		// r4 = prev node
+		mov  r1, r5             // r1 = data
+		call create_node        // r1 = newNode
+
+		// newNode->next = prev->next
+		lw   r2, [r4 + #1]      // r2 = prev->next
+		sw   r2, [r1 + #1]      // newNode->next = prev->next
+
+		// prev->next = newNode
+		sw   r1, [r4 + #1]
+
+	.insert_done:
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
+
+
+// remove_at_index(r1 = headRef, r2 = index)
+remove_at_index:
+    // If list is empty (*headRef == NULL), nothing to remove
+    lw   r3, [r1 + #0]
+    beq  r3, r0, .remove_exit
+
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1             // r4 = headRef
+    mov  r3, r2             // r3 = index
+
+    // Special Case: Remove index 0
+    beq  r3, r0, .remove_head
+
+    // --- Remove Index > 0 ---
+    lw   r4, [r4 + #0]      // r4 = current = *headRef
+    subi r3, r3, 1          // We want to stop at node (index - 1)
+
+	.remove_walk:
+		beq  r4, r0, .remove_done   // Out of bounds
+		beq  r3, r0, .remove_found  // Reached node (index - 1)
+
+		lw   r4, [r4 + #1]          // current = current->next
+		subi r3, r3, 1
+		beq  r0, r0, .remove_walk
+
+	.remove_found:
+		// r4 = prev node
+		lw   r5, [r4 + #1]          // r5 = to_delete = prev->next
+		beq  r5, r0, .remove_done   // If prev->next is NULL, out of bounds!
+
+		// prev->next = to_delete->next
+		lw   r2, [r5 + #1]
+		sw   r2, [r4 + #1]
+
+		// free(to_delete)
+		mov  r1, r5
+		call free
+		beq  r0, r0, .remove_done
+
+	.remove_head:
+		lw   r5, [r4 + #0]          // r5 = old_head = *headRef
+		lw   r2, [r5 + #1]          // r2 = old_head->next
+		sw   r2, [r4 + #0]          // *headRef = old_head->next
+
+		mov  r1, r5
+		call free                   // free(old_head)
+
+	.remove_done:
+		pop  r5
+		pop  r4
+		pop  r7
+
+	.remove_exit:
+    ret

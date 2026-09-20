@@ -1,89 +1,54 @@
 main:
     movi r6, stack
     call heap_init
-	movi r1 1
-	call alloc
-	mov r5 r1
-    mov r1 r5
+
+    // 1. Create a dynamic list object on the heap
+    call linked_list_create
+    mov  r4, r1              // r4 = myList
+
+    // 2. Insert items: (list, data, index)
+    mov  r1, r4
     movi r2, #30
-    call linked_list_insert_at_front
+    movi r3, #0
+    call linked_list_insert_at_index
 
-    mov r1 r5
-    movi r2, #20
-    call linked_list_insert_at_front
-
-    mov r1 r5
+    mov  r1, r4
     movi r2, #10
-    call linked_list_insert_at_front
+    movi r3, #0
+    call linked_list_insert_at_index
 
-    mov r1 r5
-    lw   r1, [r1 + #0]
+    mov  r1, r4
+    movi r2, #20
+    movi r3, #1
+    call linked_list_insert_at_index
+
+    // Prints: [Size: 3] 10 -> 20 -> 30 -> NULL
+    mov  r1, r4
     call linked_list_print_list
 
-//    mov r1 r5
-//    lw   r1, [r1 + #0]
-//    call linked_list_free_list
-//
-//    mov r1 r5
-//	call free
+    // 3. Remove index 1 (the 20)
+    mov  r1, r4
+    movi r2, #1
+    call linked_list_remove_at_index
 
-	push r7
-    push r4
-    push r5
-
-    mov  r4, r5
-
-    // Allocate only 10 words on stack for dynamic itoa_buf
-    mov  r5, r6             // r5 = local itoa_buf
-    addi r6, r6, 10
-
-	.print_loop:
-		beq  r4, r0, .print_null
-
-		// 1. Convert integer into stack itoa_buf
-		lw   r1, [r4 + #0]
-		mov  r2, r5             // Destination: stack itoa_buf
-		call itoa
-		call prints
-
-		// 2. Print local arrow literal
-		movi r1, .arrow_str
-		call prints
-
-		// 3. Next node
-		lw   r4, [r4 + #1]
-    	beq  r0, r0, .print_loop
-
-	.print_null:
-		movi r1, .null_str
-		call prints
-
-		// Deallocate stack buffer
-		subi r6, r6, 10
-		pop  r5
-		pop  r4
-		pop  r7
+    // Prints: [Size: 2] 10 -> 30 -> NULL
+    mov  r1, r4
+    call linked_list_print_list
 
 
+    mov  r1, r4
+    movi r2 #40
+    movi r3, #2
+    call linked_list_insert_at_index
 
+    mov  r1, r4
+    call linked_list_print_list
 
-
-
-
-
-
-
-
-
-
+    // 4. Destroy the list completely (frees all nodes and the descriptor)
+    mov  r1, r4
+    call linked_list_destroy
 
     halt
 
-
-	.arrow_str: .fill " -> "
-	.null_str:  .fill "NULL\n"
-
-
-
-
-stack:    .space 100
+stack:
+    .space 100

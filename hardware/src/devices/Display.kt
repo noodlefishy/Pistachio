@@ -1,6 +1,8 @@
 package io.cuttlefish.devices
 
 import java.awt.*
+import java.awt.image.BufferedImage
+import java.awt.image.DataBufferInt
 import javax.swing.*
 
 class Display : Device {
@@ -22,12 +24,12 @@ class Display : Device {
     override suspend fun read(address: UShort): Short {
         return when (address.toInt()) {
             0xFF03 -> 0
-            0xFF04 -> width.toShort()           // DD_WIDT
-            0xFF05 -> height.toShort()          // DD_HIGT
-            0xFF06 -> if (isWindowOpen) 1 else 0// DD_STUS
-            0xFF07 -> cursorX.toShort()         // DD_X
-            0xFF08 -> cursorY.toShort()         // DD_Y
-            0xFF09 -> {                         // Read colour at current (X, Y)
+            0xFF04 -> width.toShort()
+            0xFF05 -> height.toShort()
+            0xFF06 -> if (isWindowOpen) 1 else 0
+            0xFF07 -> cursorX.toShort()
+            0xFF08 -> cursorY.toShort()
+            0xFF09 -> {
                 val idx = cursorY * width + cursorX
                 if (idx in pixelData.indices) pixelData[idx].toShort() else 0
             }
@@ -38,7 +40,7 @@ class Display : Device {
     override suspend fun write(address: UShort, value: Short) {
         val valInt = value.toInt() and 0xFFFF
         when (address.toInt()) {
-            0xFF03 -> { // DD_CTRL Command
+            0xFF03 -> {
                 when (value.toInt()) {
                     0 -> closeWindow()
                     1 -> openWindow()
@@ -46,18 +48,13 @@ class Display : Device {
                     4 -> refreshScreen()
                 }
             }
-            0xFF07 -> {
-                cursorX = valInt % width
-            }
-            0xFF08 -> {
-                cursorY = valInt % height
-            }
-            0xFF09 -> { // trigger draw
+            0xFF07 -> cursorX = valInt % width
+            0xFF08 -> cursorY = valInt % height
+            0xFF09 -> {
                 val idx = cursorY * width + cursorX
                 if (idx in pixelData.indices) {
                     pixelData[idx] = valInt
                 }
-
                 cursorX++
                 if (cursorX >= width) {
                     cursorX = 0
@@ -69,9 +66,14 @@ class Display : Device {
 
     private fun openWindow() {
         if (isWindowOpen) return
-        SwingUtilities.invokeLater {
+
+        val initWindow = {
             val f = JFrame("Pixastachio (64x64)")
             f.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+
+            // FIX 1: Set both window and content pane to black to kill the grey flash
+            f.contentPane.background = Color.BLACK
+            f.background = Color.BLACK
 
             val g = GridPanel(pixelData, width, height)
             f.add(g)
@@ -83,6 +85,13 @@ class Display : Device {
             this.frame = f
             this.grid = g
             this.isWindowOpen = true
+        }
+
+        // FIX 2: Wait for window to construct before CPU resumes execution
+        if (SwingUtilities.isEventDispatchThread()) {
+            initWindow()
+        } else {
+            SwingUtilities.invokeAndWait(initWindow)
         }
     }
 
@@ -109,28 +118,29 @@ class Display : Device {
 }
 
 private class GridPanel(private val data: IntArray, val w: Int, val h: Int) : JPanel() {
-    private val pixelSize = 8 // 64 * 8 = 512x512 window on your desktop
+    private val pixelScale = 8
+    private val img = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
+    private val imgBuffer = (img.raster.dataBuffer as DataBufferInt).data
 
     init {
-        preferredSize = Dimension(w * pixelSize, h * pixelSize)
+        preferredSize = Dimension(w * pixelScale, h * pixelScale)
         background = Color.BLACK
     }
 
     override fun paintComponent(g: Graphics) {
         super.paintComponent(g)
 
+        // Convert RGB565 data to 32-bit RGB direct memory buffer
         for (i in data.indices) {
-            val x = i % w
-            val y = i / w
             val rgb565 = data[i]
-
-            // Extract RGB565
-            val r8 = ((rgb565 shr 11 and 0x1F) * 255) / 31
+            val r = ((rgb565 shr 11 and 0x1F) * 255) / 31
             val g8 = ((rgb565 shr 5 and 0x3F) * 255) / 63
-            val b8 = ((rgb565 and 0x1F) * 255) / 31
-
-            g.color = Color(r8, g8, b8)
-            g.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize)
+            val b = ((rgb565 and 0x1F) * 255) / 31
+            imgBuffer[i] = (r shl 16) or (g8 shl 8) or b
         }
+
+        val g2d = g as Graphics2D
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
+        g2d.drawImage(img, 0, 0, w * pixelScale, h * pixelScale, null)
     }
 }

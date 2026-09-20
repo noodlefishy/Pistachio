@@ -20,7 +20,7 @@ class Display : Device {
             0xFF04 -> pixelDimensions[0] // DD_WIDT: 8 pixels wide
             0xFF05 -> pixelDimensions[1] // DD_HIGT: 8 pixels high
             0xFF06 -> if (isWindowOpen) 1 else 0 // DD_STUS: Window open status
-//            in 0xFF0F..0xFF4E -> pixelData[addr - 0xFF0F].toShort() // Read pixel RGB565 colour
+            in 0xFF0F..0xFF4E -> pixelData[addr - 0xFF0F].toShort() // Read pixel RGB565 colour
             else -> 0
         }
     }
@@ -35,9 +35,6 @@ class Display : Device {
                     2 -> clearScreen()
                     4 -> refreshScreen()
                 }
-            }
-            0xFF07 -> {
-                pixelData[value * 8 + 0]
             }
 
             in 0xFF0F..0xFF4E -> {

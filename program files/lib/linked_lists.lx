@@ -268,7 +268,6 @@ linked_list_print_list:
 	.arrow_str:   .fill " -> "
 	.null_str:    .fill "NULL\n"
 
-
 // linked_list_destroy(r1 = list)
 // Frees all nodes, then frees the list object descriptor
 linked_list_destroy:

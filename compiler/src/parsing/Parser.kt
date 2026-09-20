@@ -9,14 +9,13 @@ class Parser(val file: File, val baseAddress: Short) {
 
     private val rawSource = file.readText()
     private val rawLines = file.readLines() // Used for accurate Error reporting!
-    private val ctx = ParserContext(baseAddress)
+    private val ctx = ParserContext()
 
     val symbolTable get() = ctx.symbolTable
     val imports get() = ctx.imports
     val relocations get() = ctx.relocations
 
-    @Suppress("unused")
-    private fun throwCompileError(message: String, line: Int, col: Int): Nothing {
+    private fun throwCompileError(message: String, line: Int): Nothing {
         val rawText = rawLines.getOrElse(line - 1) { "" }
         throw CompilationException(file.name, SourceLine(line, rawText), message)
     }
@@ -27,7 +26,7 @@ class Parser(val file: File, val baseAddress: Short) {
             val lexer = Lexer(rawSource)
             lexer.tokenise()
         } catch (e: LexerException) {
-            throwCompileError(e.message ?: "Lexer error", e.line, e.column)
+            throwCompileError(e.message ?: "Lexer error", e.line)
         }
 
         // 2. Syntax Analysis (Tokens -> AST Statements)
@@ -66,20 +65,20 @@ class Parser(val file: File, val baseAddress: Short) {
             if (!reader.hasNext()) continue
 
             val opToken = lineTokens[reader.index]
-            if (opToken !is MnemonicToken) throwCompileError("Expected instruction, got '${opToken.lexeme}'", opToken.line, opToken.column)
+            if (opToken !is MnemonicToken) throwCompileError("Expected instruction, got '${opToken.lexeme}'", opToken.line)
 
             reader.index++
 
             try {
                 val builder = StatementRegistry.builders[opToken.lexeme]
-                    ?: throwCompileError("Unsupported instruction or macro '${opToken.lexeme}'", opToken.line, opToken.column)
+                    ?: throwCompileError("Unsupported instruction or macro '${opToken.lexeme}'", opToken.line)
 
                 val stmt = builder(reader, opToken.line, opToken.column)
                 stmt.scope = ctx.currentGlobalScope
                 statements.add(stmt)
 
             } catch (e: SyntaxException) {
-                throwCompileError(e.message ?: "Syntax Error", opToken.line, opToken.column)
+                throwCompileError(e.message ?: "Syntax Error", opToken.line)
             }
         }
 

@@ -16,7 +16,7 @@ data class SymbolTable(
 )
 
 /**
- * Stupid Meani Panini, fricken Salamie code
+ * Stupid Meani Panini, fricken Salmono code!
  */
 @Serializable
 data class ObjectFile(

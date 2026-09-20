@@ -27,7 +27,6 @@ class Cpu(val mmu: MemoryBus) {
 
         // 1. FETCH
         val rawInstruction = mmu.read(pc)
-        val currentPc = pc
         pc++
 
         // 2. DECODE
@@ -36,7 +35,8 @@ class Cpu(val mmu: MemoryBus) {
         // Trap Handling
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
             val trapId = instruction.immediate
-            val trapName = when (trapId.toInt()) {
+            @Suppress("UnusedVariable", "unused")
+            val trapName = when (trapId.toInt()) { // for the OS
                 1 -> "HALT"
                 15 -> "RTI"
                 else -> "SYSCALL $trapId"
@@ -45,8 +45,7 @@ class Cpu(val mmu: MemoryBus) {
             // Log the Trap to history before returning!
 
             if (trapId == 1.toShort()) {
-                if (GlobalConfig.debug.printHistory) {
-                } else if (GlobalConfig.debug.printRegistersOnHalt) {
+                if (GlobalConfig.debug.printRegistersOnHalt) {
                     println("[DEBUG] $registers")
                 }
                 isHalted = true

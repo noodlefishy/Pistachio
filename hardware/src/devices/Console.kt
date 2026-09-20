@@ -3,6 +3,7 @@ package io.cuttlefish.devices
 import io.cuttlefish.*
 import io.cuttlefish.components.*
 import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class Console : Device {
     // jalr r0 r0 2 = print
@@ -12,7 +13,7 @@ class Console : Device {
     override val memoryUsed: UIntRange = 0xFF00u..0xFF02u
 
     override suspend fun read(address: UShort): Short {
-        delay(Clock.DEVICE_CONSOLE_READ_TIME)
+        delay(Clock.DEVICE_CONSOLE_READ_TIME.milliseconds)
 
         return when (address) {
             0xFF01u.toUShort() -> {
@@ -30,7 +31,7 @@ class Console : Device {
     }
 
     override suspend fun write(address: UShort, value: Short) {
-        delay(Clock.DEVICE_CONSOLE_WRITE_TIME)
+        delay(Clock.DEVICE_CONSOLE_WRITE_TIME.milliseconds)
         if (address == 0xFF00u.toUShort()) {
             System.err.print(value.toInt().toChar())
         }

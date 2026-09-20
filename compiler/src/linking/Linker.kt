@@ -4,7 +4,6 @@ import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.config.GlobalConfig
-import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 import java.io.*
 
@@ -23,9 +22,9 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
 
     private fun assignLayout(): Map<File, UShort> {
         currentAddress = (currentAddress + 3u).toUShort() // Reserve 3 words space for the bootstrap instructions
-        for (file in groupedByFile) {
-            fileBaseAddresses[file.key] = currentAddress
-            currentAddress = (currentAddress + file.value.payload.size.toUShort()).toUShort()
+        for ((key, value) in groupedByFile) {
+            fileBaseAddresses[key] = currentAddress
+            currentAddress = (currentAddress + value.payload.size.toUShort()).toUShort()
         }
         return fileBaseAddresses
     }
@@ -33,10 +32,10 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     private fun generateSymbolTable(assignedLayout: Map<File, UShort>): Map<String, UShort> {
         val global: MutableMap<String, UShort> = mutableMapOf()
         for ((file: File, objectFile: ObjectFile) in groupedByFile) {
-            for (symbol in objectFile.symbolTables) {
+            for ((name, type, offset) in objectFile.symbolTables) {
                 // Ignore imports so we don't accidentally overwrite the true address with the importer's layout address
-                if (symbol.type == SymbolType.Import) continue
-                global[symbol.name] = (assignedLayout[file]!! + symbol.offset).toUShort()
+                if (type == SymbolType.Import) continue
+                global[name] = (assignedLayout[file]!! + offset).toUShort()
             }
         }
         return global
@@ -62,12 +61,12 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         }
 
         val exportedSymbols = mutableSetOf<String>()
-        for (symbol in totalObjectsWithoutFiles) {
-            if (symbol.type == SymbolType.Export) {
-                if (symbol.name in exportedSymbols) {
-                    throw IllegalStateException("Duplicate Symbol ${symbol.name}")
+        for ((name, type) in totalObjectsWithoutFiles) {
+            if (type == SymbolType.Export) {
+                if (name in exportedSymbols) {
+                    throw IllegalStateException("Duplicate Symbol $name")
                 }
-                exportedSymbols.add(symbol.name)
+                exportedSymbols.add(name)
             }
         }
     }
@@ -79,8 +78,8 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
     // Warning! `copyRawPayloads` depends on the labels to be in the right order for everything to work out
     private fun copyRawPayloads(buffer: Array<UShort>): Array<UShort> {
         var arrayPointer = 3 // Start copying after the bootstrap sequence
-        for (obj in groupedByFile.values) {
-            for (byte in obj.payload) {
+        for ((_, payload) in groupedByFile.values) {
+            for (byte in payload) {
                 buffer[arrayPointer] = byte
                 arrayPointer++
             }
@@ -94,14 +93,14 @@ class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
         for ((file, obj) in groupedByFile) {
             val fileBaseAddress = fileBaseAddresses[file]
                 ?: throw IllegalStateException("File layout not assigned for ${file.name} in $fileBaseAddresses")
-            for (relocatable in obj.relocationTable) { // O(n^2) type shit
-                val targetAbsoluteAddress = labelAddresses[relocatable.name]
-                    ?: throw LinkerException(file.absolutePath, relocatable.name, "Unresolved External Symbol")
-                val instructionAbsoluteAddress = fileBaseAddress + relocatable.offset
+            for ((offset1, name, type) in obj.relocationTable) { // O(n^2) type shit
+                val targetAbsoluteAddress = labelAddresses[name]
+                    ?: throw LinkerException(file.absolutePath, name, "Unresolved External Symbol")
+                val instructionAbsoluteAddress = fileBaseAddress + offset1
                 val indexInBuffer = instructionAbsoluteAddress - startAddress
                 val instruction = buffer[indexInBuffer.toInt()]
 
-                val patchedInstruction = when (relocatable.type) {
+                val patchedInstruction = when (type) {
                     RelocationType.ABS_16 -> {
                         targetAbsoluteAddress
                     }

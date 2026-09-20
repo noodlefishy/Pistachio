@@ -37,7 +37,11 @@ class Lexer(private val source: String) {
     }
 
     private fun advance(count: Int) {
-        @Suppress("unused")
+        repeat(count) { // Maybe
+            // Haha TODO
+        }
+
+
         for (i in 0 until count) {
             if (index >= source.length) break
             val char = source[index]

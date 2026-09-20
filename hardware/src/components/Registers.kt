@@ -2,6 +2,7 @@ package io.cuttlefish.components
 
 import io.cuttlefish.*
 import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
 
 class Registers {
@@ -17,13 +18,13 @@ class Registers {
 
     suspend fun read(register: RegisterType): Short {
         if (register == RegisterType.R0) return 0
-        delay(Clock.REGISTER_READ_TIME)
+        delay(Clock.REGISTER_READ_TIME.milliseconds)
         return registerData[register.ordinal]
     }
 
     suspend fun write(register: RegisterType, value: Short) {
         if (register == RegisterType.R0) return // Ignore writes to R0
-        delay(Clock.REGISTER_WRITE_TIME)
+        delay(Clock.REGISTER_WRITE_TIME.milliseconds)
         oldWrite = register to value
         registerData[register.ordinal] = value
     }

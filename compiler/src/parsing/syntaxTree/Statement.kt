@@ -102,9 +102,9 @@ class RIStatement(
 class DirectiveFillString(val text: String, line: Int, col: Int) : Statement(line, col) {
     override val size = text.length + 1 // +1 for null terminator
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
-        val insts = text.map { Instruction.DataWord(it.code.toShort()) }.toMutableList()
-        insts.add(Instruction.DataWord(0))
-        return insts
+        val instructions = text.map { Instruction.DataWord(it.code.toShort()) }.toMutableList()
+        instructions.add(Instruction.DataWord(0))
+        return instructions
     }
 }
 

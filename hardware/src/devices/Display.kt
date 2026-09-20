@@ -84,7 +84,7 @@ class Display : Device {
     }
 }
 
-class GridPanel(private val data: IntArray) : JPanel() {
+private class GridPanel(private val data: IntArray) : JPanel() {
     private val pixelSize = 50
 
     init {

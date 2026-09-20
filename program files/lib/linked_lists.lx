@@ -1,144 +1,129 @@
+// =============================================================================
+// LINKED LIST OBJECT SPECIFICATION:
+//
+// List Object (2 words):
+//   [list + 0] : head pointer (Node* or 0 for NULL)
+//   [list + 1] : size (number of active nodes)
+//
+// Node (2 words):
+//   [node + 0] : data (16-bit word)
+//   [node + 1] : next (Node* or 0 for NULL)
+// =============================================================================
+
+
+// linked_list_create() -> r1 = list_pointer
+linked_list_create:
+    push r7
+
+    movi r1, #2              // Allocate 2-word descriptor [head, size]
+    call alloc
+
+    sw   r0, [r1 + #0]       // list->head = NULL
+    sw   r0, [r1 + #1]       // list->size = 0
+
+    pop  r7
+    ret
+
+
+// linked_list_create_node(r1 = data) -> r1 = node_pointer
 linked_list_create_node:
     push r7
     push r4
 
-    mov  r4, r1             // Preserve data
+    mov  r4, r1              // Preserve data
 
-    movi r1, #2              // Size = 2 words [0: data, 1: next]
-    call alloc              // r1 = newly allocated pointer
+    movi r1, #2              // Size = 2 words [data, next]
+    call alloc
 
     sw   r4, [r1 + #0]       // node->data = data
-    sw   r0, [r1 + #1]       // node->next = NULL (r0 is 0x0000)
+    sw   r0, [r1 + #1]       // node->next = NULL
 
     pop  r4
     pop  r7
     ret
 
 
-
+// linked_list_insert_at_front(r1 = list, r2 = data)
 linked_list_insert_at_front:
     push r7
     push r4
     push r5
 
-    mov  r4, r1             // r4 = headRef
-    mov  r5, r2             // r5 = data
+    mov  r4, r1              // r4 = list
+    mov  r5, r2              // r5 = data
 
     mov  r1, r5
-    call linked_list_create_node        // r1 = newNode
+    call linked_list_create_node // r1 = newNode
 
-    lw   r2, [r4 + #0]      // r2 = *headRef
-    sw   r2, [r1 + #1]      // newNode->next = *headRef
-    sw   r1, [r4 + #0]      // *headRef = newNode
+    // newNode->next = list->head
+    lw   r2, [r4 + #0]       // r2 = list->head
+    sw   r2, [r1 + #1]       // newNode->next = list->head
+
+    // list->head = newNode
+    sw   r1, [r4 + #0]
+
+    // list->size++
+    lw   r2, [r4 + #1]
+    addi r2, r2, 1
+    sw   r2, [r4 + #1]
 
     pop  r5
     pop  r4
     pop  r7
     ret
 
-// print_list(r1 = head)
-// Uses scoped local literals + local stack buffer for itoa
-linked_list_print_list:
-    push r7
-    push r4
-    push r5
 
-    mov  r4, r1
-
-    // Allocate only 10 words on stack for dynamic itoa_buf
-    mov  r5, r6             // r5 = local itoa_buf
-    addi r6, r6, 10
-
-	.print_loop:
-		beq  r4, r0, .print_null
-
-		// 1. Convert integer into stack itoa_buf
-		lw   r1, [r4 + #0]
-		mov  r2, r5             // Destination: stack itoa_buf
-		call itoa
-		call prints
-
-		// 2. Print local arrow literal
-		movi r1, .arrow_str
-		call prints
-
-		// 3. Next node
-		lw   r4, [r4 + #1]
-    	beq  r0, r0, .print_loop
-
-	.print_null:
-		movi r1, .null_str
-		call prints
-
-		// Deallocate stack buffer
-		subi r6, r6, 10
-		pop  r5
-		pop  r4
-		pop  r7
-		ret
-
-	// --- Subroutine-Local Data (Scoped to print_list!) ---
-	.arrow_str: .fill " -> "
-	.null_str:  .fill "NULL\n"
-
-
-// free_list(r1 = head)
-linked_list_free_list:
-    push r7
-    push r4
-
-    mov  r4, r1
-
-	.free_loop:
-		beq  r4, r0, .free_done
-
-		lw   r1, [r4 + #1]
-		push r1
-
-		mov  r1, r4
-		call free
-
-		pop  r4
-		beq  r0, r0, .free_loop
-
-	.free_done:
-		pop  r4
-		pop  r7
-		ret
-
-
-// insert_at_index(r1 = headRef, r2 = data, r3 = index)
+// =============================================================================
+// linked_list_insert_at_index(r1 = list, r2 = data, r3 = index)
+// =============================================================================
 linked_list_insert_at_index:
-    // Special Case: Index 0 is just insert_at_front!
-    beq  r3, r0, insert_at_front
+    // Special case: Index 0 is insert_at_front
+    beq  r3, r0, linked_list_insert_at_front
 
     push r7
     push r4
     push r5
 
-    mov  r5, r2             // r5 = data (safe across function calls)
-    lw   r4, [r1 + #0]      // r4 = current = *headRef
-    subi r3, r3, 1          // We want to stop at node (index - 1)
+    mov  r4, r1              // r4 = list
+    mov  r5, r2              // r5 = data
+
+    lw   r2, [r4 + #0]       // r2 = curr = list->head
+    beq  r2, r0, .insert_fallback // If empty list, insert at front
+
+    subi r3, r3, 1           // Target: node (index - 1)
 
 	.insert_walk:
-		beq  r4, r0, .insert_done   // Out of bounds: list ended before index
-		beq  r3, r0, .insert_found  // Reached node (index - 1)
-
-		lw   r4, [r4 + #1]      // current = current->next
+		lw   r1, [r2 + #1]       // r1 = curr->next
+		beq  r1, r0, .insert_splice // If at end of list, append here
+		beq  r3, r0, .insert_splice // Reached index - 1
+		mov  r2, r1              // curr = curr->next
 		subi r3, r3, 1
 		beq  r0, r0, .insert_walk
 
-	.insert_found:
-		// r4 = prev node
-		mov  r1, r5             // r1 = data
-		call create_node        // r1 = newNode
+	.insert_splice:
+		// r2 = prev node
+		push r2                  // Preserve prev across node creation
+		mov  r1, r5
+		call linked_list_create_node // r1 = newNode
+		pop  r2
 
 		// newNode->next = prev->next
-		lw   r2, [r4 + #1]      // r2 = prev->next
-		sw   r2, [r1 + #1]      // newNode->next = prev->next
+		lw   r5, [r2 + #1]
+		sw   r5, [r1 + #1]
 
 		// prev->next = newNode
-		sw   r1, [r4 + #1]
+		sw   r1, [r2 + #1]
+
+		// list->size++
+		lw   r2, [r4 + #1]
+		addi r2, r2, 1
+		sw   r2, [r4 + #1]
+		beq  r0, r0, .insert_done
+
+	.insert_fallback:
+		mov  r1, r4
+		mov  r2, r5
+		call linked_list_insert_at_front
 
 	.insert_done:
 		pop  r5
@@ -147,9 +132,11 @@ linked_list_insert_at_index:
 		ret
 
 
-// remove_at_index(r1 = headRef, r2 = index)
-remove_at_index:
-    // If list is empty (*headRef == NULL), nothing to remove
+
+// linked_list_remove_at_index(r1 = list, r2 = index)
+
+linked_list_remove_at_index:
+    // If list is empty (list->head == NULL), nothing to remove
     lw   r3, [r1 + #0]
     beq  r3, r0, .remove_exit
 
@@ -157,45 +144,56 @@ remove_at_index:
     push r4
     push r5
 
-    mov  r4, r1             // r4 = headRef
-    mov  r3, r2             // r3 = index
+    mov  r4, r1              // r4 = list
+    mov  r3, r2              // r3 = index
 
     // Special Case: Remove index 0
     beq  r3, r0, .remove_head
 
     // --- Remove Index > 0 ---
-    lw   r4, [r4 + #0]      // r4 = current = *headRef
-    subi r3, r3, 1          // We want to stop at node (index - 1)
+    lw   r2, [r4 + #0]       // r2 = curr = list->head
+    subi r3, r3, 1           // Target: node (index - 1)
 
 	.remove_walk:
-		beq  r4, r0, .remove_done   // Out of bounds
-		beq  r3, r0, .remove_found  // Reached node (index - 1)
-
-		lw   r4, [r4 + #1]          // current = current->next
+		beq  r2, r0, .remove_done    // Out of bounds
+		beq  r3, r0, .remove_found
+		lw   r2, [r2 + #1]       // curr = curr->next
 		subi r3, r3, 1
 		beq  r0, r0, .remove_walk
 
 	.remove_found:
-		// r4 = prev node
-		lw   r5, [r4 + #1]          // r5 = to_delete = prev->next
-		beq  r5, r0, .remove_done   // If prev->next is NULL, out of bounds!
+		// r2 = prev node
+		lw   r5, [r2 + #1]       // r5 = to_delete = prev->next
+		beq  r5, r0, .remove_done    // Out of bounds
 
 		// prev->next = to_delete->next
-		lw   r2, [r5 + #1]
-		sw   r2, [r4 + #1]
+		lw   r1, [r5 + #1]
+		sw   r1, [r2 + #1]
 
 		// free(to_delete)
 		mov  r1, r5
 		call free
+
+		// list->size--
+		lw   r2, [r4 + #1]
+		subi r2, r2, 1
+		sw   r2, [r4 + #1]
 		beq  r0, r0, .remove_done
 
 	.remove_head:
-		lw   r5, [r4 + #0]          // r5 = old_head = *headRef
-		lw   r2, [r5 + #1]          // r2 = old_head->next
-		sw   r2, [r4 + #0]          // *headRef = old_head->next
+		// r4 = list
+		lw   r5, [r4 + #0]       // r5 = old_head = list->head
+		lw   r2, [r5 + #1]       // r2 = old_head->next
+		sw   r2, [r4 + #0]       // list->head = old_head->next
 
+		// free(old_head)
 		mov  r1, r5
-		call free                   // free(old_head)
+		call free
+
+		// list->size--
+		lw   r2, [r4 + #1]
+		subi r2, r2, 1
+		sw   r2, [r4 + #1]
 
 	.remove_done:
 		pop  r5
@@ -203,4 +201,101 @@ remove_at_index:
 		pop  r7
 
 	.remove_exit:
-    ret
+		ret
+
+
+// linked_list_print_list(r1 = list)
+// Prints: "[Size: N] 10 -> 20 -> 30 -> NULL"
+linked_list_print_list:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1              // r4 = list
+
+    // Allocate 10 words on stack for dynamic itoa_buf
+    mov  r5, r6              // r5 = stack itoa_buf
+    addi r6, r6, 10
+
+    // 1. Print "[Size: "
+    movi r1, .size_str
+    call prints
+
+    // 2. Print list->size
+    lw   r1, [r4 + #1]       // Instant O(1) read
+    mov  r2, r5
+    call itoa
+    call prints
+
+    // 3. Print "] "
+    movi r1, .bracket_str
+    call prints
+
+    // 4. Start walk at list->head
+    lw   r4, [r4 + #0]
+
+	.print_loop:
+		beq  r4, r0, .print_null
+
+		// Convert integer into stack itoa_buf
+		lw   r1, [r4 + #0]
+		mov  r2, r5
+		call itoa
+		call prints
+
+		// Print " -> "
+		movi r1, .arrow_str
+		call prints
+
+		// Next node
+		lw   r4, [r4 + #1]
+		beq  r0, r0, .print_loop
+
+	.print_null:
+		movi r1, .null_str
+		call prints
+
+		// Deallocate stack itoa buffer
+		subi r6, r6, 10
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
+
+	// --- Subroutine-Local Data ---
+	.size_str:    .fill "[Size: "
+	.bracket_str: .fill "] "
+	.arrow_str:   .fill " -> "
+	.null_str:    .fill "NULL\n"
+
+
+// linked_list_destroy(r1 = list)
+// Frees all nodes, then frees the list object descriptor
+linked_list_destroy:
+    push r7
+    push r4
+    push r5
+
+    mov  r4, r1              // r4 = list
+    lw   r5, [r4 + #0]       // r5 = curr = list->head
+
+	.free_loop:
+		beq  r5, r0, .free_list_obj
+
+		lw   r1, [r5 + #1]       // r1 = curr->next
+		push r1                  // Preserve next pointer across free()
+
+		mov  r1, r5
+		call free                // free(curr)
+
+		pop  r5                  // curr = next
+		beq  r0, r0, .free_loop
+
+	.free_list_obj:
+		mov  r1, r4
+		call free                // Free the list descriptor itself
+
+		pop  r5
+		pop  r4
+		pop  r7
+		ret

@@ -1,0 +1,134 @@
+
+
+// gfx_draw_line(r1 = x0, r2 = y0, r3 = x1, r4 = y1, r5 = color)
+gfx_draw_line:
+	// Note: This Bresenham implementation assumes
+	// 1. x0 <= x1
+	// 2. 0 <= dy <= dx0 <= dy <= dx
+
+    push r7
+    push r4
+    push r5
+
+    // Save color to stack [will be r6 - 3]
+    push r5
+    // 1. dx = x1 - x0 (r3 will become our loop counter)
+    sub  r3 r3 r1
+    // 2. dy = y1 - y0
+    sub  r4 r4 r2
+
+    // 3. incE = 2 * dy
+    add  r7 r4 r4
+    push r7					// Save incE [will be r6 - 2]
+
+    // 4. incNE = 2 * (dy - dx)
+    sub  r5 r4 r3			// r5 = dy - dx
+    add  r5 r5 r5			// r5 = 2 * (dy - dx)
+    push r5					// Save incNE [will be r6 - 1]
+
+    // 5. D = 2 * dy - dx
+    // (r7 is 2*dy, r3 is dx)
+    sub  r4, r7, r3			// r4 = D
+
+    // 6. Base MMIO register for plotting
+    movi r7, 0xFF07			// r7 = DD_X (0xFF07)
+
+	.line_loop:
+		// --- 1. plot(x, y, color) ---
+		sw   r1, [r7 + #0]		// 0xFF07 (DD_X) = x
+		sw   r2, [r7 + #1]		// 0xFF08 (DD_Y) = y
+		lw   r5, [r6 + #-3]		// r5 = color
+		sw   r5, [r7 + #2]		// 0xFF09 (DD_COLOR) = color (triggers draw!)
+
+		// --- 2. if D > 0 ---
+		bgt  r4, r0, .d_positive
+
+	.d_non_positive:
+		// D = D + 2*dy
+		lw   r5, [r6 + #-2]		// r5 = incE
+		add  r4, r4, r5
+		beq  r0, r0, .step_x
+
+	.d_positive:
+		// y = y + 1
+		addi r2, r2, #1
+		// D = D + 2*(dy - dx)
+		lw   r5, [r6 + #-1]		// r5 = incNE
+		add  r4, r4, r5
+
+	.step_x:
+		addi r1, r1, #1			// x = x + 1
+		beq  r3, r0, .line_done	// If we just finished x1, stop!
+		subi r3, r3, #1			// count--
+		beq  r0, r0, .line_loop
+
+	.line_done:
+		subi r6, r6, #3
+		pop  r5
+		pop  r4
+		pop  r7
+		ret
+
+
+// gfx_v_line(1 = x, r2 = y, r3 = length, r4 = color)
+gfx_draw_v_line:
+    push r5
+    movi r5, 0xFF07             // r5 = base address of X/Y/Color
+
+	.draw_line:
+		beq  r3, r0, .done
+
+		sw   r1, [r5 + #0]
+		sw   r2, [r5 + #1]
+		sw   r4, [r5 + #2]
+
+		addi r2, r2, #1             // Y++
+		subi r3, r3, #1             // length--
+		beq  r0, r0, .draw_line
+
+	.done:
+		pop  r5
+		ret
+
+
+
+// gfx_h_line(r1 = x, r2 = y, r3 = length, r4 = color)
+gfx_draw_h_line:
+    push r5
+    movi r5 0xFF07 // Main Control value
+    sw   r1, [r5 + 0] // X
+    sw   r2, [r5 + 1] // Y
+
+	.draw_line:
+		beq  r3, r0, .done
+		sw   r4, [r5 + #2]       // Plots pixel and automatically does X++!
+		subi r3, r3, #1
+		beq  r0, r0, .draw_line
+	.done:
+		pop r5
+		ret
+
+
+gfx_present:
+	movi r1, #4
+    movi r2, 0xFF03
+    sw   r1, [r2 + #0] // DD_CTRL = 4 (Refresh)
+
+
+
+gfx_init:
+    movi r1, #1			// DD_CTRL = 1 (Open)
+    movi r2, 0xFF03
+    sw   r1, [r2 + #0]
+
+    ret
+
+
+gfx_wait_until_close:
+	.is_open:
+    	movi r1 0xFF06
+    	lw r1 [r1 + #0]
+    	beq r1 r0 .quit
+    	beq r0 r0 .is_open
+    	.quit:
+    		ret

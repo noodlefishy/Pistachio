@@ -34,7 +34,6 @@ class Debugger(
         val prePc = cpu.pc
         val preRegisters = cpu.registers.registerData.copyOf()
         val rawInstruction = memory.read(prePc)
-        val decodedInstruction = Backend.decode(rawInstruction.toUShort())
 
         cpu.tick()
 

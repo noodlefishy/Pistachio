@@ -1,69 +1,99 @@
-
-
 // gfx_draw_line(r1 = x0, r2 = y0, r3 = x1, r4 = y1, r5 = color)
+// (handles any direction!)
 gfx_draw_line:
-	// Note: This Bresenham implementation assumes
-	// 1. x0 <= x1
-	// 2. 0 <= dy <= dx0 <= dy <= dx
-
     push r7
     push r4
     push r5
 
-    // Save color to stack [will be r6 - 3]
-    push r5
-    // 1. dx = x1 - x0 (r3 will become our loop counter)
-    sub  r3 r3 r1
-    // 2. dy = y1 - y0
-    sub  r4 r4 r2
+    // Local stack frame (8 words)
+    // [r5 + 0]: x1
+    // [r5 + 1]: y1
+    // [r5 + 2]: dx = abs(x1 - x0)
+    // [r5 + 3]: dy = -abs(y1 - y0)
+    // [r5 + 4]: sx (step x: +1 or -1)
+    // [r5 + 5]: sy (step y: +1 or -1)
+    // [r5 + 6]: color
+    mov  r7, r5             // r7 = color (temporary)
+    mov  r5, r6             // r5 = Frame Pointer
+    addi r6, r6, 8
 
-    // 3. incE = 2 * dy
-    add  r7 r4 r4
-    push r7					// Save incE [will be r6 - 2]
+    sw   r3, [r5 + #0]      // save x1
+    sw   r4, [r5 + #1]      // save y1
+    sw   r7, [r5 + #6]      // save color
 
-    // 4. incNE = 2 * (dy - dx)
-    sub  r5 r4 r3			// r5 = dy - dx
-    add  r5 r5 r5			// r5 = 2 * (dy - dx)
-    push r5					// Save incNE [will be r6 - 1]
+    // --- Compute dx = abs(x1 - x0) & sx ---
+    bgt  r3, r1, .x_is_pos
+	.x_is_neg:
+		sub  r7, r1, r3     // dx = x0 - x1
+		sw   r7, [r5 + #2]
+		movi r7, #-1        // sx = -1
+		sw   r7, [r5 + #4]
+		beq  r0, r0, .calc_y
+	.x_is_pos:
+		sub  r7, r3, r1     // dx = x1 - x0
+		sw   r7, [r5 + #2]
+		movi r7, #1         // sx = 1
+		sw   r7, [r5 + #4]
 
-    // 5. D = 2 * dy - dx
-    // (r7 is 2*dy, r3 is dx)
-    sub  r4, r7, r3			// r4 = D
+    // --- Compute dy = -abs(y1 - y0) & sy ---
+	.calc_y:
+		bgt  r4, r2, .y_is_pos
+	.y_is_neg:
+		sub  r7, r4, r2     // dy = y1 - y0 (already negative or 0)
+		sw   r7, [r5 + #3]
+		movi r7, #-1        // sy = -1
+		sw   r7, [r5 + #5]
+		beq  r0, r0, .init_err
+	.y_is_pos:
+		sub  r7, r2, r4     // dy = -(y1 - y0) = y0 - y1 (negative)
+		sw   r7, [r5 + #3]
+		movi r7, #1         // sy = 1
+		sw   r7, [r5 + #5]
 
-    // 6. Base MMIO register for plotting
-    movi r7, 0xFF07			// r7 = DD_X (0xFF07)
+    // --- Compute initial err = dx + dy ---
+	.init_err:
+		lw   r3, [r5 + #2]  // r3 = dx
+		lw   r7, [r5 + #3]  // r7 = dy
+		add  r3, r3, r7     // r3 = err = dx + dy
 
-	.line_loop:
-		// --- 1. plot(x, y, color) ---
-		sw   r1, [r7 + #0]		// 0xFF07 (DD_X) = x
-		sw   r2, [r7 + #1]		// 0xFF08 (DD_Y) = y
-		lw   r5, [r6 + #-3]		// r5 = color
-		sw   r5, [r7 + #2]		// 0xFF09 (DD_COLOR) = color (triggers draw!)
+	.draw_loop:
+		// 1. Plot current pixel at (x0, y0)
+		movi r7, 0xFF07
+		sw   r1, [r7 + #0]  // DD_X = x0
+		sw   r2, [r7 + #1]  // DD_Y = y0
+		lw   r4, [r5 + #6]  // r4 = color
+		sw   r4, [r7 + #2]  // DD_COLOR = color
 
-		// --- 2. if D > 0 ---
-		bgt  r4, r0, .d_positive
+		// 2. Check if (x0 == x1 && y0 == y1)
+		lw   r4, [r5 + #0]  // r4 = x1
+		bne  r1, r4, .continue_step
+		lw   r4, [r5 + #1]  // r4 = y1
+		beq  r2, r4, .draw_done
 
-	.d_non_positive:
-		// D = D + 2*dy
-		lw   r5, [r6 + #-2]		// r5 = incE
-		add  r4, r4, r5
-		beq  r0, r0, .step_x
+	.continue_step:
+		// e2 = 2 * err
+		add  r4, r3, r3     // r4 = e2
 
-	.d_positive:
-		// y = y + 1
-		addi r2, r2, #1
-		// D = D + 2*(dy - dx)
-		lw   r5, [r6 + #-1]		// r5 = incNE
-		add  r4, r4, r5
+		// if (e2 >= dy) -> err += dy, x0 += sx
+		lw   r7, [r5 + #3]  // r7 = dy
+		blt  r4, r7, .skip_x_step
+		add  r3, r3, r7     // err += dy
+		lw   r7, [r5 + #4]  // r7 = sx
+		add  r1, r1, r7     // x0 += sx
 
-	.step_x:
-		addi r1, r1, #1			// x = x + 1
-		beq  r3, r0, .line_done	// If we just finished x1, stop!
-		subi r3, r3, #1			// count--
-		beq  r0, r0, .line_loop
+	.skip_x_step:
+		// if (e2 <= dx) -> err += dx, y0 += sy
+		lw   r7, [r5 + #2]  // r7 = dx
+		bgt  r4, r7, .skip_y_step
+		add  r3, r3, r7     // err += dx
+		lw   r7, [r5 + #5]  // r7 = sy
+		add  r2, r2, r7     // y0 += sy
 
-	.line_done:
-		subi r6, r6, #3
+	.skip_y_step:
+		beq  r0, r0, .draw_loop
+
+	.draw_done:
+		subi r6, r6, #8      // Free local stack frame
 		pop  r5
 		pop  r4
 		pop  r7
@@ -89,8 +119,6 @@ gfx_draw_v_line:
 	.done:
 		pop  r5
 		ret
-
-
 
 // gfx_h_line(r1 = x, r2 = y, r3 = length, r4 = color)
 gfx_draw_h_line:

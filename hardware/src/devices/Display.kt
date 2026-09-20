@@ -5,6 +5,9 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import javax.swing.*
 
+@Volatile
+private var isWindowOpen = false
+
 class Display : Device {
     override val name: String = "Display"
     override val deviceId: UShort = 2u
@@ -18,8 +21,8 @@ class Display : Device {
     private var cursorY = 0
 
     private var frame: JFrame? = null
+
     private var grid: GridPanel? = null
-    private var isWindowOpen = false
 
     override suspend fun read(address: UShort): Short {
         return when (address.toInt()) {
@@ -33,6 +36,7 @@ class Display : Device {
                 val idx = cursorY * width + cursorX
                 if (idx in pixelData.indices) pixelData[idx].toShort() else 0
             }
+
             else -> 0
         }
     }
@@ -48,6 +52,7 @@ class Display : Device {
                     4 -> refreshScreen()
                 }
             }
+
             0xFF07 -> cursorX = valInt % width
             0xFF08 -> cursorY = valInt % height
             0xFF09 -> {
@@ -71,7 +76,16 @@ class Display : Device {
             val f = JFrame("Pixastachio (64x64)")
             f.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
 
-            // FIX 1: Set both window and content pane to black to kill the grey flash
+            f.addWindowListener(object : java.awt.event.WindowAdapter() {
+                override fun windowClosing(e: java.awt.event.WindowEvent) {
+                    isWindowOpen = false
+                }
+
+                override fun windowClosed(e: java.awt.event.WindowEvent) {
+                    isWindowOpen = false
+                }
+            })
+
             f.contentPane.background = Color.BLACK
             f.background = Color.BLACK
 
@@ -84,10 +98,9 @@ class Display : Device {
 
             this.frame = f
             this.grid = g
-            this.isWindowOpen = true
+            isWindowOpen = true
         }
 
-        // FIX 2: Wait for window to construct before CPU resumes execution
         if (SwingUtilities.isEventDispatchThread()) {
             initWindow()
         } else {

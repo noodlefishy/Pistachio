@@ -2,22 +2,37 @@ main:
     movi r1, 1
     movi r2, 0xFF03
     sw   r1, [r2 + 0]       // DD_CTRL = 1 (Open)
-
-    // Set coordinates
-    movi r1, 10
+// 1. Set start position: (5, 15)
+    movi r1, #5
     movi r2, 0xFF07
-    sw   r1, [r2 + 0]       // DD_X = 10
+    sw   r1, [r2 + 0]       // X = 5
 
-    movi r1, 20
+    movi r1, #15
     movi r2, 0xFF08
-    sw   r1, [r2 + 0]       // DD_Y = 20
+    sw   r1, [r2 + 0]       // Y = 15
 
-    // Plot color (Triggers draw!)
-    movi r1, 0x07E0          // Green
-    movi r2, 0xFF09
-    sw   r1, [r2 + 0]       // DD_COLOR = Green (Draws at 10, 20!)
+    // 2. Loop 30 times writing ONLY the color!
+    movi r1, 0xF800         // Red
+    movi r2, 0xFF09         // DD_COLOR register
+    movi r3, #30             // Length = 30
 
-    // Repaint window
-    movi r1, 4
-    movi r2, 0xFF03
-    sw   r1, [r2 + 0]       // DD_CTRL = 4 (Refresh)
+	.draw_line:
+		beq  r3, r0, .done
+		sw   r1, [r2 + #0]       // Plots pixel and automatically does X++!
+		subi r3, r3, #1
+		beq  r0, r0, .draw_line
+
+	.done:
+		// Repaint
+		movi r1, #4
+		movi r2, 0xFF03
+		sw   r1, [r2 + #0] // DD_CTRL = 4 (Refresh)
+
+
+	.is_open:
+		movi r1 0xFF06
+		lw r1 [r1 + #0]
+		beq r1 r0 .quit
+		beq r0 r0 .is_open
+	.quit:
+		halt

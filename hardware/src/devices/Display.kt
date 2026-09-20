@@ -8,6 +8,7 @@ class Display : Device {
     override val deviceId: UShort = 2u
     override val memoryUsed: UIntRange = 0xFF03u..0xFF4Eu
 
+    private val pixelDimensions: Array<Short> = arrayOf(8, 8)
     private val pixelData = IntArray(8 * 8)
     private var frame: JFrame? = null
     private var grid: GridPanel? = null
@@ -16,10 +17,10 @@ class Display : Device {
     override suspend fun read(address: UShort): Short {
         return when (val addr = address.toInt()) {
             0xFF03 -> 0 // Control register read returns 0
-            0xFF04 -> 8 // DD_WIDT: 8 pixels wide
-            0xFF05 -> 8 // DD_HIGT: 8 pixels high
+            0xFF04 -> pixelDimensions[0] // DD_WIDT: 8 pixels wide
+            0xFF05 -> pixelDimensions[1] // DD_HIGT: 8 pixels high
             0xFF06 -> if (isWindowOpen) 1 else 0 // DD_STUS: Window open status
-            in 0xFF0F..0xFF4E -> pixelData[addr - 0xFF0F].toShort() // Read pixel RGB565 colour
+//            in 0xFF0F..0xFF4E -> pixelData[addr - 0xFF0F].toShort() // Read pixel RGB565 colour
             else -> 0
         }
     }
@@ -34,6 +35,9 @@ class Display : Device {
                     2 -> clearScreen()
                     4 -> refreshScreen()
                 }
+            }
+            0xFF07 -> {
+                pixelData[value * 8 + 0]
             }
 
             in 0xFF0F..0xFF4E -> {

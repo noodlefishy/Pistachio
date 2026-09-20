@@ -1,0 +1,17 @@
+0xFE00 -> 0xFFFF | MMIO 16bit range
+65 024 -> 65 535 ( 511 )
+
+
+0xFE00 -> 0xFE02 (2)	| Console
+0xFE03 -> 0xFF4E (75)	| Display
+0xFF60 -> 0xFF6C (12)	| Packing Accelerator
+0xFF4F -> 0xFF5B (12)
+
+
+
+
+256 x 256
+
+x * 256 + y = cords
+
+

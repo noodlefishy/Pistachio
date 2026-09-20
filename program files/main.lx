@@ -1,27 +1,29 @@
 main:
 	movi r6 [stack]
 	call gfx_init
-	// 1. Set start position: (5, 15)
 
 
-	movi r1 #5
-	movi r2 #15
-	movi r3 #30
-	movi r4 0xF800
-
-	call gfx_draw_v_line
-
-	movi r1 #5
-    movi r2 #15
-    movi r3 #30
-	call gfx_draw_h_line
-
+    movi r1, #5
+    movi r2, #10
+    movi r3, #50
+    movi r4, #25
+    movi r5, 0x07FF
+    call gfx_draw_line
 
 	call gfx_present
 
+
+    movi r1, #2
+    movi r2, #40
+    movi r3, #60
+    movi r4, #48
+    movi r5, 0xFFE0
+    call gfx_draw_line
+
+	call gfx_present
 
 	call gfx_wait_until_close
 	halt
 
 stack:
-	.space #100
+    .space 100

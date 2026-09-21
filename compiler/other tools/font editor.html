@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pistachio 3x5 Font Generator</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 15px;
+        }
+
+        canvas {
+            border: 1px solid black;
+            cursor: pointer;
+        }
+
+        button {
+            font-family: monospace;
+            padding: 3px 6px;
+            cursor: pointer;
+        }
+
+        .char-btn {
+            width: 26px;
+            height: 26px;
+            margin: 1px;
+            font-weight: bold;
+        }
+
+        .char-btn.active {
+            background: black;
+            color: white;
+        }
+
+        textarea {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<h3>Pistachio 3x5 Bitmap Font Generator</h3>
+
+<div>
+    <b>Pick Character to Edit:</b><br>
+    <div id="charButtons" style="max-width: 620px; line-height: 28px;"></div>
+</div>
+<br>
+
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+    <div>
+        <b>Editing: '<span id="currentCharLabel">A</span>' (3x5)</b><br>
+        <canvas id="gridCanvas" width="120" height="200"></canvas>
+        <br>
+        <button id="clearCharBtn">Clear</button>
+        <button id="invertCharBtn">Invert</button>
+    </div>
+
+    <div>
+        <b>Live Screen Preview (4x zoom):</b><br>
+        <canvas id="previewCanvas" width="256" height="64"></canvas>
+        <br>
+        Preview Text: <input type="text" id="previewInput" value="SCORE: 100"
+                             style="font-family: monospace; width: 160px;">
+    </div>
+</div>
+<br>
+
+<div>
+    <b>Ink Assembly Output:</b>
+    <label for="fontLabel">Label:</label> <input type="text" id="fontLabel" value="font_3x5"
+                                                 style="font-family: monospace;">
+    <button id="copyAllBtn">Copy Complete Font Table</button>
+    <button id="copyCurrentBtn">Copy Selected Char Only</button>
+    <br><br>
+    <label for="outputCode"></label><textarea id="outputCode" rows="15" cols="65" readonly></textarea>
+</div>
+
+<script>
+    // Standard ASCII characters from 32 (' ') to 90 ('Z')
+    const CHARS = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!?:.-+=/";
+
+    // Thank you, Gemini
+    // Bit 2 = Left, Bit 1 = Centre, Bit 0 = Right
+    const DEFAULT_FONT = {
+        ' ': [0, 0, 0, 0, 0],
+        '0': [7, 5, 5, 5, 7],
+        '1': [2, 6, 2, 2, 7],
+        '2': [7, 1, 7, 4, 7],
+        '3': [7, 1, 7, 1, 7],
+        '4': [5, 5, 7, 1, 1],
+        '5': [7, 4, 7, 1, 7],
+        '6': [7, 4, 7, 5, 7],
+        '7': [7, 1, 2, 2, 2],
+        '8': [7, 5, 7, 5, 7],
+        '9': [7, 5, 7, 1, 7],
+        'A': [2, 5, 7, 5, 5],
+        'B': [6, 5, 6, 5, 6],
+        'C': [7, 4, 4, 4, 7],
+        'D': [6, 5, 5, 5, 6],
+        'E': [7, 4, 7, 4, 7],
+        'F': [7, 4, 7, 4, 4],
+        'G': [7, 4, 5, 5, 7],
+        'H': [5, 5, 7, 5, 5],
+        'I': [7, 2, 2, 2, 7],
+        'J': [1, 1, 1, 5, 2],
+        'K': [5, 5, 6, 5, 5],
+        'L': [4, 4, 4, 4, 7],
+        'M': [5, 7, 5, 5, 5],
+        'N': [6, 5, 5, 5, 5],
+        'O': [7, 5, 5, 5, 7],
+        'P': [7, 5, 7, 4, 4],
+        'Q': [7, 5, 5, 6, 3],
+        'R': [6, 5, 6, 5, 5],
+        'S': [7, 4, 7, 1, 7],
+        'T': [7, 2, 2, 2, 2],
+        'U': [5, 5, 5, 5, 7],
+        'V': [5, 5, 5, 5, 2],
+        'W': [5, 5, 5, 7, 5],
+        'X': [5, 5, 2, 5, 5],
+        'Y': [5, 5, 2, 2, 2],
+        'Z': [7, 1, 2, 4, 7],
+        '!': [2, 2, 2, 0, 2],
+        '?': [7, 1, 2, 0, 2],
+        ':': [0, 2, 0, 2, 0],
+        '.': [0, 0, 0, 0, 2],
+        '-': [0, 0, 7, 0, 0],
+        '+': [0, 2, 7, 2, 0],
+        '=': [0, 7, 0, 7, 0],
+        '/': [1, 1, 2, 4, 4]
+    };
+
+    let fontData = {};
+    CHARS.split("").forEach(ch => {
+        const rows = DEFAULT_FONT[ch] || [0, 0, 0, 0, 0];
+        fontData[ch] = [];
+        for (let r = 0; r < 5; r++) {
+            const val = rows[r];
+            fontData[ch].push([
+                (val & 4) !== 0, // col 0 (left)
+                (val & 2) !== 0, // col 1 (mid)
+                (val & 1) !== 0  // col 2 (right)
+            ]);
+        }
+    });
+
+    let currentChar = 'A';
+    const gridCanvas = document.getElementById("gridCanvas");
+    const gridCtx = gridCanvas.getContext("2d");
+    const previewCanvas = document.getElementById("previewCanvas");
+    const previewCtx = previewCanvas.getContext("2d");
+    const outputCode = document.getElementById("outputCode");
+    const fontLabel = document.getElementById("fontLabel");
+
+    function renderGrid() {
+        const cellW = gridCanvas.width / 3;
+        const cellH = gridCanvas.height / 5;
+        gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+        const grid = fontData[currentChar];
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 3; c++) {
+                gridCtx.fillStyle = grid[r][c] ? "#00ff00" : "#000000";
+                gridCtx.fillRect(c * cellW, r * cellH, cellW, cellH);
+                gridCtx.strokeStyle = "#444";
+                gridCtx.strokeRect(c * cellW, r * cellH, cellW, cellH);
+            }
+        }
+    }
+
+    function renderPreview() {
+        previewCtx.fillStyle = "#000";
+        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+        const text = document.getElementById("previewInput").value.toUpperCase();
+        const scale = 4;
+        let startX = 4;
+        let startY = 8;
+
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            const grid = fontData[ch] || fontData[' '];
+
+            previewCtx.fillStyle = "#00ff88";
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 3; c++) {
+                    if (grid[r][c]) {
+                        previewCtx.fillRect(startX + (c * scale), startY + (r * scale), scale, scale);
+                    }
+                }
+            }
+            startX += (4 * scale);
+        }
+    }
+
+    function generateCode() {
+        const label = fontLabel.value.trim() || "font_3x5";
+        let asm = `// 3x5 Font Table (5 words per character, 1 row per word: 0 to 7)\n${label}:\n`;
+
+        CHARS.split("").forEach(ch => {
+            const grid = fontData[ch];
+            const rowVals = [];
+            for (let r = 0; r < 5; r++) {
+                let val = 0;
+                if (grid[r][0]) val |= 4;
+                if (grid[r][1]) val |= 2;
+                if (grid[r][2]) val |= 1;
+                rowVals.push(val);
+            }
+            // Strict single space, zero commas!
+            asm += `\t.fill { ${rowVals.join(" ")} } // '${ch}'\n`;
+        });
+
+        outputCode.value = asm;
+    }
+
+    const btnContainer = document.getElementById("charButtons");
+    CHARS.split("").forEach(ch => {
+        const btn = document.createElement("button");
+        btn.className = "char-btn" + (ch === currentChar ? " active" : "");
+        btn.textContent = ch === ' ' ? "SP" : ch;
+        btn.onclick = () => {
+            document.querySelectorAll(".char-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            currentChar = ch;
+            document.getElementById("currentCharLabel").textContent = ch === ' ' ? "SPACE" : ch;
+            renderGrid();
+        };
+        btnContainer.appendChild(btn);
+    });
+
+    gridCanvas.onclick = (e) => {
+        const rect = gridCanvas.getBoundingClientRect();
+        const c = Math.floor((e.clientX - rect.left) / (gridCanvas.width / 3));
+        const r = Math.floor((e.clientY - rect.top) / (gridCanvas.height / 5));
+
+        if (c >= 0 && c < 3 && r >= 0 && r < 5) {
+            fontData[currentChar][r][c] = !fontData[currentChar][r][c];
+            renderGrid();
+            renderPreview();
+            generateCode();
+        }
+    };
+
+    document.getElementById("clearCharBtn").onclick = () => {
+        fontData[currentChar] = [[false, false, false], [false, false, false], [false, false, false], [false, false, false], [false, false, false]];
+        renderGrid();
+        renderPreview();
+        generateCode();
+    };
+
+    document.getElementById("invertCharBtn").onclick = () => {
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 3; c++) {
+                fontData[currentChar][r][c] = !fontData[currentChar][r][c];
+            }
+        }
+        renderGrid();
+        renderPreview();
+        generateCode();
+    };
+
+    document.getElementById("previewInput").oninput = renderPreview;
+    fontLabel.oninput = generateCode;
+
+    document.getElementById("copyAllBtn").onclick = () => {
+        outputCode.select();
+        navigator.clipboard.writeText(outputCode.value);
+        alert("Copied complete font table to clipboard!");
+    };
+
+    document.getElementById("copyCurrentBtn").onclick = () => {
+        const grid = fontData[currentChar];
+        const rowVals = [];
+        for (let r = 0; r < 5; r++) {
+            let val = 0;
+            if (grid[r][0]) val |= 4;
+            if (grid[r][1]) val |= 2;
+            if (grid[r][2]) val |= 1;
+            rowVals.push(val);
+        }
+        const snippet = `\t.fill { ${rowVals.join(" ")} } // '${currentChar}'`;
+        navigator.clipboard.writeText(snippet);
+        alert(`Copied '${currentChar}' line to clipboard!`);
+    };
+
+    renderGrid();
+    renderPreview();
+    generateCode();
+</script>
+
+</body>
+</html>

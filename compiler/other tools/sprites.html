@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Pistachio Sprite Editor</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 15px;
+        }
+
+        canvas {
+            border: 1px solid black;
+            cursor: crosshair;
+        }
+
+        .swatch {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 1px solid black;
+            vertical-align: middle;
+            cursor: pointer;
+            margin-right: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<h3>Pistachio Sprite Editor</h3>
+
+<div>
+    Size:
+    <label for="gridSize"></label><select id="gridSize">
+    <option value="8">8x8</option>
+    <option value="16">16x16</option>
+    <option value="4">4x4</option>
+</select>
+    <button id="clearBtn">Clear</button>
+    <button id="eraserBtn">Eraser: OFF</button>
+</div>
+<br>
+
+<div>
+    <canvas id="paintCanvas" width="256" height="256"></canvas>
+</div>
+<br>
+
+<div>
+    Pre-made Palette:
+    <label for="paletteSelect"></label><select id="paletteSelect">
+    <option value="pistachio">Pistachio Classic (10)</option>
+    <option value="pico8">PICO-8 (16)</option>
+    <option value="nintendo">Game Boy (4)</option>
+    <option value="cyberpunk">Cyberpunk Neon (8)</option>
+</select>
+    <br><br>
+    Swatches: <span id="palette"></span>
+</div>
+<br>
+
+<div>
+    <b>16-bit RGB565 Sliders:</b>
+    <br>
+    R (5-bit: 0-31): <label for="sliderR"></label><input type="range" id="sliderR" min="0" max="31" value="0"> <span
+        id="valR">0</span>
+    <br>
+    G (6-bit: 0-63): <label for="sliderG"></label><input type="range" id="sliderG" min="0" max="63" value="63"> <span
+        id="valG">63</span>
+    <br>
+    B (5-bit: 0-31): <label for="sliderB"></label><input type="range" id="sliderB" min="0" max="31" value="0"> <span
+        id="valB">0</span>
+    <br>
+    Raw 16-bit (0-65535): <label for="sliderRaw"></label><input type="range" id="sliderRaw" min="0" max="65535"
+                                                                value="2016" style="width: 200px;">
+    <br><br>
+    Active Color: <span id="colorPreview" class="swatch" style="background: #00ff00; width: 24px; height: 24px;"></span>
+    Hex: <span id="rgb565Hex">0x07E0</span>
+    | HTML Picker: <label for="customColor"></label><input type="color" id="customColor" value="#00ff00">
+</div>
+<br>
+
+<div>
+    Label: <label for="spriteLabel"></label><input type="text" id="spriteLabel" value="temporary_name">
+    <button id="copyBtn">Copy Assembly</button>
+    <br><br>
+    <label for="outputCode"></label><textarea id="outputCode" rows="12" cols="60" readonly></textarea>
+</div>
+
+<script>
+    const PALETTES = {
+        pistachio: [
+            {name: "Black", hex: "#000000", rgb565: 0x0000},
+            {name: "White", hex: "#ffffff", rgb565: 0xFFFF},
+            {name: "Red", hex: "#ff0000", rgb565: 0xF800},
+            {name: "Green", hex: "#00ff00", rgb565: 0x07E0},
+            {name: "Blue", hex: "#0000ff", rgb565: 0x001F},
+            {name: "Yellow", hex: "#ffff00", rgb565: 0xFFE0},
+            {name: "Cyan", hex: "#00ffff", rgb565: 0x07FF},
+            {name: "Magenta", hex: "#ff00ff", rgb565: 0xF81F},
+            {name: "Orange", hex: "#ff8800", rgb565: 0xFD20},
+            {name: "Gray", hex: "#7f7f7f", rgb565: 0x7BEF}
+        ],
+        pico8: [
+            {name: "Black", hex: "#000000", rgb565: 0x0000},
+            {name: "Dark Blue", hex: "#1d2b53", rgb565: 0x194A},
+            {name: "Dark Purple", hex: "#7e2553", rgb565: 0x792A},
+            {name: "Dark Green", hex: "#008751", rgb565: 0x044A},
+            {name: "Brown", hex: "#ab5236", rgb565: 0xAA86},
+            {name: "Dark Gray", hex: "#5f574f", rgb565: 0x5AA9},
+            {name: "Light Gray", hex: "#c2c3c7", rgb565: 0xC618},
+            {name: "White", hex: "#fff1e8", rgb565: 0xFFDC},
+            {name: "Red", hex: "#ff004d", rgb565: 0xF809},
+            {name: "Orange", hex: "#ffa300", rgb565: 0xFD00},
+            {name: "Yellow", hex: "#ffec27", rgb565: 0xFFE4},
+            {name: "Green", hex: "#00e436", rgb565: 0x0726},
+            {name: "Blue", hex: "#29adff", rgb565: 0x2D7F},
+            {name: "Indigo", hex: "#83769c", rgb565: 0x83B3},
+            {name: "Pink", hex: "#ff77a8", rgb565: 0xFBB5},
+            {name: "Peach", hex: "#ffccaa", rgb565: 0xFE75}
+        ],
+        nintendo: [
+            {name: "White", hex: "#9bbc0f", rgb565: 0x9DE1},
+            {name: "Light Gray", hex: "#8bac0f", rgb565: 0x8D61},
+            {name: "Dark Gray", hex: "#306230", rgb565: 0x3306},
+            {name: "Black", hex: "#0f380f", rgb565: 0x09C1}
+        ],
+        cyberpunk: [
+            {name: "Black", hex: "#000000", rgb565: 0x0000},
+            {name: "Neon Cyan", hex: "#00ffff", rgb565: 0x07FF},
+            {name: "Neon Pink", hex: "#ff007f", rgb565: 0xF80F},
+            {name: "Neon Purple", hex: "#9900ff", rgb565: 0x981F},
+            {name: "Neon Yellow", hex: "#ffe600", rgb565: 0xFF20},
+            {name: "Neon Green", hex: "#39ff14", rgb565: 0x3FE2},
+            {name: "Electric Blue", hex: "#0066ff", rgb565: 0x033F},
+            {name: "Hot Orange", hex: "#ff3300", rgb565: 0xF980}
+        ]
+    };
+
+    let size = 8;
+    let pixels = [];
+    let currentColor = PALETTES.pistachio[3]; // Green
+    let isDrawing = false;
+    let isEraser = false;
+
+    const canvas = document.getElementById("paintCanvas");
+    const ctx = canvas.getContext("2d");
+    const output = document.getElementById("outputCode");
+    const labelInput = document.getElementById("spriteLabel");
+    const hexIndicator = document.getElementById("rgb565Hex");
+    const colorPreview = document.getElementById("colorPreview");
+
+    // Slider elements
+    const sliderR = document.getElementById("sliderR");
+    const sliderG = document.getElementById("sliderG");
+    const sliderB = document.getElementById("sliderB");
+    const sliderRaw = document.getElementById("sliderRaw");
+    const valR = document.getElementById("valR");
+    const valG = document.getElementById("valG");
+    const valB = document.getElementById("valB");
+    const customColor = document.getElementById("customColor");
+
+    function toRGB565(r, g, b) {
+        const r5 = (r >> 3) & 0x1F;
+        const g6 = (g >> 2) & 0x3F;
+        const b5 = (b >> 3) & 0x1F;
+        return (r5 << 11) | (g6 << 5) | b5;
+    }
+
+    function hexToRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
+
+    function formatHex16(val) {
+        return "0x" + val.toString(16).toUpperCase().padStart(4, "0");
+    }
+
+    // Updates all inputs, preview box, and currentColor from a 16-bit RGB565 integer
+    function setColorFrom16Bit(val565, updateInputs = true) {
+        val565 = val565 & 0xFFFF;
+        const r5 = (val565 >> 11) & 0x1F;
+        const g6 = (val565 >> 5) & 0x3F;
+        const b5 = val565 & 0x1F;
+
+        const r8 = Math.round((r5 * 255) / 31);
+        const g8 = Math.round((g6 * 255) / 63);
+        const b8 = Math.round((b5 * 255) / 31);
+
+        const hexStr = "#" + [r8, g8, b8].map(x => x.toString(16).padStart(2, "0")).join("");
+
+        currentColor = {name: "Custom", hex: hexStr, rgb565: val565};
+        isEraser = false;
+        document.getElementById("eraserBtn").textContent = "Eraser: OFF";
+
+        hexIndicator.textContent = formatHex16(val565);
+        colorPreview.style.background = hexStr;
+
+        valR.textContent = r5;
+        valG.textContent = g6;
+        valB.textContent = b5;
+
+        if (updateInputs) {
+            sliderR.value = r5;
+            sliderG.value = g6;
+            sliderB.value = b5;
+            sliderRaw.value = val565;
+            customColor.value = hexStr;
+        }
+    }
+
+    // Sync sliders when individual R, G, B channels change
+    function onComponentSliderInput() {
+        const r5 = parseInt(sliderR.value);
+        const g6 = parseInt(sliderG.value);
+        const b5 = parseInt(sliderB.value);
+        const val565 = (r5 << 11) | (g6 << 5) | b5;
+
+        valR.textContent = r5;
+        valG.textContent = g6;
+        valB.textContent = b5;
+        sliderRaw.value = val565;
+
+        setColorFrom16Bit(val565, false);
+        customColor.value = currentColor.hex;
+    }
+
+    sliderR.oninput = onComponentSliderInput;
+    sliderG.oninput = onComponentSliderInput;
+    sliderB.oninput = onComponentSliderInput;
+
+    sliderRaw.oninput = (e) => {
+        setColorFrom16Bit(parseInt(e.target.value), true);
+    };
+
+    customColor.oninput = (e) => {
+        const [r, g, b] = hexToRgb(e.target.value);
+        setColorFrom16Bit(toRGB565(r, g, b), true);
+    };
+
+    function resetPixels() {
+        pixels = Array(size * size).fill(0x0000);
+        renderCanvas();
+        generateCode();
+    }
+
+    function renderCanvas() {
+        const tileSize = canvas.width / size;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const col565 = pixels[y * size + x];
+                const r = (((col565 >> 11) & 0x1F) * 255) / 31;
+                const g = (((col565 >> 5) & 0x3F) * 255) / 63;
+                const b = ((col565 & 0x1F) * 255) / 31;
+
+                ctx.fillStyle = `rgb(${r},${g},${b})`;
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                ctx.strokeStyle = "#444";
+                ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+            }
+        }
+    }
+
+    function plotPixel(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scale = canvas.width / rect.width;
+        const x = Math.floor(((e.clientX - rect.left) * scale) / (canvas.width / size));
+        const y = Math.floor(((e.clientY - rect.top) * scale) / (canvas.height / size));
+
+        if (x >= 0 && x < size && y >= 0 && y < size) {
+            pixels[y * size + x] = isEraser ? 0x0000 : currentColor.rgb565;
+            renderCanvas();
+            generateCode();
+        }
+    }
+
+    function generateCode() {
+        const name = labelInput.value.trim() || "sprite";
+        let asm = `${name}:\n`;
+        for (let y = 0; y < size; y++) {
+            const row = [];
+            for (let x = 0; x < size; x++) {
+                row.push(formatHex16(pixels[y * size + x]));
+            }
+            // Strict single space, zero commas!
+            asm += `\t.fill { ${row.join(" ")} }\n`;
+        }
+        output.value = asm;
+    }
+
+    // Render palette swatches based on dropdown selection
+    function loadPalette(paletteKey) {
+        const paletteElem = document.getElementById("palette");
+        paletteElem.innerHTML = "";
+        const list = PALETTES[paletteKey] || PALETTES.pistachio;
+
+        list.forEach(p => {
+            const sw = document.createElement("div");
+            sw.className = "swatch";
+            sw.style.background = p.hex;
+            sw.title = `${p.name} (${formatHex16(p.rgb565)})`;
+            sw.onclick = () => {
+                setColorFrom16Bit(p.rgb565, true);
+            };
+            paletteElem.appendChild(sw);
+        });
+    }
+
+    document.getElementById("paletteSelect").onchange = (e) => {
+        loadPalette(e.target.value);
+    };
+
+    document.getElementById("eraserBtn").onclick = (e) => {
+        isEraser = !isEraser;
+        e.target.textContent = isEraser ? "Eraser: ON" : "Eraser: OFF";
+    };
+
+    canvas.onmousedown = (e) => {
+        isDrawing = true;
+        plotPixel(e);
+    };
+    window.onmouseup = () => isDrawing = false;
+    canvas.onmousemove = (e) => {
+        if (isDrawing) plotPixel(e);
+    };
+
+    document.getElementById("gridSize").onchange = (e) => {
+        size = parseInt(e.target.value);
+        resetPixels();
+    };
+
+    document.getElementById("clearBtn").onclick = resetPixels;
+    labelInput.oninput = generateCode;
+
+    document.getElementById("copyBtn").onclick = () => {
+        output.select();
+        navigator.clipboard.writeText(output.value);
+        alert("Copied to clipboard!");
+    };
+
+    // Initial setup
+    loadPalette("pistachio");
+    setColorFrom16Bit(0x07E0, true);
+    resetPixels();
+</script>
+
+</body>
+</html>

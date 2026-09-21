@@ -1,8 +1,20 @@
 main:
 	movi r6 stack
 
-	movi r1 0x2104
-	call gfx_clear
+//	movi r1 0x2104
+	call gfx_init
+
+	movi r1 #4 // X
+	movi r2 #4 // Y
+	movi r3 score_text
+	movi r4 0x07FF // Cyan color
+	call gfx_draw_string
+	call gfx_present
+
+
+
+
+	halt
 
 	// 2. Draw 4x4 Heart sprite at (10, 10)
 	movi r1 #10 // X
@@ -38,3 +50,5 @@ my_sprite:
 	.fill { 0x0000 0x0000 0xFFFF 0xF81F }
 	.fill { 0xF800 0xF800 0xF800 0x0000 }
 	.fill { 0xF800 0x0000 0xF800 0x0000 }
+score_text:
+	.fill "SCORE: 100\0"

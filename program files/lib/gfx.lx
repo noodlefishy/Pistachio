@@ -1,162 +1,267 @@
-// gfx_draw_line(r1 = x0, r2 = y0, r3 = x1, r4 = y1, r5 = color)
-// (handles any direction!)
-gfx_draw_line:
-    push r7
-    push r4
-    push r5
+gfx_init:
+	movi r1 #1
+	movi r2 0xFF03
+	sw r1 [r2 + #0]			// DD_CTRL = 1 (Open)
+	ret
 
-    // Local stack frame (8 words)
-    // [r5 + 0]: x1
-    // [r5 + 1]: y1
-    // [r5 + 2]: dx = abs(x1 - x0)
-    // [r5 + 3]: dy = -abs(y1 - y0)
-    // [r5 + 4]: sx (step x: +1 or -1)
-    // [r5 + 5]: sy (step y: +1 or -1)
-    // [r5 + 6]: color
-    mov  r7, r5             // r7 = color (temporary)
-    mov  r5, r6             // r5 = Frame Pointer
-    addi r6, r6, 8
+gfx_present:
+	movi r1 #4
+	movi r2 0xFF03
+	sw r1 [r2 + #0]			// DD_CTRL = 4 (Refresh)
+	ret
 
-    sw   r3, [r5 + #0]      // save x1
-    sw   r4, [r5 + #1]      // save y1
-    sw   r7, [r5 + #6]      // save color
-
-    // --- Compute dx = abs(x1 - x0) & sx ---
-    bgt  r3, r1, .x_is_pos
-	.x_is_neg:
-		sub  r7, r1, r3     // dx = x0 - x1
-		sw   r7, [r5 + #2]
-		movi r7, #-1        // sx = -1
-		sw   r7, [r5 + #4]
-		beq  r0, r0, .calc_y
-	.x_is_pos:
-		sub  r7, r3, r1     // dx = x1 - x0
-		sw   r7, [r5 + #2]
-		movi r7, #1         // sx = 1
-		sw   r7, [r5 + #4]
-
-    // --- Compute dy = -abs(y1 - y0) & sy ---
-	.calc_y:
-		bgt  r4, r2, .y_is_pos
-	.y_is_neg:
-		sub  r7, r4, r2     // dy = y1 - y0 (already negative or 0)
-		sw   r7, [r5 + #3]
-		movi r7, #-1        // sy = -1
-		sw   r7, [r5 + #5]
-		beq  r0, r0, .init_err
-	.y_is_pos:
-		sub  r7, r2, r4     // dy = -(y1 - y0) = y0 - y1 (negative)
-		sw   r7, [r5 + #3]
-		movi r7, #1         // sy = 1
-		sw   r7, [r5 + #5]
-
-    // --- Compute initial err = dx + dy ---
-	.init_err:
-		lw   r3, [r5 + #2]  // r3 = dx
-		lw   r7, [r5 + #3]  // r7 = dy
-		add  r3, r3, r7     // r3 = err = dx + dy
-
-	.draw_loop:
-		// 1. Plot current pixel at (x0, y0)
-		movi r7, 0xFF07
-		sw   r1, [r7 + #0]  // DD_X = x0
-		sw   r2, [r7 + #1]  // DD_Y = y0
-		lw   r4, [r5 + #6]  // r4 = color
-		sw   r4, [r7 + #2]  // DD_COLOUR = color
-
-		// 2. Check if (x0 == x1 && y0 == y1)
-		lw   r4, [r5 + #0]  // r4 = x1
-		bne  r1, r4, .continue_step
-		lw   r4, [r5 + #1]  // r4 = y1
-		beq  r2, r4, .draw_done
-
-	.continue_step:
-		// e2 = 2 * err
-		add  r4, r3, r3     // r4 = e2
-
-		// if (e2 >= dy) -> err += dy, x0 += sx
-		lw   r7, [r5 + #3]  // r7 = dy
-		blt  r4, r7, .skip_x_step
-		add  r3, r3, r7     // err += dy
-		lw   r7, [r5 + #4]  // r7 = sx
-		add  r1, r1, r7     // x0 += sx
-
-	.skip_x_step:
-		// if (e2 <= dx) -> err += dx, y0 += sy
-		lw   r7, [r5 + #2]  // r7 = dx
-		bgt  r4, r7, .skip_y_step
-		add  r3, r3, r7     // err += dx
-		lw   r7, [r5 + #5]  // r7 = sy
-		add  r2, r2, r7     // y0 += sy
-
-	.skip_y_step:
-		beq  r0, r0, .draw_loop
-
-	.draw_done:
-		subi r6, r6, #8      // Free local stack frame
-		pop  r5
-		pop  r4
-		pop  r7
+gfx_wait_until_close:
+	.is_open:
+		movi r1 0xFF06
+		lw r1 [r1 + #0]
+		beq r1 r0 .quit
+		beq r0 r0 .is_open
+	.quit:
 		ret
 
-
-// gfx_v_line(1 = x, r2 = y, r3 = length, r4 = color)
-gfx_draw_v_line:
-    push r5
-    movi r5, 0xFF07             // r5 = base address of X/Y/Color
-
-	.draw_line:
-		beq  r3, r0, .done
-
-		sw   r1, [r5 + #0]
-		sw   r2, [r5 + #1]
-		sw   r4, [r5 + #2]
-
-		addi r2, r2, #1             // Y++
-		subi r3, r3, #1             // length--
-		beq  r0, r0, .draw_line
-
+// gfx_clear(r1 = color)
+gfx_clear:
+	push r4
+	movi r2 0xFF07
+	sw r0 [r2 + #0] 		// DD_X = 0
+	sw r0 [r2 + #1] 		// DD_Y = 0
+	movi r3 #4096 			// 64 * 64
+	.clear_loop:
+		beq r3 r0 .done
+		sw r1 [r2 + #2] 	// DD_COLOR = color (auto X++ & Y wrap)
+		subi r3 r3 #1
+		beq r0 r0 .clear_loop
 	.done:
-		pop  r5
+		pop r4
 		ret
 
-// gfx_h_line(r1 = x, r2 = y, r3 = length, r4 = color)
-gfx_draw_h_line:
-    push r5
-    movi r5 0xFF07 // Main Control value
-    sw   r1, [r5 + 0] // X
-    sw   r2, [r5 + 1] // Y
+// gfx_draw_pixel(r1 = x, r2 = y, r3 = color)
+gfx_draw_pixel:
+	movi r7 0xFF07
+	sw r1 [r7 + #0] 		// DD_X = x
+	sw r2 [r7 + #1] 		// DD_Y = y
+	sw r3 [r7 + #2] 		// DD_COLOR = color
+	ret
 
+// gfx_draw_h_line(r1 = x, r2 = y, r3 = length, r4 = color)
+gfx_draw_h_line:
+	push r5
+	movi r5 0xFF07
+	sw r1 [r5 + #0] 		// DD_X = x
+	sw r2 [r5 + #1] 		// DD_Y = y
 	.draw_line:
-		beq  r3, r0, .done
-		sw   r4, [r5 + #2]       // Plots pixel and automatically does X++!
-		subi r3, r3, #1
-		beq  r0, r0, .draw_line
+		beq r3 r0 .done
+		sw r4 [r5 + #2] 	// DD_COLOR = color (auto X++)
+		subi r3 r3 #1
+		beq r0 r0 .draw_line
 	.done:
 		pop r5
 		ret
 
+// gfx_draw_v_line(r1 = x, r2 = y, r3 = length, r4 = color)
+gfx_draw_v_line:
+	push r5
+	movi r5 0xFF07
+	.draw_line:
+		beq r3 r0 .done
+		sw r1 [r5 + #0]
+		sw r2 [r5 + #1]
+		sw r4 [r5 + #2]
+		addi r2 r2 #1 		// Y++
+		subi r3 r3 #1 		// length--
+		beq r0 r0 .draw_line
+	.done:
+		pop r5
+		ret
 
-gfx_present:
-	movi r1, #4
-    movi r2, 0xFF03
-    sw   r1, [r2 + #0] // DD_CTRL = 4 (Refresh)
+// gfx_draw_line(r1 = x0, r2 = y0, r3 = x1, r4 = y1, r5 = color)
+gfx_draw_line:
+	push r7
+	push r4
+	push r5
+	mov r7 r5
+	mov r5 r6
+	addi r6 r6 #8
+	sw r3 [r5 + #0] 		// save x1
+	sw r4 [r5 + #1] 		// save y1
+	sw r7 [r5 + #6] 		// save color
+	bgt r3 r1 .x_is_pos
+	.x_is_neg:
+		sub r7 r1 r3 		// dx = x0 - x1
+		sw r7 [r5 + #2]
+		movi r7 #-1 		// sx = -1
+		sw r7 [r5 + #4]
+		beq r0 r0 .calc_y
+	.x_is_pos:
+		sub r7 r3 r1 		// dx = x1 - x0
+		sw r7 [r5 + #2]
+		movi r7 #1 			// sx = 1
+		sw r7 [r5 + #4]
+	.calc_y:
+		bgt r4 r2 .y_is_pos
+	.y_is_neg:
+		sub r7 r4 r2 		// dy = y1 - y0
+		sw r7 [r5 + #3]
+		movi r7 #-1 		// sy = -1
+		sw r7 [r5 + #5]
+		beq r0 r0 .init_err
+	.y_is_pos:
+		sub r7 r2 r4 		// dy = -(y1 - y0)
+		sw r7 [r5 + #3]
+		movi r7 #1 // sy = 1
+		sw r7 [r5 + #5]
+	.init_err:
+		lw r3 [r5 + #2]
+		lw r7 [r5 + #3]
+		add r3 r3 r7 		// err = dx + dy
+	.draw_loop:
+		movi r7 0xFF07
+		sw r1 [r7 + #0] 	// DD_X = x0
+		sw r2 [r7 + #1] 	// DD_Y = y0
+		lw r4 [r5 + #6] 	// r4 = color
+		sw r4 [r7 + #2] 	// DD_COLOR = color
+		lw r4 [r5 + #0] 	// r4 = x1
+		bne r1 r4 .continue_step
+		lw r4 [r5 + #1] 	// r4 = y1
+		beq r2 r4 .draw_done
+	.continue_step:
+		add r4 r3 r3 		// e2 = 2 * err
+		lw r7 [r5 + #3] 	// dy
+		blt r4 r7 .skip_x_step
+		add r3 r3 r7 		// err += dy
+		lw r7 [r5 + #4] 	// sx
+		add r1 r1 r7 		// x0 += sx
+	.skip_x_step:
+		lw r7 [r5 + #2] 	// dx
+		bgt r4 r7 .skip_y_step
+		add r3 r3 r7 		// err += dx
+		lw r7 [r5 + #5] 	// sy
+		add r2 r2 r7 		// y0 += sy
+	.skip_y_step:
+		beq r0 r0 .draw_loop
+	.draw_done:
+		subi r6 r6 #8
+		pop r5
+		pop r4
+		pop r7
+		ret
 
+// gfx_fill_rect(r1 = x, r2 = y, r3 = w, r4 = h, r5 = color)
+gfx_fill_rect:
+	push r7
+	push r4
+	push r5
+	mov r7 r5 			// r7 = color
+	mov r5 r6 			// r5 = Frame Pointer
+	addi r6 r6 #3
+	sw r1 [r5 + #0] 	// save x
+	sw r3 [r5 + #1] 	// save w
+	sw r7 [r5 + #2] 	// save color
+	mov r1 r2			// r1 = current Y
+	movi r7 0xFF07
+	.row_loop:
+		beq r4 r0 .rect_done
+		lw r2 [r5 + #0] // r2 = x
+		sw r2 [r7 + #0] // DD_X = x
+		sw r1 [r7 + #1] // DD_Y = current Y
+		lw r2 [r5 + #1] // r2 = col counter
+		lw r3 [r5 + #2] // r3 = color
+	.col_loop:
+		beq r2 r0 .next_row
+		sw r3 [r7 + #2]  // DD_COLOR = color (auto X++)
+		subi r2 r2 #1
+		beq r0 r0 .col_loop
+	.next_row:
+		addi r1 r1 #1 	// Y++
+		subi r4 r4 #1 	// h--
+		beq r0 r0 .row_loop
+	.rect_done:
+		subi r6 r6 #3
+		pop r5
+		pop r4
+		pop r7
+		ret
 
+// gfx_draw_rect(r1 = x, r2 = y, r3 = w, r4 = h, r5 = color)
+gfx_draw_rect:
+	push r7
+	push r4
+	push r5
+	mov r7 r5
+	mov r5 r6
+	addi r6 r6 #5
+	sw r1 [r5 + #0] 	// x
+	sw r2 [r5 + #1] 	// y
+	sw r3 [r5 + #2] 	// w
+	sw r4 [r5 + #3] 	// h
+	sw r7 [r5 + #4] 	// color
+	mov r4 r7
+	call gfx_draw_h_line
+	lw r1 [r5 + #0]
+	lw r2 [r5 + #1]
+	lw r4 [r5 + #3]
+	add r2 r2 r4
+	subi r2 r2 #1 		// y + h - 1
+	lw r3 [r5 + #2]
+	lw r4 [r5 + #4]
+	call gfx_draw_h_line
+	lw r1 [r5 + #0]
+	lw r2 [r5 + #1]
+	lw r3 [r5 + #3] 	// length = h
+	lw r4 [r5 + #4]
+	call gfx_draw_v_line
+	lw r1 [r5 + #0]
+	lw r3 [r5 + #2]
+	add r1 r1 r3
+	subi r1 r1 #1 		// x + w - 1
+	lw r2 [r5 + #1]
+	lw r3 [r5 + #3] 	// length = h
+	lw r4 [r5 + #4]
+	call gfx_draw_v_line
+	subi r6 r6 #5
+	pop r5
+	pop r4
+	pop r7
+	ret
 
-gfx_init:
-    movi r1, #1			// DD_CTRL = 1 (Open)
-    movi r2, 0xFF03
-    sw   r1, [r2 + #0]
-
-    ret
-
-
-gfx_wait_until_close:
-	.is_open:
-    	movi r1 0xFF06
-    	lw r1 [r1 + #0]
-    	beq r1 r0 .quit
-    	beq r0 r0 .is_open
-    	.quit:
-    		ret
+// gfx_draw_sprite(r1 = x, r2 = y, r3 = w, r4 = h, r5 = sprite_ptr)
+gfx_draw_sprite:
+	push r7
+	push r4
+	push r5
+	mov r7 r5 			// r7 = sprite_ptr
+	mov r5 r6 			// r5 = Frame Pointer
+	addi r6 r6 #4
+	sw r1 [r5 + #0] 	// save x
+	sw r3 [r5 + #1] 	// save w
+	sw r7 [r5 + #2] 	// save sprite_ptr
+	sw r2 [r5 + #3] 	// save current Y
+	movi r7 0xFF07
+	.row_loop:
+		beq r4 r0 .sprite_done
+		lw r1 [r5 + #0]
+		lw r2 [r5 + #3]
+		sw r1 [r7 + #0] // DD_X = x
+		sw r2 [r7 + #1] // DD_Y = current Y
+		lw r3 [r5 + #1] // r3 = w
+		lw r1 [r5 + #2] // r1 = sprite_ptr
+	.pixel_loop:
+		beq r3 r0 .next_row
+		lw r2 [r1 + #0] // read pixel color
+		sw r2 [r7 + #2] // plot (auto X++)
+		addi r1 r1 #1
+		subi r3 r3 #1
+		beq r0 r0 .pixel_loop
+	.next_row:
+		sw r1 [r5 + #2] // update sprite_ptr
+		lw r2 [r5 + #3]
+		addi r2 r2 #1 	// current Y++
+		sw r2 [r5 + #3]
+		subi r4 r4 #1 	// h--
+		beq r0 r0 .row_loop
+	.sprite_done:
+		subi r6 r6 #4
+		pop r5
+		pop r4
+		pop r7
+		ret

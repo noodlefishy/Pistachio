@@ -1,0 +1,140 @@
+main:
+    movi r6, stack
+    call gfx_init
+
+    // -------------------------------------------------------------------------
+    // Phase 1: Outer Curved Weave (Step = 4)
+    // -------------------------------------------------------------------------
+    movi r1, #0
+    push r1                 // [r6 - 1] = i (safe on the stack!)
+
+	.outer_weave_loop:
+		// 1. Top-Left Corner (Cyan: 0x07FF)
+		// Line from (0, 63 - i) to (i, 0)
+		lw   r4, [r6 + #-1] // r4 = i
+		movi r1, #0         // x0 = 0
+		movi r2, #63
+		sub  r2, r2, r4     // y0 = 63 - i
+		mov  r3, r4         // x1 = i
+		movi r4, #0         // y1 = 0
+		movi r5, 0x07FF     // Cyan
+		call gfx_draw_line
+		call gfx_present
+
+
+		// 2. Top-Right Corner (Yellow: 0xFFE0)
+		// Line from (i, 0) to (63, i)
+		lw   r4, [r6 + #-1] // r4 = i
+		mov  r1, r4         // x0 = i
+		movi r2, #0         // y0 = 0
+		movi r3, #63        // x1 = 63
+		// y1 = i (already in r4!)
+		movi r5, 0xFFE0     // Yellow
+		call gfx_draw_line
+		call gfx_present
+
+		// 3. Bottom-Right Corner (Magenta: 0xF81F)
+		// Line from (63, i) to (63 - i, 63)
+		lw   r4, [r6 + #-1] // r4 = i
+		movi r1, #63        // x0 = 63
+		mov  r2, r4         // y0 = i
+		movi r3, #63
+		sub  r3, r3, r4     // x1 = 63 - i
+		movi r4, #63        // y1 = 63
+		movi r5, 0xF81F     // Magenta
+		call gfx_draw_line
+		call gfx_present
+
+		// 4. Bottom-Left Corner (Neon Green: 0x07E0)
+		// Line from (63 - i, 63) to (0, 63 - i)
+		lw   r4, [r6 + #-1] // r4 = i
+		movi r1, #63
+		sub  r1, r1, r4     // x0 = 63 - i
+		movi r2, #63        // y0 = 63
+		movi r3, #0         // x1 = 0
+		movi r4, #63
+		lw   r7, [r6 + #-1] // r7 = i
+		sub  r4, r4, r7     // y1 = 63 - i
+		movi r5, 0x07E0     // Green
+		call gfx_draw_line
+		call gfx_present
+
+
+		// Increment i on stack: i += 4
+		lw   r4, [r6 + #-1]
+		addi r4, r4, #4
+		sw   r4, [r6 + #-1]
+
+		movi r1, #64
+		blt  r4, r1, .outer_step
+		beq  r0, r0, .outer_done
+
+	.outer_step:
+		movi r7, .outer_weave_loop
+		jalr r0, r7, #0
+
+	.outer_done:
+		pop  r0             // Discard i from stack
+
+    // -------------------------------------------------------------------------
+    // Phase 2: Inner Diamond Core (Center: 31, 31)
+    // -------------------------------------------------------------------------
+    movi r1, #0
+    push r1                 // [r6 - 1] = i
+
+	.inner_diamond_loop:
+		// Line 1: from (31, 31 - i) to (31 + i, 31) [White: 0xFFFF]
+		lw   r4, [r6 + #-1] // r4 = i
+		movi r1, #31
+		movi r2, #31
+		sub  r2, r2, r4     // y0 = 31 - i
+		movi r3, #31
+		add  r3, r3, r4     // x1 = 31 + i
+		movi r4, #31        // y1 = 31
+		movi r5, 0xFFFF     // White
+		call gfx_draw_line
+		call gfx_present
+
+		// Line 2: from (31, 31 + i) to (31 - i, 31) [White: 0xFFFF]
+		lw   r4, [r6 + #-1] // r4 = i
+		movi r1, #31
+		movi r2, #31
+		add  r2, r2, r4     // y0 = 31 + i
+		movi r3, #31
+		sub  r3, r3, r4     // x1 = 31 - i
+		movi r4, #31        // y1 = 31
+		movi r5, 0xFFFF     // White
+		call gfx_draw_line
+		call gfx_present
+
+		// i += 6
+		lw   r4, [r6 + #-1]
+		addi r4, r4, #6
+		sw   r4, [r6 + #-1]
+
+		movi r1, #30
+		blt  r4, r1, .diamond_step
+		beq  r0, r0, .diamond_done
+
+	.diamond_step:
+		movi r7, .inner_diamond_loop
+		jalr r0, r7, #0
+
+	.diamond_done:
+		pop  r0             // Discard i from stack
+
+    // -------------------------------------------------------------------------
+    // Phase 3: Final Refresh & Wait
+    // -------------------------------------------------------------------------
+    call gfx_present
+
+	.wait_loop:
+		movi r1, 0xFF06     // DD_STUS
+		lw   r1, [r1 + #0]
+		beq  r1, r0, .quit
+		beq  r0, r0, .wait_loop
+
+	.quit:
+		halt
+
+stack: .space 100

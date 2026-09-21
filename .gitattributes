@@ -1,3 +1,4 @@
 *.lx linguist-language=Assembly
 kotlin linguist-vendored
 kotlin.bat linguist-vendored
+lx linguist-vendored

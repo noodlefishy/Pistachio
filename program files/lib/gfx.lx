@@ -62,7 +62,7 @@ gfx_draw_line:
 		sw   r1, [r7 + #0]  // DD_X = x0
 		sw   r2, [r7 + #1]  // DD_Y = y0
 		lw   r4, [r5 + #6]  // r4 = color
-		sw   r4, [r7 + #2]  // DD_COLOR = color
+		sw   r4, [r7 + #2]  // DD_COLOUR = color
 
 		// 2. Check if (x0 == x1 && y0 == y1)
 		lw   r4, [r5 + #0]  // r4 = x1

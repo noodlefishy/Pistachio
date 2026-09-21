@@ -51,4 +51,4 @@ my_sprite:
 	.fill { 0xF800 0xF800 0xF800 0x0000 }
 	.fill { 0xF800 0x0000 0xF800 0x0000 }
 score_text:
-	.fill "SCORE: 100\0"
+	.fill "I HATE STEFAN"

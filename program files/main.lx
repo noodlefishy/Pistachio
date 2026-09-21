@@ -1,54 +1,92 @@
 main:
 	movi r6 stack
-
-//	movi r1 0x2104
 	call gfx_init
 
-	movi r1 #4 // X
-	movi r2 #4 // Y
-	movi r3 score_text
-	movi r4 0x07FF // Cyan color
+	clr r1
+	call gfx_clear
+
+	movi r1 #28 // X
+	movi r2 #6 // Y
+	movi r3 #8 // Width
+	movi r4 #8 // Height
+	movi r5 alien_sprite
+	call gfx_draw_sprite
+
+	movi r1 #10
+	movi r2 #20
+	movi r3 msg_prompt
+	movi r4 0xFFE0
 	call gfx_draw_string
+
+	movi r1 #25 // X
+	movi r2 #32 // Y
+	movi r3 #14 // Width
+	movi r4 #14 // Height
+	movi r5 0xFFFF // White
+	call gfx_draw_rect
+
 	call gfx_present
 
+	.key_loop:
+		// Check window status (0xFF06). If closed, halt right here!
+		movi r2 0xFF06 // DD_STUS
+		lw r1 [r2 + #0]
+		bne r1 r0 .window_open
+		halt // Exit immediately if closed!
+
+	.window_open:
+		movi r2 0xFF0B
+		lw r1 [r2 + #0]
+		beq r1 r0 .key_loop // Wait for a key
+
+		mov r4 r1 // r4 = char_ascii
+
+		// Convert lowercase ('a'-'z': 97-122) to uppercase ('A'-'Z': 65-90)
+		movi r2 #97 // 'a'
+		blt r4 r2 .is_upper
+		movi r2 #122 // 'z'
+		bgt r4 r2 .is_upper
+		subi r4 r4 #32 // Convert to uppercase
+
+	.is_upper:
+		push r4 // Save key on stack across fill_rect
+
+		// Erase inside of box by drawing a solid black rect (x=26, y=33, w=12, h=12)
+		movi r1 #26 // X
+		movi r2 #33 // Y
+		movi r3 #12 // Width
+		movi r4 #12 // Height
+		movi r5 0x0000 // Black
+		call gfx_fill_rect
+
+		pop r3 // r3 = key character (Argument 3 for gfx_draw_char)
+
+		// Draw the typed letter in Cyan (0x07FF) centered at (x=30, y=36)
+		movi r1 #30 // X
+		movi r2 #36 // Y
+		movi r4 0x07FF // Cyan
+		call gfx_draw_char
+
+		// Refresh window to show the new letter
+		call gfx_present
+
+		// Long jump back to top of loop (avoids 7-bit limit)
+		movi r7 .key_loop
+		jalr r0 r7 #0
 
 
+msg_prompt:
+	.fill "TYPE A KEY :3"
 
-	halt
-
-	// 2. Draw 4x4 Heart sprite at (10, 10)
-	movi r1 #10 // X
-	movi r2 #10 // Y
-	movi r3 #4 // Width
-	movi r4 #4 // Height
-	movi r5 my_sprite // Pointer to sprite data
-	call gfx_draw_sprite
-
-	// 3. Draw a second heart at (30, 20)
-	movi r1 #30 // X
-	movi r2 #20 // Y
-	movi r3 #4 // Width
-	movi r4 #4 // Height
-	movi r5 my_sprite
-	call gfx_draw_sprite
-
-	// 5. Blit everything to the window!
-	call gfx_present
-
-	call gfx_wait_until_close
-	halt
-
-
-
-
+alien_sprite:
+	.fill { 0x0000 0x0000 0x07E0 0x0000 0x0000 0x07E0 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x07E0 0x07E0 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 0x0000 }
+	.fill { 0x07E0 0x07E0 0xFFFF 0x07E0 0x07E0 0xFFFF 0x07E0 0x07E0 }
+	.fill { 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 0x07E0 }
+	.fill { 0x07E0 0x0000 0x07E0 0x07E0 0x07E0 0x07E0 0x0000 0x07E0 }
+	.fill { 0x07E0 0x0000 0x07E0 0x0000 0x0000 0x07E0 0x0000 0x07E0 }
+	.fill { 0x0000 0x0000 0x0000 0x07E0 0x07E0 0x0000 0x0000 0x0000 }
 
 stack:
-	.space #100
-
-my_sprite:
-	.fill { 0x0000 0x0000 0xF800 0xF800 }
-	.fill { 0x0000 0x0000 0xFFFF 0xF81F }
-	.fill { 0xF800 0xF800 0xF800 0x0000 }
-	.fill { 0xF800 0x0000 0xF800 0x0000 }
-score_text:
-	.fill "I HATE STEFAN"
+	.space 100

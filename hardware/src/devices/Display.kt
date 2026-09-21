@@ -1,17 +1,19 @@
 package io.cuttlefish.devices
 
 import java.awt.*
+import java.awt.event.KeyAdapter
+import java.awt.event.KeyEvent
+import java.awt.event.WindowAdapter
+import java.awt.event.WindowEvent
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import javax.swing.*
 
-@Volatile
-private var isWindowOpen = false
-
 class Display : Device {
     override val name: String = "Display"
     override val deviceId: UShort = 2u
-    override val memoryUsed: UIntRange = 0xFF03u..0xFF09u
+
+    override val memoryUsed: UIntRange = 0xFF03u..0xFF0Bu
 
     val width = 64
     val height = 64
@@ -20,8 +22,11 @@ class Display : Device {
     private var cursorX = 0
     private var cursorY = 0
 
-    private var frame: JFrame? = null
+    @Volatile private var isWindowOpen = false
+    @Volatile private var gamepadState = 0
+    @Volatile private var lastKey = 0
 
+    private var frame: JFrame? = null
     private var grid: GridPanel? = null
 
     override suspend fun read(address: UShort): Short {
@@ -36,7 +41,12 @@ class Display : Device {
                 val idx = cursorY * width + cursorX
                 if (idx in pixelData.indices) pixelData[idx].toShort() else 0
             }
-
+            0xFF0A -> gamepadState.toShort() // Read live held keys!
+            0xFF0B -> {                      // Read single key (clears on read)
+                val k = lastKey.toShort()
+                lastKey = 0
+                k
+            }
             else -> 0
         }
     }
@@ -52,7 +62,6 @@ class Display : Device {
                     4 -> refreshScreen()
                 }
             }
-
             0xFF07 -> cursorX = valInt % width
             0xFF08 -> cursorY = valInt % height
             0xFF09 -> {
@@ -75,19 +84,42 @@ class Display : Device {
         val initWindow = {
             val f = JFrame("Pixastachio (64x64)")
             f.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-
-            f.addWindowListener(object : java.awt.event.WindowAdapter() {
-                override fun windowClosing(e: java.awt.event.WindowEvent) {
-                    isWindowOpen = false
-                }
-
-                override fun windowClosed(e: java.awt.event.WindowEvent) {
-                    isWindowOpen = false
-                }
-            })
-
             f.contentPane.background = Color.BLACK
             f.background = Color.BLACK
+
+            f.addWindowListener(object : WindowAdapter() {
+                override fun windowClosing(e: WindowEvent) { isWindowOpen = false }
+                override fun windowClosed(e: WindowEvent) { isWindowOpen = false }
+            })
+
+            f.addKeyListener(object : KeyAdapter() {
+                override fun keyPressed(e: KeyEvent) {
+                    when (e.keyCode) {
+                        KeyEvent.VK_UP, KeyEvent.VK_W       -> gamepadState = gamepadState or 0x0001
+                        KeyEvent.VK_DOWN, KeyEvent.VK_S     -> gamepadState = gamepadState or 0x0002
+                        KeyEvent.VK_LEFT, KeyEvent.VK_A     -> gamepadState = gamepadState or 0x0004
+                        KeyEvent.VK_RIGHT, KeyEvent.VK_D    -> gamepadState = gamepadState or 0x0008
+                        KeyEvent.VK_SPACE, KeyEvent.VK_Z    -> gamepadState = gamepadState or 0x0010
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_X    -> gamepadState = gamepadState or 0x0020
+                        KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState or 0x0040
+                    }
+                    if (e.keyChar != KeyEvent.CHAR_UNDEFINED) {
+                        lastKey = e.keyChar.code and 0xFFFF
+                    }
+                }
+
+                override fun keyReleased(e: KeyEvent) {
+                    when (e.keyCode) {
+                        KeyEvent.VK_UP, KeyEvent.VK_W       -> gamepadState = gamepadState and 0x0001.inv()
+                        KeyEvent.VK_DOWN, KeyEvent.VK_S     -> gamepadState = gamepadState and 0x0002.inv()
+                        KeyEvent.VK_LEFT, KeyEvent.VK_A     -> gamepadState = gamepadState and 0x0004.inv()
+                        KeyEvent.VK_RIGHT, KeyEvent.VK_D    -> gamepadState = gamepadState and 0x0008.inv()
+                        KeyEvent.VK_SPACE, KeyEvent.VK_Z    -> gamepadState = gamepadState and 0x0010.inv()
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_X    -> gamepadState = gamepadState and 0x0020.inv()
+                        KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState and 0x0040.inv()
+                    }
+                }
+            })
 
             val g = GridPanel(pixelData, width, height)
             f.add(g)
@@ -95,10 +127,12 @@ class Display : Device {
             f.isResizable = false
             f.setLocationRelativeTo(null)
             f.isVisible = true
+            f.isFocusable = true
+            f.requestFocusInWindow()
 
             this.frame = f
             this.grid = g
-            isWindowOpen = true
+            this.isWindowOpen = true
         }
 
         if (SwingUtilities.isEventDispatchThread()) {
@@ -143,7 +177,6 @@ private class GridPanel(private val data: IntArray, val w: Int, val h: Int) : JP
     override fun paintComponent(g: Graphics) {
         super.paintComponent(g)
 
-        // Convert RGB565 data to 32-bit RGB direct memory buffer
         for (i in data.indices) {
             val rgb565 = data[i]
             val r = ((rgb565 shr 11 and 0x1F) * 255) / 31

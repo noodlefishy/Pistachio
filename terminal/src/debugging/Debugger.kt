@@ -1,20 +1,23 @@
 package io.cuttlefish.debug
 
+import devices.Console
+import devices.Display
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.config.GlobalConfig
 import io.cuttlefish.debugging.*
+import io.cuttlefish.devices.PackingAccelerator
 import java.io.File
 
 class Debugger(
-    val cpu: Cpu,
-    val memory: MemoryBus,
-    val symbolMap: Map<String, UShort>,
-    val baseAddress: UShort = 0x3000u
+    val cpu: Cpu, val memory: MemoryBus, val symbolMap: Map<String, UShort>, val baseAddress: UShort = 0x3000u
 ) {
 
     init {
+        memory.attach(Console())
+        memory.attach(Display())
+        memory.attach(PackingAccelerator())
 //        GlobalConfig.debug. TODO, use global config to set debug dir
         File("Debug/linker").mkdirs()
     }

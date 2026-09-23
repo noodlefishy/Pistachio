@@ -1,5 +1,6 @@
-package io.cuttlefish.devices
+package devices
 
+import io.cuttlefish.devices.Device
 import java.awt.*
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent

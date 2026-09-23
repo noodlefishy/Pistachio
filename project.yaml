@@ -2,3 +2,4 @@ modules:
   - compiler
   - hardware
   - terminal
+  - web

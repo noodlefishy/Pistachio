@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pistachio VM (WebAssembly)</title>
+    <style>
+        body {
+            background: #111;
+            color: #eee;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            gap: 12px;
+        }
+
+        #screen {
+            border: 4px solid #444;
+            image-rendering: pixelated;
+            width: 512px;
+            height: 512px;
+            background: #000;
+            cursor: pointer;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        input[type="file"] {
+            background: #222;
+            color: #fff;
+            padding: 6px;
+            border: 1px solid #444;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+<h2>Pistachio VM — WebAssembly</h2>
+
+<div class="controls">
+    <label>Load Executable (.bin): </label>
+    <input type="file" id="binPicker" accept=".bin">
+</div>
+
+<!-- The 64x64 Canvas -->
+<canvas id="screen" width="64" height="64" tabindex="1"></canvas>
+
+<p id="status">Select a compiled .bin file above</p>
+
+<!-- AMPER TEMPLATE VARIABLE: Automatically injects all required Wasm & JS loaders -->
+{{kotlin.scripts}}
+</body>
+</html>

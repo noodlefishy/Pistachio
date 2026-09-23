@@ -1,7 +1,8 @@
-package io.cuttlefish.devices
+package devices
 
-import io.cuttlefish.*
 import io.cuttlefish.components.*
+import io.cuttlefish.devices.Device
+import io.cuttlefish.toShort
 import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.milliseconds
 

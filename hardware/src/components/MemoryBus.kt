@@ -8,8 +8,8 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
     val attachedDevices: MutableSet<Device> = mutableSetOf()
 
     init {
-        registerDevice(Console())
-        registerDevice(Display())
+//        registerDevice(Console())
+//        registerDevice(Display())
         registerDevice(PackingAccelerator())
     }
 
@@ -23,7 +23,9 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
         val device = addressMap[address]
         device?.write(address, value) ?: ram.write(address, value)
     }
-
+    fun attach(device: Device) {
+        registerDevice(device)
+    }
 
     private fun registerDevice(device: Device) {
         attachedDevices += device

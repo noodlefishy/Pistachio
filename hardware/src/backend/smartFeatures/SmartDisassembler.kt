@@ -1,4 +1,7 @@
-package io.cuttlefish
+package io.cuttlefish.backend.smartFeatures
+
+import io.cuttlefish.MemoryManagement
+import io.cuttlefish.backend.Backend
 
 
 data class DisassembledInstruction(
@@ -20,7 +23,7 @@ object SmartDisassembler {
             rawWords.add(w)
         }
 
-        val decodedWindow = rawWords.map { io.cuttlefish.backend.Backend.decode(it) }
+        val decodedWindow = rawWords.map { Backend.decode(it) }
 
         for (pattern in SmartDisassemblerRegistry.patterns) {
             val match = pattern.match(decodedWindow, address, symbolMap)

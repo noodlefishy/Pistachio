@@ -1,7 +1,7 @@
 package io.cuttlefish.debugging
 
 import io.cuttlefish.*
-import io.cuttlefish.backend.*
+import io.cuttlefish.backend.smartFeatures.SmartDisassembler
 import io.cuttlefish.debug.*
 import kotlin.system.*
 

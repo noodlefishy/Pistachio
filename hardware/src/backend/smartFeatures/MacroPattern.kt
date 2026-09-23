@@ -1,4 +1,6 @@
-package io.cuttlefish
+package io.cuttlefish.backend.smartFeatures
+
+import io.cuttlefish.Instruction
 
 interface MacroPattern {
     val size: Int

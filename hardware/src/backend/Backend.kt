@@ -97,11 +97,22 @@ object Backend {
         return x
     }
 
+
     private fun encode(single: Instruction): UShort {
         if (single is Instruction.DataWord) return single.value.toUShort()
 
         var value: UShort
-        val opcode = InstructionType.entries.find { it.name == single::class.simpleName }!!.ordinal
+        val opcode = when (single) {
+            is Instruction.Add  -> InstructionType.Add.ordinal
+            is Instruction.Addi -> InstructionType.Addi.ordinal
+            is Instruction.Nand -> InstructionType.Nand.ordinal
+            is Instruction.Lui  -> InstructionType.Lui.ordinal
+            is Instruction.Lw   -> InstructionType.Lw.ordinal
+            is Instruction.Sw   -> InstructionType.Sw.ordinal
+            is Instruction.Beq  -> InstructionType.Beq.ordinal
+            is Instruction.Jalr -> InstructionType.Jalr.ordinal
+            is Instruction.DataWord -> error("DataWord handled above")
+        }
         value = (opcode shl (15 - (15 - 13))).toUShort()
         return when (InstructionType.entries.find { it.ordinal == opcode }) {
             InstructionType.Add -> encodeRRR(value, single)

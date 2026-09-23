@@ -4,49 +4,44 @@
     <meta charset="UTF-8">
     <title>Pistachio Visual Debugger</title>
     <style>
-        /* Minimal Structural CSS */
-        body { font-family: monospace; margin: 15px; display: flex; flex-direction: column; height: 95vh; background: #111; color: #eee; }
+        body { font-family: monospace; margin: 15px; display: flex; flex-direction: column; height: 95vh; }
         .toolbar { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
         .dashboard { display: flex; gap: 15px; flex: 1; overflow: hidden; }
 
-        button, input[type="text"], input[type="file"] {
-            background: #222; color: #fff; border: 1px solid #555; padding: 5px 10px; cursor: pointer; font-family: monospace;
-        }
-        button:hover { background: #333; }
-        button.active { background: #00ff88; color: #000; font-weight: bold; }
+        button, input { font-family: monospace; cursor: pointer; }
 
-        /* Layout Panels */
-        .panel { border: 1px solid #444; padding: 10px; overflow-y: auto; background: #1a1a20; border-radius: 4px; }
+        .panel { border: 1px solid black; padding: 10px; overflow-y: auto; }
         .panel-center { display: flex; flex-direction: column; align-items: center; }
 
-        /* Canvas */
-        #screen { border: 2px solid #555; image-rendering: pixelated; width: 384px; height: 384px; background: black; }
+        #screen { border: 1px solid black; image-rendering: pixelated; width: 384px; height: 384px; background: black; }
 
-        /* Disassembly Code View */
-        .code-row { display: flex; gap: 10px; padding: 3px; }
-        .active-pc { background: #00ff8833; border-left: 3px solid #00ff88; font-weight: bold; }
-        .breakpoint { background: #ff004433; border-left: 3px solid #ff0044; }
-        .active-pc.breakpoint { background: #ffaa0033; border-left: 3px solid #ffaa00; }
-        .addr { width: 70px; color: #888; }
-        .hex { width: 50px; color: #a6e22e; }
-        .inst { flex: 1; }
+        .code-row { display: flex; gap: 10px; padding: 2px; }
+        .active-pc { background: yellow; font-weight: bold; }
+        .breakpoint { background: pink; }
+        .active-pc.breakpoint { background: orange; }
+
+        /* Width adjusted to fit longer labels */
+        .addr { width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .hex { width: 50px; }
+        .inst { flex: 1; white-space: pre; }
 
         /* Registers Grid */
         .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-        .reg-box { border: 1px solid #444; padding: 5px; background: #000; }
-        .reg-name { display: inline-block; width: 30px; font-weight: bold; color: #888;}
-        .reg-val { color: #00ff88; }
+        .reg-box { border: 1px solid gray; padding: 5px; }
+        .reg-name { display: inline-block; width: 30px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<h2 style="margin-top: 0; color: #00ff88;">🥜 Pistachio Visual Debugger</h2>
+<h3>Pistachio Visual Debugger</h3>
 
 <div class="toolbar">
-    <input type="file" id="binPicker" accept=".bin">
+    <b>Load Files:</b>
+    <!-- Added "multiple" so you can select the .bin and .map files at the same time -->
+    <input type="file" id="binPicker" accept=".bin,.map" multiple title="Select both .bin and .map files for labels!">
     <button id="btnStep" disabled>Step (S)</button>
     <button id="btnRun" disabled>Run / Pause (P)</button>
-    <span id="status" style="color: #888;">Awaiting binary...</span>
+    <span id="status">Awaiting binary...</span>
 </div>
 
 <div class="dashboard">
@@ -55,9 +50,9 @@
         <b>Display</b><br>
         <canvas id="screen" width="64" height="64" tabindex="1"></canvas>
         <div style="margin-top: 15px; text-align: left; width: 100%;">
-            <b>Status:</b> <span id="cpuStatus" class="reg-val">HALTED</span><br>
-            <b>PC:</b> <span id="regPC" class="reg-val">0x0000</span><br>
-            <b>EPC:</b> <span id="regEPC" class="reg-val">0x0000</span>
+            <b>Status:</b> <span id="cpuStatus">HALTED</span><br>
+            <b>PC:</b> <span id="regPC">0x0000</span><br>
+            <b>EPC:</b> <span id="regEPC">0x0000</span>
         </div>
     </div>
 
@@ -76,19 +71,18 @@
 
         <!-- Command Bar (lx-dbg) -->
         <div style="margin-top: 10px; display: flex; gap: 5px;">
-            <span style="padding-top: 5px;"><b>(lx-dbg) &gt;</b></span>
-            <input type="text" id="cmdInput" placeholder="until 0x3050, break 0x3010, xvon 0x3000..." style="flex: 1;">
+            <span style="padding-top: 3px;"><b>(lx-dbg)&gt;</b></span>
+            <input type="text" id="cmdInput" placeholder="until 0x3050, break main, xvon 0x3000..." style="flex: 1;">
             <button id="btnCmd">Exec</button>
         </div>
     </div>
 
-    <!-- Left: Registers & Stack -->
     <div class="panel" style="flex: 1;">
         <b>Registers</b><br><br>
         <div class="reg-grid" id="registersView"></div>
 
         <br><b>Stack (R6)</b><br><br>
-        <div id="stackView" style="border: 1px solid #444; padding: 10px; background: #000;"></div>
+        <div id="stackView" style="border: 1px solid gray; padding: 10px;"></div>
     </div>
 </div>
 

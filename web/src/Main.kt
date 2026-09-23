@@ -31,7 +31,8 @@ var isRunning = false
 // --- Debugger State ---
 var runUntilTarget: UShort? = null
 val breakpoints = mutableSetOf<UShort>()
-var viewAddress: UShort? = null // If null, the disassembly view locks to the PC
+var viewAddress: UShort? = null
+var symbolMap = mapOf<UShort, String>() // Holds our loaded .map file labels
 
 @OptIn(ExperimentalWasmJsInterop::class)
 fun initWebDebugger() {
@@ -53,19 +54,29 @@ fun initWebDebugger() {
     val btnStep = document.getElementById("btnStep") as HTMLButtonElement
     val btnRun = document.getElementById("btnRun") as HTMLButtonElement
 
+    // Handle multiple file uploads (.bin AND .map)
     filePicker.addEventListener("change", { _: Event ->
         val fileList = filePicker.files ?: return@addEventListener
-        val file = fileList.item(0) ?: return@addEventListener
+        if (fileList.length == 0) return@addEventListener
 
-        val reader = FileReader()
-        reader.onload = {
-            val text = reader.result?.toString() ?: ""
-            loadAndRunBinary(text, memory, globalCpu!!)
-            btnStep.disabled = false
-            btnRun.disabled = false
-            updateUI()
+        for (i in 0 until fileList.length) {
+            val file = fileList.item(i) ?: continue
+            val reader = FileReader()
+            reader.onload = {
+                val text = reader.result?.toString() ?: ""
+
+                if (file.name.endsWith(".map")) {
+                    loadSymbolMap(text)
+                } else if (file.name.endsWith(".bin")) {
+                    loadAndRunBinary(text, memory, globalCpu!!)
+                }
+
+                btnStep.disabled = false
+                btnRun.disabled = false
+                updateUI()
+            }
+            reader.readAsText(file)
         }
-        reader.readAsText(file)
     })
 
     btnStep.addEventListener("click", {
@@ -116,15 +127,19 @@ fun initWebDebugger() {
     val btnCmd = document.getElementById("btnCmd") as HTMLButtonElement
 
     fun executeCommand(cmdStr: String) {
-        val tokens = cmdStr.trim().split(Regex("\\s+"))
-        if (tokens.isEmpty() || tokens[0].isEmpty()) return
+        val tokens = cmdStr.trim().replace("\t", " ").split(" ").filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return
         val cmd = tokens[0].lowercase()
         val arg = tokens.getOrNull(1)
 
         fun parseTarget(t: String?): UShort? {
             if (t == null) return null
-            return if (t.startsWith("0x", ignoreCase = true)) t.substring(2).toUIntOrNull(16)?.toUShort()
-            else t.toUIntOrNull(10)?.toUShort()
+            if (t.startsWith("0x", ignoreCase = true)) return t.substring(2).toUIntOrNull(16)?.toUShort()
+            val asNum = t.toUIntOrNull(10)
+            if (asNum != null) return asNum.toUShort()
+            // Lookup target by symbol name!
+            val entry = symbolMap.entries.find { it.value == t }
+            return entry?.key
         }
 
         when (cmd) {
@@ -157,7 +172,6 @@ fun initWebDebugger() {
     // Keyboard shortcuts
     window.addEventListener("keydown", { event ->
         val e = event as KeyboardEvent
-        // Only trigger shortcuts if the user isn't typing in the command box!
         if (document.activeElement != cmdInput) {
             if (e.key.lowercase() == "s" && !isRunning && globalCpu?.isHalted == false) {
                 scope.launch { globalCpu!!.tick(); updateUI() }
@@ -171,8 +185,31 @@ fun initWebDebugger() {
     updateUI()
 }
 
+// Parses the .map JSON file safely without relying on kotlinx.serialization in Wasm
+fun loadSymbolMap(jsonText: String) {
+    val newMap = mutableMapOf<UShort, String>()
+
+    // Safely strip JSON punctuation without crashing Wasm DCE
+    val clean = jsonText.filter { it != '"' && it != '{' && it != '}' && it != '\n' && it != '\r' }
+
+    val entries = clean.split(',')
+    for (entry in entries) {
+        val parts = entry.split(':')
+        if (parts.size == 2) {
+            val name = parts[0].trim()
+            val hexVal = parts[1].trim().toUShortOrNull(16)
+            if (hexVal != null) newMap[hexVal] = name
+        }
+    }
+    symbolMap = newMap
+    println("Loaded ${symbolMap.size} symbols from map file.")
+}
+
 fun loadAndRunBinary(fileText: String, memory: MemoryBus, cpu: Cpu) {
-    val lines = fileText.lines().map { it.trim() }.filter { it.isNotEmpty() }
+    val lines = fileText.split('\n')
+        .map { it.filter { c -> c != '\r' }.trim() }
+        .filter { it.isNotEmpty() }
+
     if (lines.isEmpty()) return
 
     val baseAddr = if (lines[0].startsWith("@")) lines[0].drop(1).toUInt() else 0x3000u
@@ -205,7 +242,6 @@ fun runLoop() {
             for (i in 0 until 5000) {
                 if (globalCpu!!.isHalted || !isRunning) break
 
-                // --- BREAKPOINT & UNTIL LOGIC ---
                 if (globalCpu!!.pc in breakpoints || globalCpu!!.pc == runUntilTarget) {
                     isRunning = false
                     runUntilTarget = null
@@ -227,17 +263,23 @@ fun runLoop() {
     }
 }
 
+// FORMATTERS
 fun formatHex(value: Short): String = "0x" + (value.toInt() and 0xFFFF).toString(16).uppercase().padStart(4, '0')
 fun formatHexU(value: UShort): String = "0x" + value.toString(16).uppercase().padStart(4, '0')
+
+// Returns the symbol name if it exists, otherwise the raw hex
+fun formatAddr(value: UShort): String {
+    val label = symbolMap[value]
+    return label ?: formatHexU(value)
+}
 
 fun updateUI() {
     val cpu = globalCpu ?: return
     scope.launch {
         document.getElementById("cpuStatus")?.textContent = if (cpu.isHalted) "HALTED" else "RUNNING"
-        document.getElementById("regPC")?.textContent = formatHexU(cpu.pc)
-        document.getElementById("regEPC")?.textContent = formatHexU(cpu.epc)
+        document.getElementById("regPC")?.textContent = formatAddr(cpu.pc)
+        document.getElementById("regEPC")?.textContent = formatAddr(cpu.epc)
 
-        // Update Registers
         val regGrid = document.getElementById("registersView")
         if (regGrid != null) {
             var html = ""
@@ -249,7 +291,6 @@ fun updateUI() {
             regGrid.innerHTML = html
         }
 
-        // Update Stack
         val stackView = document.getElementById("stackView")
         if (stackView != null) {
             val sp = cpu.registers.read(RegisterType.R6).toUShort()
@@ -259,26 +300,22 @@ fun updateUI() {
                 val isSp = offset == 0
                 val v = try { cpu.mmu.read(addr) } catch (e:Exception) { 0 }
                 val prefix = if (isSp) "<b>SP -> </b>" else "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"
-                html += "<div>$prefix<span class='addr'>${formatHexU(addr)}</span> <span class='hex'>${formatHex(v)}</span></div>"
+                html += "<div>$prefix<span class='addr'>${formatAddr(addr)}</span> <span class='hex'>${formatHex(v)}</span></div>"
             }
             stackView.innerHTML = html
         }
 
-        // Update Disassembly Window
         val codeView = document.getElementById("codeView")
         if (codeView != null) {
             var html = ""
-
-            // Start at viewAddress (if scrolling), otherwise lock strictly to the exact PC.
             var currentAddr = viewAddress ?: cpu.pc
 
             for (i in 0..15) {
                 val rawWord = try { cpu.mmu.read(currentAddr) } catch(e:Exception){ 0 }
-                val disasm = SmartDisassembler.disassembleAt(cpu.mmu, currentAddr, emptyMap())
+                // Pass the symbolMap so the Smart Disassembler can replace addresses with labels!
+                val disasm = SmartDisassembler.disassembleAt(cpu.mmu, currentAddr, symbolMap)
 
                 val nextAddr = (currentAddr + disasm.wordCount.toUInt()).toUShort()
-
-                // THE FIX: Is the PC *anywhere* inside this multi-word macro?
                 val isActive = cpu.pc in currentAddr until nextAddr
                 val isBreakpoint = currentAddr in breakpoints
 
@@ -288,7 +325,7 @@ fun updateUI() {
 
                 val bpMarker = if (isBreakpoint) "🔴" else "&nbsp;&nbsp;"
 
-                html += "<div class='$cssClass'><span class='addr'>$bpMarker ${formatHexU(currentAddr)}</span> <span class='hex'>${formatHex(rawWord)}</span> <span class='inst'>${disasm.text}</span></div>"
+                html += "<div class='$cssClass'><span class='addr'>$bpMarker ${formatAddr(currentAddr)}</span> <span class='hex'>${formatHex(rawWord)}</span> <span class='inst'>${disasm.text}</span></div>"
 
                 currentAddr = nextAddr
                 if (currentAddr >= 0xFFFFu) break

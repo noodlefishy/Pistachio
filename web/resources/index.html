@@ -2,27 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Pistachio VM</title>
+    <title>Pistachio Visual Debugger</title>
     <style>
-        body { font-family: monospace; margin: 15px; }
-        #screen { border: 1px solid black; image-rendering: pixelated; width: 512px; height: 512px; }
+        /* Minimal Structural CSS */
+        body { font-family: monospace; margin: 15px; display: flex; flex-direction: column; height: 95vh; }
+        .toolbar { margin-bottom: 15px; }
+        .dashboard { display: flex; gap: 15px; flex: 1; overflow: hidden; }
+
+        .panel { border: 1px solid black; padding: 10px; overflow-y: auto; }
+        .panel-center { display: flex; flex-direction: column; align-items: center; }
+
+        #screen { border: 1px solid black; image-rendering: pixelated; width: 384px; height: 384px; background: black; }
+
+        .reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+
     </style>
 </head>
 <body>
 
-<h3>Pistachio VM (WebAssembly)</h3>
+<h3>Pistachio Visual Debugger</h3>
 
-<div>
-    Load .bin file:
+<div class="toolbar">
     <input type="file" id="binPicker" accept=".bin">
-</div>
-<br>
-
-<div>
-    <canvas id="screen" width="64" height="64" tabindex="1"></canvas>
+    <button id="btnStep" disabled>Step (S)</button>
+    <button id="btnRun" disabled>Run / Pause (P)</button>
+    <span id="status">Awaiting binary...</span>
 </div>
 
-<p id="status">Select a compiled .bin file above</p>
+<div class="dashboard">
+    <!-- Center: Screen & PC -->
+    <div class="panel panel-center">
+        <b>Display</b><br>
+        <canvas id="screen" width="64" height="64" tabindex="1"></canvas>
+        <div style="margin-top: 15px; text-align: left; width: 100%;">
+            <b>Status:</b> <span id="cpuStatus">HALTED</span><br>
+            <b>PC:</b> <span id="regPC">0x0000</span><br>
+            <b>EPC:</b> <span id="regEPC">0x0000</span>
+        </div>
+    </div>
+
+    <!-- Right: Code Disassembly -->
+    <div class="panel" style="flex: 2;">
+        <b>Live Disassembly</b><br><br>
+        <div id="codeView"></div>
+    </div>
+
+    <!-- Left: Registers & Stack -->
+    <div class="panel" style="flex: 1;">
+        <b>Registers</b><br><br>
+        <div class="reg-grid" id="registersView"></div>
+
+        <br><b>Stack (R6)</b><br><br>
+        <div id="stackView" style="border: 1px solid gray; padding: 10px;"></div>
+    </div>
+</div>
 
 {{kotlin.scripts}}
 </body>

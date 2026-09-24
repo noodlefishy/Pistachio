@@ -1,106 +1,131 @@
+// =============================================================================
+// MODULE: Dynamic Heap Allocation (lib/alloc.lx)
+//
+// Description:
+//   Provides a first-fit dynamic heap allocator with block splitting and freeing.
+//   1-Word Header Format: [size (even) | used_flag (bit 0)]
+// =============================================================================
+
+// =============================================================================
+// Subroutine: heap_init() -> Unit
+//
+// Description:
+//   Initializes the internal heap allocator structures.
+// =============================================================================
 heap_init:
-	movi r1 [alloc_internal_heap_start]
+	movi r1 alloc_internal_heap_start
 	movi r2 #100
-	sw r2 [r1 + #0] 	// writing initial header:  Size 100 free
+	sw r2 [r1 + #0] // Writing initial header: size 100 free
 
 	add r1 r1 r2
 	sw r0 [r1 + #0]
 	ret
 
 
-// Inputs: r1 = Requested payload size
-// Output: r1 = Pointer to allocated memory
+// =============================================================================
+// Subroutine: alloc(r1: Short) -> r1: ShortArray?
+//
+// Description:
+//   Allocates a memory block of the requested size from the heap.
+//
+// Inputs:
+//   r1: Short = Requested payload size
+//
+// Outputs:
+//   r1: ShortArray? = Pointer to allocated memory payload, or 0 (NULL) if OOM.
+//
+// Memory & Ownership:
+//   - Transfers heap ownership: Caller is responsible for calling free on r1.
+// =============================================================================
 alloc:
-    push r7                 // <-- SAVE RETURN ADDRESS TO STACK!
-    push r4
-    push r5
+	push r7
+	push r4
+	push r5
 
-    // 1. Needed size = payload + 1
-    addi r1, r1, #1
+	addi r1 r1 #1
 
-    // 2. Force block size to be EVEN
-    movi r2, 1
-    and  r2, r1, r2
-    beq  r2, r0, .size_even
-    addi r1, r1, #1
+	movi r2 #1
+	and r2 r1 r2
+	beq r2 r0 .size_even
+	addi r1 r1 #1
+
 	.size_even:
-
-		// 3. Scan heap from start
-		movi r4, alloc_internal_heap_start
+		movi r4 alloc_internal_heap_start
 
 	.alloc_loop:
-		lw   r5, [r4 + 0]
+		lw r5 [r4 + #0]
 
-		// --- LONG JUMP FIX (Replaced short beq with long jump) ---
-		bne  r5, r0, .not_oom
-		movi r7, .out_of_memory
-		jalr r0, r7, 0
+		bne r5 r0 .not_oom
+		movi r7 .out_of_memory
+		jalr r0 r7 #0
+
 	.not_oom:
+		movi r2 #-2
+		and r3 r5 r2
 
-		// Get block size FIRS
-		movi r2, -2
-		and  r3, r5, r2
+		movi r2 #1
+		and r2 r5 r2
+		bne r2 r0 .next_block
 
+		blt r3 r1 .next_block
 
-		// Check if Used
-		movi r2, 1
-		and  r2, r5, r2
-		bne  r2, r0, .next_block
+		movi r2 #1
+		or r2 r1 r2
+		sw r2 [r4 + #0]
 
+		sub r2 r3 r1
 
-		blt  r3, r1, .next_block
+		movi r3 #2
+		blt r2 r3 .done_alloc
 
-		// --- FOUND BLOCK ---
-		// Mark as USED
-		movi r2, 1
-		or   r2, r1, r2
-		sw   r2, [r4 + 0]
+		add r3 r4 r1
+		sw r2 [r3 + #0]
 
-		// Calculate remaining = block_size (r3) - needed_size (r1)
-		sub  r2, r3, r1
-
-		// If remaining < 2, don't split
-		movi r3, 2
-		blt  r2, r3, .done_alloc
-
-		// --- SPLIT BLOCK ---
-		add  r3, r4, r1         // r3 = new split header address
-		sw   r2, [r3 + 0]       // write remaining free size into split header
-
-		beq  r0, r0, .done_alloc // Jump over .next_block to return!
+		beq r0 r0 .done_alloc
 
 	.done_alloc:
-		addi r1, r4, #1         // Return payload pointer (header + 1)
-		pop  r5
-		pop  r4
-		pop  r7                 // <-- RESTORE RETURN ADDRESS!
+		addi r1 r4 #1
+		pop r5
+		pop r4
+		pop r7
 		ret
 
 	.next_block:
-		add  r4, r4, r3         // Advance pointer by old block size
+		add r4 r4 r3
 
-		// Long backward jump
-		movi r7, .alloc_loop
-		jalr r0, r7, 0
+		movi r7 .alloc_loop
+		jalr r0 r7 #0
 
 	.out_of_memory:
-		clr  r1                 // Return NULL
-		pop  r5
-		pop  r4
-		pop  r7                 // <-- RESTORE RETURN ADDRESS!
+		clr r1
+		pop r5
+		pop r4
+		pop r7
 		ret
 
-// Inputs: r1 = Pointer to payload from alloc
+
+// =============================================================================
+// Subroutine: free(r1: ShortArray?) -> Unit
+//
+// Description:
+//   Frees a previously allocated heap block.
+//
+// Inputs:
+//   r1: ShortArray? = Pointer to allocation payload
+// =============================================================================
 free:
 	beq r1 r0 .done
 
 	subi r1 r1 #1
-	lw r2 [r1 0]
+	lw r2 [r1 + #0]
 
-	movi r3 -2
+	movi r3 #-2
 	and r2 r2 r3
-	sw r2 [r1 + 0]
-	
-	.done: ret
+	sw r2 [r1 + #0]
 
-alloc_internal_heap_start: .space 101
+	.done:
+		ret
+
+
+alloc_internal_heap_start:
+	.space 101

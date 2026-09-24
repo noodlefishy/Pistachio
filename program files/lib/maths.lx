@@ -1,5 +1,26 @@
+// =============================================================================
+// MODULE: Mathematical Algorithms (lib/maths.lx)
+//
+// Description:
+//   Provides 16-bit arithmetic routines (multiply, divide, modulus, subtract,
+//   lessThan), pseudorandom number generation, and randomized array helpers
+//   (noise, boolean, and weighted arrays).
+// =============================================================================
 
-// random_noise_array(r1 = size, r2 = array_ptr)
+// =============================================================================
+// Subroutine: random_noise_array(r1: Short, r2: ShortArray) -> Unit
+//
+// Description:
+//   Fills a memory array with pseudorandom 16-bit noise words using LCG.
+//
+// Inputs:
+//   r1: Short = Number of elements to generate (size)
+//   r2: ShortArray = Pointer to destination memory buffer
+//
+// Registers:
+//   Preserved: r4 r5 r7
+//   Clobbered: r1 r2 r3
+// =============================================================================
 random_noise_array:
 	push r7
 	push r4
@@ -8,14 +29,13 @@ random_noise_array:
 	mov r5 r1 // r5 = remaining count
 	mov r4 r2 // r4 = array destination pointer
 
-	// If size == 0, exit immediately
 	beq r5 r0 .done
 
 	movi r2 .seed
-	lw r1 [r2 + #0] // r1 = seed (Argument 1 for random)
+	lw r1 [r2 + #0] // r1 = seed
 
 	.noise_loop:
-		call random // r1 = next random number (and new seed!)
+		call random // r1 = next random number (and new seed)
 
 		sw r1 [r4 + #0] // Store random word into array[ptr]
 		addi r4 r4 #1 // ptr++
@@ -35,8 +55,16 @@ random_noise_array:
 		.fill 1337
 
 
-// random_bool_array(r1 = size, r2 = array_ptr)
-// Calls random_noise_array, then converts elements to 0 or 1 in-place
+// =============================================================================
+// Subroutine: random_bool_array(r1: Short, r2: ShortArray) -> Unit
+//
+// Description:
+//   Fills an array with boolean values (0 or 1) with 50% probability.
+//
+// Inputs:
+//   r1: Short = Size of array
+//   r2: ShortArray = Pointer to destination memory buffer
+// =============================================================================
 random_bool_array:
 	push r7
 	push r4
@@ -58,16 +86,16 @@ random_bool_array:
 		beq r4 r0 .set_zero
 
 	.set_one:
-		movi r4 #1
-		sw r4 [r1 + #0] // Overwrite with 1 (true)
+		movi r4 1
+		sw r4 [r1 + #0] // 1 (true)
 		beq r0 r0 .next
 
 	.set_zero:
-		sw r0 [r1 + #0] // Overwrite with 0 (false)
+		sw r0 [r1 + #0] // 0 (false)
 
 	.next:
-		addi r1 r1 #1
-		subi r2 r2 #1
+		addi r1 r1 1
+		subi r2 r2 1
 		beq r0 r0 .convert_loop
 
 	.done:
@@ -77,17 +105,20 @@ random_bool_array:
 		ret
 
 
-
 // =============================================================================
-// random_weighted_array(r1 = size, r2 = array_ptr, r3 = chance)
+// Subroutine: random_weighted_array(r1: Short, r2: ShortArray, r3: UShort) -> Unit
 //
-// 15-Bit Overflow-Free Thresholds:
-//   0x0000 (0)     = 0%   Alive (All Black)
-//   0x1000 (4096)  = 12%  Alive
-//   0x2000 (8192)  = 25%  Alive (Ideal for Game of Life!)
-//   0x4000 (16384) = 50%  Alive
-//   0x6000 (24576) = 75%  Alive
-//   0x7FFF (32767) = 100% Alive (All Red)
+// Description:
+//   Fills an array with weighted boolean values (0 or 1) based on a threshold.
+//   15-Bit Overflow-Free Thresholds:
+//     0x0000 (0)     = 0%   Alive
+//     0x2000 (8192)  = 25%  Alive (Ideal for Game of Life)
+//     0x7FFF (32767) = 100% Alive
+//
+// Inputs:
+//   r1: Short = Size
+//   r2: ShortArray = Array pointer
+//   r3: UShort = Threshold value
 // =============================================================================
 random_weighted_array:
 	push r7
@@ -98,27 +129,24 @@ random_weighted_array:
 	mov r4 r1 // r4 = size
 	mov r5 r2 // r5 = array_ptr
 
-	// 1. Fill array with raw noise
 	call random_noise_array
 
 	mov r1 r5 // r1 = walker pointer
 	mov r2 r4 // r2 = remaining counter
 	pop r3 // restore threshold into r3
 
-	movi r7 $MXIT // 0x7FFF (masks out sign bit to guarantee NO overflow!)
+	movi r7 $MXIT // 0x7FFF (masks out sign bit to guarantee NO overflow)
 
 	.convert_loop:
 		beq r2 r0 .done
 		lw r4 [r1 + #0]
 
-		// Force random number into positive 15-bit range [0 .. 32767]
-		and r4 r4 r7
+		and r4 r4 r7 // Force range [0 .. 32767]
 
-		// If random > threshold, set to 0 (Dead)
 		bgt r4 r3 .set_zero
 
 	.set_one:
-		movi r4 #1
+		movi r4 1
 		sw r4 [r1 + #0] // 1 (Alive)
 		beq r0 r0 .next
 
@@ -137,179 +165,185 @@ random_weighted_array:
 		ret
 
 
-// X_{n+1} = (aX_n + c ) (mod m)
-// m = 10, a = 7, c = 7, X_n = 7
-// input: Current Seed
-// Output: Next seed / random number
+// =============================================================================
+// Subroutine: random(r1: Short) -> r1: Short
+//
+// Description:
+//   Linear Congruential Generator for pseudorandom numbers.
+//   X_{n+1} = (a * X_n + c) mod m
+//
+// Inputs:
+//   r1: Short = Current seed
+//
+// Outputs:
+//   r1: Short = Next seed / random number
+// =============================================================================
 random:
-    push r7
+	push r7
 
-    // times by Knuth's constant: r1 = X_n * 25173
-    // This is so modulus will be redundant because of 16 bit limit
-     movi r2 25173
-     call multiply
+	movi r2 #25173
+	call multiply
 
-     // r1 = (X_n * 25173) + 13849 (big number i picked)
-     movi r2, 13849
-     add r1 r1 r2 // overflow int 16 limit
+	movi r2 #13849
+	add r1 r1 r2
 
-     pop r7
-
-     ret
+	pop r7
+	ret
 
 
-
-// r1 = r1 % r2
+// =============================================================================
+// Subroutine: modulus(r1: Short, r2: Short) -> r1: Short
+//
+// Description:
+//   Computes r1 % r2 using division.
+//
+// Inputs:
+//   r1: Short = Dividend
+//   r2: Short = Divisor
+//
+// Outputs:
+//   r1: Short = Remainder
+// =============================================================================
 modulus:
-    push r7
-    call divide
-    pop r7
+	push r7
+	call divide
+	pop r7
 
-    add r1 r3 r0
-    ret
+	add r1 r3 r0
+	ret
 
 
-// Inputs: r1 (Dividend), r2 (Divisor)
-// Outputs: r1 (Quotient), r3 (Remainder)
+// =============================================================================
+// Subroutine: divide(r1: Short, r2: Short) -> (r1: Short, r3: Short)
+//
+// Description:
+//   16-cycle binary long division.
+//
+// Inputs:
+//   r1: Short = Dividend
+//   r2: Short = Divisor
+//
+// Outputs:
+//   r1: Short = Quotient
+//   r3: Short = Remainder
+// =============================================================================
 divide:
-    push r4
-    push r5
-    push r7
+	push r4
+	push r5
+	push r7
 
-    movi r3 0           // Initialise Remainder to 0
-    movi r4 16          // Initialise Loop Counter to 16
+	movi r3 #0
+	movi r4 #16
 
+	.div_loop:
+		add r3 r3 r3
 
-    .div_loop:
-        // 1. Shift rem left
-        add r3 r3 r3    // multiply by 2
+		movi r5 $SBIT
+		nand r5 r1 r5
+		nand r5 r5 r5
 
-        // checking msb of r1
-        movi r5 $SBIT
-        nand r5 r1 r5
-        nand r5 r5 r5   // not
+		beq r5 r0 .skip_carry
+		addi r3 r3 #1
 
-        beq r5 r0 .skip_carry
-        addi r3 r3 1    // This is the carry bit
+	.skip_carry:
+		add r1 r1 r1
 
-    .skip_carry:
-        // shift the r1 left (to make space)
-        add r1 r1 r1
+		nand r5 r2 r2
+		addi r5 r5 #1
+		add r5 r3 r5
 
-        // test substraction, if r3 >= r2
-        // r5 = r3 + r2~  +1
+		movi r7 $SBIT
+		nand r7 r5 r7
+		nand r7 r7 r7
 
-        nand r5 r2 r2
-        addi r5 r5 1
-        add r5 r3 r5
+		movi r5 $SBIT
+		beq r7 r5 .skip_sub
 
-        // Check if r5 is negative (does it have the Sign Bit?)
-        movi r7 $SBIT
-        nand r7 r5 r7
-        nand r7 r7 r7
+		nand r5 r2 r2
+		addi r5 r5 #1
+		add r3 r3 r5
 
-        // If r7 == $SBIT, r5 is negative (r3 < r2). Do not subtract!
-        movi r5 $SBIT
-        beq r7 r5 .skip_sub
+		addi r1 r1 #1
 
-        // It fits!! Update Remainder and Quotient
-        // r3 = r3 - r2
-        nand r5 r2 r2
-        addi r5 r5 1
-        add r3 r3 r5
+	.skip_sub:
+		addi r4 r4 #-1
+		beq r4 r0 .div_done
+		beq r0 r0 .div_loop
 
-        addi r1 r1 1    // Add 1 to Quotient (bottom bit of r1)
-
-    .skip_sub:
-        addi r4 r4 -1
-        beq r4 r0 .div_done
-        beq r0 r0 .div_loop
-
-    .div_done:
-        pop r7
-        pop r5
-        pop r4
-        ret
+	.div_done:
+		pop r7
+		pop r5
+		pop r4
+		ret
 
 
-
-// If R1 is more than R2 = 0
-// If R1 is less than R2 = -32768 (0x8000)
+// =============================================================================
+// Subroutine: lessThan(r1: Short, r2: Short) -> r1: Boolean
+//
+// Description:
+//   Compares r1 and r2. Returns -32768 (true) if r1 < r2, else 0 (false).
+// =============================================================================
 lessThan:
-    nand r2 r2 r2
-    addi r2 r2 1
-    add r1 r1 r2
+	nand r2 r2 r2
+	addi r2 r2 #1
+	add r1 r1 r2
 
-    // Isolate the Sign Bit
-    movi r3 $SBIT
-    nand r1 r1 r3
-    nand r1 r1 r1
-    ret
+	movi r3 $SBIT
+	nand r1 r1 r3
+	nand r1 r1 r1
+	ret
 
 
-// r1 = r1 x r2
+// =============================================================================
+// Subroutine: multiply(r1: Short, r2: Short) -> r1: Short
+//
+// Description:
+//   Performs 16-bit integer multiplication using bit-shift addition.
+// =============================================================================
 multiply:
-    // Prologue: Preserve callee-saved and scratch registers
-    push r4
-    push r3
-    push r5
-    push r7             // We will use r7 as our running Product accumulator
+	push r4
+	push r3
+	push r5
+	push r7
 
-    movi r7 0           // Product = 0
-    movi r3 1           // Mask = 1
-    movi r4 16          // Loop counter = 16
+	movi r7 #0
+	movi r3 #1
+	movi r4 #16
 
-    .mult_loop:
-        // 1. Check if (A & Mask) != 0 using NAND logic
-        nand r5 r1 r3       // r5 = ~(A & Mask)
-        nand r5 r5 r5       // r5 = A & Mask
+	.mult_loop:
+		nand r5 r1 r3
+		nand r5 r5 r5
 
-        beq r5 r0 .skip_add // If the bit is 0, skip adding B
+		beq r5 r0 .skip_add
 
-        // 2. Product = Product + B
-        add r7 r7 r2
+		add r7 r7 r2
 
-    .skip_add:
-        // 3. Shift B left (B = B + B)
-        add r2 r2 r2
+	.skip_add:
+		add r2 r2 r2
+		add r3 r3 r3
 
-        // 4. Shift Mask left (Mask = Mask + Mask)
-        add r3 r3 r3
+		addi r4 r4 #-1
+		beq r4 r0 .mult_done
+		beq r0 r0 .mult_loop
 
-        // 5. Decrement counter and loop
-        addi r4 r4 -1
-        beq r4 r0 .mult_done
-        beq r0 r0 .mult_loop
+	.mult_done:
+		add r1 r7 r0
 
-    .mult_done:
-        add r1 r7 r0        // Move the final Product into r1 for the return value!!
+		pop r7
+		pop r5
+		pop r3
+		pop r4
+		ret
 
-        // Epilogue: Restore original registers
-        pop r7
-        pop r5
-        pop r3
-        pop r4
-        ret
 
-multiply_bad:
-    push r4
-    add r3 r1 r0
-    movi r1 0
-    movi r4 0 // 4
-    .m_loop: // 5
-        addi r4 r4 1
-        add r1 r1 r2
-        beq r4 r3 .m_done
-        beq r0 r0 .m_loop
-    .m_done:
-        pop r4
-        ret
-
-// R1 = R1 - R2
-subtract: // stackless
-
-    nand r2 r2 r2
-    addi r2 r2 1
-    add r1 r1 r2
-
-    ret
+// =============================================================================
+// Subroutine: subtract(r1: Short, r2: Short) -> r1: Short
+//
+// Description:
+//   Computes r1 - r2.
+// =============================================================================
+subtract:
+	nand r2 r2 r2
+	addi r2 r2 #1
+	add r1 r1 r2
+	ret

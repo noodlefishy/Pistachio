@@ -1,33 +1,65 @@
-// Inputs: r1 = destination, r2 = value, r3 = count
-// Output: r1 = original destination pointer
+// =============================================================================
+// MODULE: Memory Block Operations (lib/mem.lx)
+//
+// Description:
+//   Provides efficient memory block operations (mem_set, mem_cpy, mem_cmp, mem_mov)
+//   for contiguous 16-bit word buffers in RAM.
+// =============================================================================
+
+// =============================================================================
+// Subroutine: mem_set(r1: ShortArray, r2: Short, r3: Short) -> r1: ShortArray
+//
+// Description:
+//   Fills a memory buffer with a constant 16-bit value.
+//
+// Inputs:
+//   r1: ShortArray = Destination buffer pointer
+//   r2: Short = Value to write
+//   r3: Short = Word count
+//
+// Outputs:
+//   r1: ShortArray = Original destination pointer
+// =============================================================================
 mem_set:
 	push r4
 	mov r4 r1
 
 	.set_loop:
 		beq r3 r0 .set_done
-		sw r2 [r1 + 0]
+		sw r2 [r1 + #0]
 		addi r1 r1 #1
 		subi r3 r3 #1
-
 		beq r0 r0 .set_loop
+
 	.set_done:
 		mov r1 r4
 		pop r4
 		ret
 
 
-// Inputs: r1 = destination, r2 = source, r3 = count
-// Output: r1 = original destination pointer
+// =============================================================================
+// Subroutine: mem_cpy(r1: ShortArray, r2: ShortArray, r3: Short) -> r1: ShortArray
+//
+// Description:
+//   Copies a memory block from source to destination (disjoint buffers only).
+//
+// Inputs:
+//   r1: ShortArray = Destination buffer
+//   r2: ShortArray = Source buffer
+//   r3: Short = Word count
+//
+// Outputs:
+//   r1: ShortArray = Original destination pointer
+// =============================================================================
 mem_cpy:
 	push r4
 	push r5
 	mov r4 r1
 
 	.cpy_loop:
-		beq r3 r0 .cpy_done		// if count == 0 return
-		lw r5 [r2 + 0]			// read word
-		sw r5 [r1 + 0] 			// write to destination
+		beq r3 r0 .cpy_done
+		lw r5 [r2 + #0]
+		sw r5 [r1 + #0]
 
 		addi r1 r1 #1
 		addi r2 r2 #1
@@ -40,84 +72,89 @@ mem_cpy:
 		pop r4
 		ret
 
-// Inputs: r1 = pointer 1, r2 = pointer 2, r3 = count
-// Output: r1 = 0 if identical, or difference if mismatched
+
+// =============================================================================
+// Subroutine: mem_cmp(r1: ShortArray, r2: ShortArray, r3: Short) -> r1: Short
+//
+// Description:
+//   Compares two memory blocks word by word.
+//
+// Outputs:
+//   r1: Short = 0 if identical, or difference of first mismatching words.
+// =============================================================================
 mem_cmp:
-    push r4
-    push r5
+	push r4
+	push r5
 
 	.cmp_loop:
-		beq  r3, r0, .cmp_equal // If we compared all words without mismatch, return 0
-		lw   r4, [r1 + 0]       // Word 1
-		lw   r5, [r2 + 0]       // Word 2
+		beq r3 r0 .cmp_equal
+		lw r4 [r1 + #0]
+		lw r5 [r2 + #0]
 
-		bne  r4, r5, .cmp_mismatch // If words differ, jump!
+		bne r4 r5 .cmp_mismatch
 
-		addi r1, r1, #1         // pointer_1++
-		addi r2, r2, #1         // pointer_2++
-		subi r3, r3, #1         // count--
-		beq  r0, r0, .cmp_loop
+		addi r1 r1 #1
+		addi r2 r2 #1
+		subi r3 r3 #1
+		beq r0 r0 .cmp_loop
 
 	.cmp_mismatch:
-		sub  r1, r4, r5         // r1 = word1 - word2 (returns difference)
-		pop  r5
-		pop  r4
+		sub r1 r4 r5
+		pop r5
+		pop r4
 		ret
 
 	.cmp_equal:
-		clr  r1                 // Return 0
-		pop  r5
-		pop  r4
+		clr r1
+		pop r5
+		pop r4
 		ret
 
-// Inputs: r1 = dest, r2 = src, r3 = count
-// Output: r1 = original dest pointer
+
+// =============================================================================
+// Subroutine: mem_mov(r1: ShortArray, r2: ShortArray, r3: Short) -> r1: ShortArray
+//
+// Description:
+//   Safely copies a memory block, handling overlapping source and destination regions.
+// =============================================================================
 mem_mov:
-    push r7
-    push r4
-    push r5
+	push r7
+	push r4
+	push r5
 
-    mov  r4, r1					// Save original dest in r4
-    mov  r5, r2					// Save original src in r5
+	mov r4 r1
+	mov r5 r2
 
-    // 1. Check if dest < src
-
-    push r3
-    call lessThan
+	push r3
+	call lessThan
 	pop r3
 
-    // 2. If dest < src, we can safely copy forward!
-    bne  r1, r0, .copy_forward
+	bne r1 r0 .copy_forward
 
-    // --- BACKWARD COPY (dest >= src) ---
-    // ptr = start + count - 1
-    add  r1, r4, r3
-    subi r1, r1, #1				// r1 = dest end pointer
+	add r1 r4 r3
+	subi r1 r1 #1
 
-    add  r2, r5, r3
-    subi r2, r2, #1				// r2 = src end pointer
+	add r2 r5 r3
+	subi r2 r2 #1
 
 	.backward_loop:
-		beq  r3, r0, .mov_done
-		lw   r7, [r2 + 0]		// Read word from end of src
-		sw   r7, [r1 + 0]		// Write word to end of dest
-		subi r1, r1, #1			// Move pointers backward!
-		subi r2, r2, #1
-		subi r3, r3, #1
-		bne  r3, r0, .backward_loop
-		beq  r0, r0, .mov_done
+		beq r3 r0 .mov_done
+		lw r7 [r2 + #0]
+		sw r7 [r1 + #0]
+		subi r1 r1 #1
+		subi r2 r2 #1
+		subi r3 r3 #1
+		bne r3 r0 .backward_loop
+		beq r0 r0 .mov_done
 
 	.copy_forward:
-		// Restore original args and let mem_cpy do the work!
-		mov  r1, r4				// r1 = dest
-		mov  r2, r5				// r2 = src
-		// r3 is still count!
+		mov r1 r4
+		mov r2 r5
 		call mem_cpy
-		// mem_cpy automatically returns original dest in r1!
 
 	.mov_done:
-		mov  r1, r4
-		pop  r5
-		pop  r4
-		pop  r7
+		mov r1 r4
+		pop r5
+		pop r4
+		pop r7
 		ret

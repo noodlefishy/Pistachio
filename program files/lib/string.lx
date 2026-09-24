@@ -1,75 +1,101 @@
+// =============================================================================
+// MODULE: String Manipulation (lib/string.lx)
+//
+// Description:
+//   Provides string measurement (`str_len`), comparison (`str_cmp`),
+//   concatenation (`str_cat`), and copying (`str_cpy`) routines.
+// =============================================================================
+
+// =============================================================================
+// Subroutine: str_len(r1: String) -> r1: Short
+//
+// Description:
+//   Computes the length of a null-terminated string.
+//
+// Inputs:
+//   r1: String = Pointer to string
+//
+// Outputs:
+//   r1: Short = Length of string (excluding null terminator)
+// =============================================================================
 str_len:
-	lw r2 r1 0
+	lw r2 [r1 + #0]
 	add r3 r1 r0
 	.len_loop:
 		beq r2 r0 .len_done
-		addi r1 r1 1
-		lw r2 r1 0
+		addi r1 r1 #1
+		lw r2 [r1 + #0]
 		beq r0 r0 .len_loop
 
 	.len_done:
 		nand r3 r3 r3
 		add r1 r1 r3
-		addi r1 r1 1
-
+		addi r1 r1 #1
 		ret
 
 
-
-// R1 = string 1
-// R2 = string 2
+// =============================================================================
+// Subroutine: str_cmp(r1: String, r2: String) -> r1: Short
+//
+// Description:
+//   Compares two null-terminated strings lexicographically.
+//
+// Outputs:
+//   r1: Short = 0 if identical, or difference of first mismatching characters.
+// =============================================================================
 str_cmp:
 	push r4
 	.loop:
-		lw r3, [r1 + 0]
-		lw r4, [r2 + 0]
+		lw r3 [r1 + #0]
+		lw r4 [r2 + #0]
 
-		// 1. Are they equal?
-		// If yes, jump down to check if it's the end of the string.
-		beq r3, r4, .check_null
-
-		// If they are NOT equal, the CPU drops down here. Break the loop!
-		beq r0, r0, .not_equal
+		beq r3 r4 .check_null
+		beq r0 r0 .not_equal
 
 	.check_null:
-		beq r3, r0, .is_equal
+		beq r3 r0 .is_equal
 
-		// 3. They are equal, and NOT zero. Advance pointers and repeat!
-		addi r1, r1, #1
-		addi r2, r2, #1
-		beq r0, r0, .loop
+		addi r1 r1 #1
+		addi r2 r2 #1
+		beq r0 r0 .loop
 
 	.not_equal:
-
 		nand r4 r4 r4
 		add r1 r3 r4
 		addi r1 r1 #1
-
 		pop r4
 		ret
 
 	.is_equal:
-		movi r1 #0
-
+		clr r1
 		pop r4
- 		ret
+		ret
 
-// R1 = [Destination/1st]
-// R2 = [Source/2nd]
+
+// =============================================================================
+// Subroutine: str_cat(r1: CharArray, r2: String) -> r1: CharArray
+//
+// Description:
+//   Concatenates source string (r2) onto destination buffer (r1).
+//   Destination buffer must have sufficient capacity.
+//
+// Outputs:
+//   r1: CharArray = Destination buffer pointer
+// =============================================================================
 str_cat:
 	push r4
 	push r3
 	add r4 r1 r0
 
 	.find_end_loop:
-		lw r3 [r1 + 0]
+		lw r3 [r1 + #0]
 		beq r3 r0 .start_copy
 		addi r1 r1 #1
 		beq r0 r0 .find_end_loop
 
 	.start_copy:
-		lw r3 [r2 + 0]
-		sw r3 [r1 + 0]
+		lw r3 [r2 + #0]
+		sw r3 [r1 + #0]
 		beq r3 r0 .done
 
 		addi r1 r1 #1
@@ -77,22 +103,29 @@ str_cat:
 		beq r0 r0 .start_copy
 
 	.done:
-		addi r1 r4 #0
-
+		add r1 r4 r0
 		pop r3
 		pop r4
-
 		ret
 
-// R1 = Destination
-// R2 = Source
+
+// =============================================================================
+// Subroutine: str_cpy(r1: CharArray, r2: String) -> r1: CharArray
+//
+// Description:
+//   Copies source string (r2) into destination buffer (r1).
+//
+// Outputs:
+//   r1: CharArray = Destination buffer pointer
+// =============================================================================
 str_cpy:
 	push r3
+	push r4
 	add r4 r1 r0
 
 	.start_copy:
-		lw r3 [r2 + 0]
-		sw r3 [r1 + 0]
+		lw r3 [r2 + #0]
+		sw r3 [r1 + #0]
 		beq r3 r0 .done
 
 		addi r1 r1 #1
@@ -100,6 +133,7 @@ str_cpy:
 		beq r0 r0 .start_copy
 
 	.done:
-		addi r1 r4 #0
+		add r1 r4 r0
+		pop r4
 		pop r3
 		ret

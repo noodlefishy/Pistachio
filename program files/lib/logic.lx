@@ -1,82 +1,141 @@
-// Inputs: r1 (Value), r2 (Shift Amount)
-// Outputs: r1 (Shifted Value)
-shl:
-    push r4
+// =============================================================================
+// MODULE: Bitwise Logic & Shift Routines (lib/logic.lx)
+//
+// Description:
+//   Provides bitwise logic operations (and, or, xor, not, nor, xnor, nand)
+//   and logical/arithmetic shift operations (shl, shr) for 16-bit words.
+// =============================================================================
 
-    beq r2 r0 .done
-    add r4 r2 r0         // r4 is our loop counter
+// =============================================================================
+// Subroutine: shl(r1: Short, r2: Short) -> r1: Short
+//
+// Description:
+//   Shifts a 16-bit value left by the specified number of bits.
+//
+// Inputs:
+//   r1: Short = Value to shift
+//   r2: Short = Shift amount (0..15)
+//
+// Outputs:
+//   r1: Short = Shifted result
+//
+// Registers:
+//   Preserved: r4
+//   Clobbered: r2
+// =============================================================================
+shl:
+	push r4
+
+	beq r2 r0 .done
+	mov r4 r2 // r4 = loop counter
 
 	.loop:
-		add r1 r1 r1         // Shift left by 1 bit (r1 = r1 + r1)
-		addi r4 r4 -1
-		beq r4 r0 .done
-		beq r0 r0 .loop
-	
+		add r1 r1 r1 // r1 = r1 * 2
+		subi r4 r4 #1
+		bne r4 r0 .loop
+
 	.done:
 		pop r4
 		ret
 
 
-// r1 = Value, r2 = Shift Amount
+// =============================================================================
+// Subroutine: shr(r1: Short, r2: Short) -> r1: Short
+//
+// Description:
+//   Shifts a 16-bit value right by the specified number of bits using division.
+//
+// Inputs:
+//   r1: Short = Value to shift
+//   r2: Short = Shift amount (0..15)
+//
+// Outputs:
+//   r1: Short = Shifted result
+//
+// Registers:
+//   Preserved: r7
+//   Clobbered: r2 r3
+// =============================================================================
 shr:
-    push r7
-    push r1
+	push r7
+	push r1
 
-    // 1. Calculate Divisor: r1 = 1 << r2
-    movi r1, 1
-    call shl
-    add r2, r1, r0      // r2 is now our Divisor (2^N)
+	// Calculate divisor: r1 = 1 << r2
+	movi r1 #1
+	call shl
+	mov r2 r1 // r2 = divisor (2^N)
 
-    pop r1              // Restore our Value into r1
-    call divide         // r1 = r1 / r2 !!
+	pop r1 // Restore value into r1
+	call divide // r1 = r1 / r2
 
-    pop r7
-    ret
+	pop r7
+	ret
 
 
-xnor:
-    nand r3 r1 r2
-    nand r1 r1 r1
-    nand r2 r2 r2
-    nand r2 r1 r2
-    nand r1 r3 r2
-
-    ret
-    // nand r1 r1 r1
-
-// neurotypical
-nor:
-    nand r1 r1 r1
-    nand r2 r2 r2
-    nand r1 r1 r2
-    nand r1 r1 r1
-    ret
-
+// =============================================================================
+// Subroutine: not(r1: Short) -> r1: Short
+// =============================================================================
 not:
-    nand r1 r1 r1
-    ret
+	nand r1 r1 r1
+	ret
 
 
-nand:
-    // FAHHH
-    nand r1 r1 r2
-    ret
-
+// =============================================================================
+// Subroutine: and(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
 and:
-    nand r1 r1 r2
-    nand r1 r1 r1
+	nand r1 r1 r2
+	nand r1 r1 r1
+	ret
 
-    ret
 
-xor:
-    nand r3 r1 r2
-    nand r1 r1 r3
-    nand r2 r2 r3
-    nand r1 r1 r2
-    ret
-
+// =============================================================================
+// Subroutine: or(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
 or:
-    nand r1 r1 r1
-    nand r2 r2 r2
-    nand r1 r1 r2
-    ret
+	nand r1 r1 r1
+	nand r2 r2 r2
+	nand r1 r1 r2
+	ret
+
+
+// =============================================================================
+// Subroutine: xor(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
+xor:
+	nand r3 r1 r2
+	nand r1 r1 r3
+	nand r2 r2 r3
+	nand r1 r1 r2
+	ret
+
+
+// =============================================================================
+// Subroutine: nor(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
+nor:
+	nand r1 r1 r1
+	nand r2 r2 r2
+	nand r1 r1 r2
+	nand r1 r1 r1
+	ret
+
+
+// =============================================================================
+// Subroutine: xnor(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
+xnor:
+	nand r3 r1 r2
+	nand r1 r1 r1
+	nand r2 r2 r2
+	nand r2 r1 r2
+	nand r1 r3 r2
+	ret
+
+
+// =============================================================================
+// Subroutine: nand(r1: Short, r2: Short) -> r1: Short
+// =============================================================================
+nand:
+	nand r1 r1 r2
+	ret

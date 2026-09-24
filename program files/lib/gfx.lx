@@ -1,81 +1,93 @@
-// gfx_draw_char(r1 = x, r2 = y, r3 = char_ascii, r4 = colour)
-// Draws a 3x5 character from font_3x5
+// =============================================================================
+// MODULE: Pixastachio 2D Graphics Engine (lib/gfx.lx)
+//
+// Description:
+//   Hardware Abstraction Layer for the Pixastachio 64x64 RGB565 display.
+//   Provides line drawing, shape rendering, canvas clearing, and text blitting.
+//
+// Dependencies:
+//   - lib/constants.lx (internal_font_3x5)
+//
+// MMIO Resources:
+//   - 0xFF03..0xFF0B (Pixastachio Display Controller Registers)
+// =============================================================================
+
+// =============================================================================
+// Subroutine: gfx_draw_char(r1: Short, r2: Short, r3: Short, r4: UShort) -> Unit
+//
+// Description:
+//   Draws a 3x5 character from internal font at (x, y) with color.
+// =============================================================================
 gfx_draw_char:
 	push r7
 	push r4
 	push r5
 
-	// Local frame: [r5+0]: x, [r5+1]: y, [r5+2]: colour, [r5+3]: char_ptr
-	mov r7 r4 // r7 = colour
+	mov r7 r4
 	mov r5 r6
 	addi r6 r6 #4
 
-	sw r1 [r5 + #0] // x
-	sw r2 [r5 + #1] // y
-	sw r7 [r5 + #2] // colour
+	sw r1 [r5 + #0]
+	sw r2 [r5 + #1]
+	sw r7 [r5 + #2]
 
-	// Calculate offset: (char - 32) * 5
 	subi r3 r3 #32
-	add r4 r3 r3 // r4 = char * 2
-	add r4 r4 r4 // r4 = char * 4
-	add r3 r4 r3 // r3 = (char * 4) + char = char * 5!
+	add r4 r3 r3
+	add r4 r4 r4
+	add r3 r4 r3
 
 	movi r4 internal_font_3x5
-	add r3 r4 r3 // r3 = address of 5 rows for this char
-	sw r3 [r5 + #3] // save char_ptr
+	add r3 r4 r3
+	sw r3 [r5 + #3]
 
-	movi r4 #5 // 5 rows tall
+	movi r4 #5
 	movi r7 0xFF07
 
 	.row_loop:
 		beq r4 r0 .char_done
 
-		lw r1 [r5 + #3] // r1 = char_ptr
-		lw r3 [r1 + #0] // r3 = row bitfield (0 to 7)
+		lw r1 [r5 + #3]
+		lw r3 [r1 + #0]
 		addi r1 r1 #1
-		sw r1 [r5 + #3] // char_ptr++
+		sw r1 [r5 + #3]
 
-		// Set row position
-		lw r1 [r5 + #0] // x
-		lw r2 [r5 + #1] // y
-		sw r1 [r7 + #0] // DD_X = x
-		sw r2 [r7 + #1] // DD_Y = y
+		lw r1 [r5 + #0]
+		lw r2 [r5 + #1]
+		sw r1 [r7 + #0]
+		sw r2 [r7 + #1]
 
-		lw r1 [r5 + #2] // r1 = colour
+		lw r1 [r5 + #2]
 
-		// Bit 2 (Left pixel)
 		movi r2 #4
 		and r2 r3 r2
 		beq r2 r0 .skip_bit2
 		sw r1 [r7 + #2]
 		beq r0 r0 .check_bit1
+
 	.skip_bit2:
-		// Advance X without drawing
 		lw r2 [r7 + #0]
 		addi r2 r2 #1
 		sw r2 [r7 + #0]
 
 	.check_bit1:
-		// Bit 1 (Center pixel)
-		movi r2 #2
+		movi r2 2
 		and r2 r3 r2
 		beq r2 r0 .skip_bit1
 		sw r1 [r7 + #2]
 		beq r0 r0 .check_bit0
+
 	.skip_bit1:
 		lw r2 [r7 + #0]
 		addi r2 r2 #1
 		sw r2 [r7 + #0]
 
 	.check_bit0:
-		// Bit 0 (Right pixel)
 		movi r2 #1
 		and r2 r3 r2
 		beq r2 r0 .skip_bit0
 		sw r1 [r7 + #2]
-	.skip_bit0:
 
-		// Next row (y++)
+	.skip_bit0:
 		lw r2 [r5 + #1]
 		addi r2 r2 #1
 		sw r2 [r5 + #1]
@@ -92,38 +104,38 @@ gfx_draw_char:
 
 
 // =============================================================================
-// gfx_draw_string(r1 = x, r2 = y, r3 = string_ptr, r4 = colour)
-// Draws a string using 3x5 font with 1px letter spacing (4px per char)
+// Subroutine: gfx_draw_string(r1: Short, r2: Short, r3: String, r4: UShort) -> Unit
+//
+// Description:
+//   Draws a null-terminated string using 3x5 font at (x, y).
 // =============================================================================
 gfx_draw_string:
 	push r7
 	push r4
 	push r5
 
-	mov r7 r4 // r7 = colour
+	mov r7 r4
 	mov r5 r6
 	addi r6 r6 #4
 
-	sw r1 [r5 + #0] // current X
-	sw r2 [r5 + #1] // Y
-	sw r3 [r5 + #2] // string_ptr
-	sw r7 [r5 + #3] // colour
+	sw r1 [r5 + #0]
+	sw r2 [r5 + #1]
+	sw r3 [r5 + #2]
+	sw r7 [r5 + #3]
 
 	.str_loop:
 		lw r1 [r5 + #2]
-		lw r3 [r1 + #0] // r3 = current character
+		lw r3 [r1 + #0]
 		beq r3 r0 .str_done
 
 		addi r1 r1 #1
-		sw r1 [r5 + #2] // string_ptr++
+		sw r1 [r5 + #2]
 
-		// Draw current character
-		lw r1 [r5 + #0] // x
-		lw r2 [r5 + #1] // y
-		lw r4 [r5 + #3] // colour
+		lw r1 [r5 + #0]
+		lw r2 [r5 + #1]
+		lw r4 [r5 + #3]
 		call gfx_draw_char
 
-		// Advance X by 4 (3px font + 1px space)
 		lw r1 [r5 + #0]
 		addi r1 r1 #4
 		sw r1 [r5 + #0]
@@ -138,191 +150,270 @@ gfx_draw_string:
 		ret
 
 
-
-
-
-
-
-
+// =============================================================================
+// Subroutine: gfx_init() -> Unit
+//
+// Description:
+//   Initializes and opens the Pixastachio graphics window.
+// =============================================================================
 gfx_init:
 	movi r1 #1
 	movi r2 0xFF03
-	sw r1 [r2 + #0]			// DD_CTRL = 1 (Open)
+	sw r1 [r2 + #0]
 	ret
 
+
+// =============================================================================
+// Subroutine: gfx_present() -> Unit
+//
+// Description:
+//   Refreshes the display buffer to present drawn graphics.
+// =============================================================================
 gfx_present:
 	movi r1 #4
 	movi r2 0xFF03
-	sw r1 [r2 + #0]			// DD_CTRL = 4 (Refresh)
+	sw r1 [r2 + #0]
 	ret
 
+
+// =============================================================================
+// Subroutine: gfx_wait_until_close() -> Unit
+//
+// Description:
+//   Blocks execution until the graphics window is closed by the user.
+// =============================================================================
 gfx_wait_until_close:
 	.is_open:
 		movi r1 0xFF06
 		lw r1 [r1 + #0]
 		beq r1 r0 .quit
 		beq r0 r0 .is_open
+
 	.quit:
 		ret
 
-// gfx_clear(r1 = colour)
+
+// =============================================================================
+// Subroutine: gfx_clear(r1: UShort) -> Unit
+//
+// Description:
+//   Clears the entire 64x64 canvas with the specified RGB565 color.
+// =============================================================================
 gfx_clear:
 	push r4
 	movi r2 0xFF07
-	sw r0 [r2 + #0] 		// DD_X = 0
-	sw r0 [r2 + #1] 		// DD_Y = 0
-	movi r3 #4096 			// 64 * 64
+	sw r0 [r2 + #0]
+	sw r0 [r2 + #1]
+	movi r3 #4096
+
 	.clear_loop:
 		beq r3 r0 .done
-		sw r1 [r2 + #2] 	// DD_COLR = colour (auto X++ & Y wrap)
+		sw r1 [r2 + #2]
 		subi r3 r3 #1
 		beq r0 r0 .clear_loop
+
 	.done:
 		pop r4
 		ret
 
-// gfx_draw_pixel(r1 = x, r2 = y, r3 = colour)
+
+// =============================================================================
+// Subroutine: gfx_draw_pixel(r1: Short, r2: Short, r3: UShort) -> Unit
+//
+// Description:
+//   Plots an RGB565 color pixel at coordinates (x, y).
+// =============================================================================
 gfx_draw_pixel:
 	push r4
 	movi r4 0xFF07
-	sw r1 [r4 + #0] 		// DD_X = x
-	sw r2 [r4 + #1] 		// DD_Y = y
-	sw r3 [r4 + #2] 		// DD_COLR = colour
+	sw r1 [r4 + #0]
+	sw r2 [r4 + #1]
+	sw r3 [r4 + #2]
 	pop r4
 	ret
 
-// gfx_draw_h_line(r1 = x, r2 = y, r3 = length, r4 = colour)
+
+// =============================================================================
+// Subroutine: gfx_draw_h_line(r1: Short, r2: Short, r3: Short, r4: UShort) -> Unit
+//
+// Description:
+//   Draws a horizontal line starting at (x, y) of given length and color.
+// =============================================================================
 gfx_draw_h_line:
 	push r5
 	movi r5 0xFF07
-	sw r1 [r5 + #0] 		// DD_X = x
-	sw r2 [r5 + #1] 		// DD_Y = y
+	sw r1 [r5 + #0]
+	sw r2 [r5 + #1]
+
 	.draw_line:
 		beq r3 r0 .done
-		sw r4 [r5 + #2] 	// DD_COLR = colour (auto X++)
+		sw r4 [r5 + #2]
 		subi r3 r3 #1
 		beq r0 r0 .draw_line
+
 	.done:
 		pop r5
 		ret
 
-// gfx_draw_v_line(r1 = x, r2 = y, r3 = length, r4 = colour)
+
+// =============================================================================
+// Subroutine: gfx_draw_v_line(r1: Short, r2: Short, r3: Short, r4: UShort) -> Unit
+//
+// Description:
+//   Draws a vertical line starting at (x, y) of given length and color.
+// =============================================================================
 gfx_draw_v_line:
 	push r5
 	movi r5 0xFF07
+
 	.draw_line:
 		beq r3 r0 .done
 		sw r1 [r5 + #0]
 		sw r2 [r5 + #1]
 		sw r4 [r5 + #2]
-		addi r2 r2 #1 		// Y++
-		subi r3 r3 #1 		// length--
+		addi r2 r2 #1
+		subi r3 r3 #1
 		beq r0 r0 .draw_line
+
 	.done:
 		pop r5
 		ret
 
-// gfx_draw_line(r1 = x0, r2 = y0, r3 = x1, r4 = y1, r5 = colour)
+
+// =============================================================================
+// Subroutine: gfx_draw_line(r1: Short, r2: Short, r3: Short, r4: Short, r5: UShort) -> Unit
+//
+// Description:
+//   Draws an arbitrary line between (x0, y0) and (x1, y1) using Bresenham's algorithm.
+// =============================================================================
 gfx_draw_line:
 	push r7
 	push r4
 	push r5
+
 	mov r7 r5
 	mov r5 r6
 	addi r6 r6 #8
-	sw r3 [r5 + #0] 		// save x1
-	sw r4 [r5 + #1] 		// save y1
-	sw r7 [r5 + #6] 		// save colour
+
+	sw r3 [r5 + #0]
+	sw r4 [r5 + #1]
+	sw r7 [r5 + #6]
+
 	bgt r3 r1 .x_is_pos
+
 	.x_is_neg:
-		sub r7 r1 r3 		// dx = x0 - x1
+		sub r7 r1 r3
 		sw r7 [r5 + #2]
-		movi r7 #-1 		// sx = -1
+		movi r7 -1
 		sw r7 [r5 + #4]
 		beq r0 r0 .calc_y
+
 	.x_is_pos:
-		sub r7 r3 r1 		// dx = x1 - x0
+		sub r7 r3 r1
 		sw r7 [r5 + #2]
-		movi r7 #1 			// sx = 1
+		movi r7 #1
 		sw r7 [r5 + #4]
+
 	.calc_y:
 		bgt r4 r2 .y_is_pos
+
 	.y_is_neg:
-		sub r7 r4 r2 		// dy = y1 - y0
+		sub r7 r4 r2
 		sw r7 [r5 + #3]
-		movi r7 #-1 		// sy = -1
+		movi r7 -1
 		sw r7 [r5 + #5]
 		beq r0 r0 .init_err
+
 	.y_is_pos:
-		sub r7 r2 r4 		// dy = -(y1 - y0)
+		sub r7 r2 r4
 		sw r7 [r5 + #3]
-		movi r7 #1 // sy = 1
+		movi r7 #1
 		sw r7 [r5 + #5]
+
 	.init_err:
 		lw r3 [r5 + #2]
 		lw r7 [r5 + #3]
-		add r3 r3 r7 		// err = dx + dy
+		add r3 r3 r7
+
 	.draw_loop:
 		movi r7 0xFF07
-		sw r1 [r7 + #0] 	// DD_X = x0
-		sw r2 [r7 + #1] 	// DD_Y = y0
-		lw r4 [r5 + #6] 	// r4 = colour
-		sw r4 [r7 + #2] 	// DD_COLR = colour
-		lw r4 [r5 + #0] 	// r4 = x1
+		sw r1 [r7 + #0]
+		sw r2 [r7 + #1]
+		lw r4 [r5 + #6]
+		sw r4 [r7 + #2]
+
+		lw r4 [r5 + #0]
 		bne r1 r4 .continue_step
-		lw r4 [r5 + #1] 	// r4 = y1
+		lw r4 [r5 + #1]
 		beq r2 r4 .draw_done
+
 	.continue_step:
-		add r4 r3 r3 		// e2 = 2 * err
-		lw r7 [r5 + #3] 	// dy
+		add r4 r3 r3
+		lw r7 [r5 + #3]
 		blt r4 r7 .skip_x_step
-		add r3 r3 r7 		// err += dy
-		lw r7 [r5 + #4] 	// sx
-		add r1 r1 r7 		// x0 += sx
+		add r3 r3 r7
+		lw r7 [r5 + #4]
+		add r1 r1 r7
+
 	.skip_x_step:
-		lw r7 [r5 + #2] 	// dx
+		lw r7 [r5 + #2]
 		bgt r4 r7 .skip_y_step
-		add r3 r3 r7 		// err += dx
-		lw r7 [r5 + #5] 	// sy
-		add r2 r2 r7 		// y0 += sy
+		add r3 r3 r7
+		lw r7 [r5 + #5]
+		add r2 r2 r7
+
 	.skip_y_step:
 		beq r0 r0 .draw_loop
+
 	.draw_done:
-		subi r6 r6 #8
+		subi r6 r6 8
 		pop r5
 		pop r4
 		pop r7
 		ret
 
-// gfx_fill_rect(r1 = x, r2 = y, r3 = w, r4 = h, r5 = colour)
+
+// =============================================================================
+// Subroutine: gfx_fill_rect(r1: Short, r2: Short, r3: Short, r4: Short, r5: UShort) -> Unit
+//
+// Description:
+//   Fills a rectangle at (x, y) with width w, height h, and color.
+// =============================================================================
 gfx_fill_rect:
 	push r7
 	push r4
 	push r5
-	mov r7 r5 			// r7 = colour
-	mov r5 r6 			// r5 = Frame Pointer
+
+	mov r7 r5
+	mov r5 r6
 	addi r6 r6 #3
-	sw r1 [r5 + #0] 	// save x
-	sw r3 [r5 + #1] 	// save w
-	sw r7 [r5 + #2] 	// save colour
-	mov r1 r2			// r1 = current Y
+
+	sw r1 [r5 + #0]
+	sw r3 [r5 + #1]
+	sw r7 [r5 + #2]
+
+	mov r1 r2
 	movi r7 0xFF07
+
 	.row_loop:
 		beq r4 r0 .rect_done
-		lw r2 [r5 + #0] // r2 = x
-		sw r2 [r7 + #0] // DD_X = x
-		sw r1 [r7 + #1] // DD_Y = current Y
-		lw r2 [r5 + #1] // r2 = col counter
-		lw r3 [r5 + #2] // r3 = colour
+		lw r2 [r5 + #0]
+		sw r2 [r7 + #0]
+		sw r1 [r7 + #1]
+		lw r2 [r5 + #1]
+		lw r3 [r5 + #2]
+
 	.col_loop:
 		beq r2 r0 .next_row
-		sw r3 [r7 + #2]  // DD_COLR = colour (auto X++)
+		sw r3 [r7 + #2]
 		subi r2 r2 #1
 		beq r0 r0 .col_loop
+
 	.next_row:
-		addi r1 r1 #1 	// Y++
-		subi r4 r4 #1 	// h--
+		addi r1 r1 #1
+		subi r4 r4 #1
 		beq r0 r0 .row_loop
+
 	.rect_done:
 		subi r6 r6 #3
 		pop r5
@@ -330,83 +421,109 @@ gfx_fill_rect:
 		pop r7
 		ret
 
-// gfx_draw_rect(r1 = x, r2 = y, r3 = w, r4 = h, r5 = colour)
+
+// =============================================================================
+// Subroutine: gfx_draw_rect(r1: Short, r2: Short, r3: Short, r4: Short, r5: UShort) -> Unit
+//
+// Description:
+//   Draws the outline of a rectangle at (x, y) with width w, height h, and color.
+// =============================================================================
 gfx_draw_rect:
 	push r7
 	push r4
 	push r5
+
 	mov r7 r5
 	mov r5 r6
 	addi r6 r6 #5
-	sw r1 [r5 + #0] 	// x
-	sw r2 [r5 + #1] 	// y
-	sw r3 [r5 + #2] 	// w
-	sw r4 [r5 + #3] 	// h
-	sw r7 [r5 + #4] 	// colour
+
+	sw r1 [r5 + #0]
+	sw r2 [r5 + #1]
+	sw r3 [r5 + #2]
+	sw r4 [r5 + #3]
+	sw r7 [r5 + #4]
+
 	mov r4 r7
 	call gfx_draw_h_line
+
 	lw r1 [r5 + #0]
 	lw r2 [r5 + #1]
 	lw r4 [r5 + #3]
 	add r2 r2 r4
-	subi r2 r2 #1 		// y + h - 1
+	subi r2 r2 #1
 	lw r3 [r5 + #2]
 	lw r4 [r5 + #4]
 	call gfx_draw_h_line
+
 	lw r1 [r5 + #0]
 	lw r2 [r5 + #1]
-	lw r3 [r5 + #3] 	// length = h
+	lw r3 [r5 + #3]
 	lw r4 [r5 + #4]
 	call gfx_draw_v_line
+
 	lw r1 [r5 + #0]
 	lw r3 [r5 + #2]
 	add r1 r1 r3
-	subi r1 r1 #1 		// x + w - 1
+	subi r1 r1 #1
 	lw r2 [r5 + #1]
-	lw r3 [r5 + #3] 	// length = h
+	lw r3 [r5 + #3]
 	lw r4 [r5 + #4]
 	call gfx_draw_v_line
+
 	subi r6 r6 #5
 	pop r5
 	pop r4
 	pop r7
 	ret
 
-// gfx_draw_sprite(r1 = x, r2 = y, r3 = w, r4 = h, r5 = sprite_ptr)
+
+// =============================================================================
+// Subroutine: gfx_draw_sprite(r1: Short, r2: Short, r3: Short, r4: Short, r5: UShortArray) -> Unit
+//
+// Description:
+//   Draws a 2D sprite from pixel buffer at (x, y) with width w and height h.
+// =============================================================================
 gfx_draw_sprite:
 	push r7
 	push r4
 	push r5
-	mov r7 r5 			// r7 = sprite_ptr
-	mov r5 r6 			// r5 = Frame Pointer
+
+	mov r7 r5
+	mov r5 r6
 	addi r6 r6 #4
-	sw r1 [r5 + #0] 	// save x
-	sw r3 [r5 + #1] 	// save w
-	sw r7 [r5 + #2] 	// save sprite_ptr
-	sw r2 [r5 + #3] 	// save current Y
+
+	sw r1 [r5 + #0]
+	sw r3 [r5 + #1]
+	sw r7 [r5 + #2]
+	sw r2 [r5 + #3]
+
 	movi r7 0xFF07
+
 	.row_loop:
 		beq r4 r0 .sprite_done
 		lw r1 [r5 + #0]
 		lw r2 [r5 + #3]
-		sw r1 [r7 + #0] // DD_X = x
-		sw r2 [r7 + #1] // DD_Y = current Y
-		lw r3 [r5 + #1] // r3 = w
-		lw r1 [r5 + #2] // r1 = sprite_ptr
+		sw r1 [r7 + #0]
+		sw r2 [r7 + #1]
+		lw r3 [r5 + #1]
+		lw r1 [r5 + #2]
+
 	.pixel_loop:
 		beq r3 r0 .next_row
-		lw r2 [r1 + #0] // read pixel colour
-		sw r2 [r7 + #2] // plot (auto X++)
+		lw r2 [r1 + #0]
+		sw r2 [r7 + #2]
 		addi r1 r1 #1
 		subi r3 r3 #1
 		beq r0 r0 .pixel_loop
+
 	.next_row:
-		sw r1 [r5 + #2] // update sprite_ptr
+		sw r1 [r5 + #2]
 		lw r2 [r5 + #3]
-		addi r2 r2 #1 	// current Y++
+		addi r2 r2 #1
 		sw r2 [r5 + #3]
-		subi r4 r4 #1 	// h--
+		subi r4 r4 #1
 		beq r0 r0 .row_loop
+
 	.sprite_done:
 		subi r6 r6 #4
 		pop r5

@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Module terminal" type="Amper.Run" nameIsGenerated="true">
+    <option name="command" value="run" />
+    <EXTENSION ID="amper.run.common">
+      <option name="applicationArguments" value="-i &quot;program files/main.lx&quot; &quot;program files/lib&quot; &quot;program files/assets&quot; --debugf" />
+      <option name="module" value="terminal" />
+    </EXTENSION>
+    <method v="2" />
+  </configuration>
+</component>

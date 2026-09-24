@@ -183,10 +183,12 @@ gfx_clear:
 
 // gfx_draw_pixel(r1 = x, r2 = y, r3 = colour)
 gfx_draw_pixel:
-	movi r7 0xFF07
-	sw r1 [r7 + #0] 		// DD_X = x
-	sw r2 [r7 + #1] 		// DD_Y = y
-	sw r3 [r7 + #2] 		// DD_COLR = colour
+	push r4
+	movi r4 0xFF07
+	sw r1 [r4 + #0] 		// DD_X = x
+	sw r2 [r4 + #1] 		// DD_Y = y
+	sw r3 [r4 + #2] 		// DD_COLR = colour
+	pop r4
 	ret
 
 // gfx_draw_h_line(r1 = x, r2 = y, r3 = length, r4 = colour)

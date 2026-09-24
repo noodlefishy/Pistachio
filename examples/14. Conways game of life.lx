@@ -3,10 +3,31 @@ main:
 	call heap_init
 
 	call gfx_init
+	.after_init: nop
 
-	call gfx_wait_until_close
-	halt
+	movi r4 #0 // counter
+	movi r5 63
+	.draw:
+		beq r4 r5 .done
+		addi r4 r4 #1
+
+		mov r1 r4 // x
+		movi r2 #1
+		movi r3 0xF800
+		nop
+		call gfx_draw_pixel
+		nop
+
+		nop
+		call gfx_present
+		nop
+		.pixel_drawn: nop
+	.done:
+		call gfx_wait_until_close
+		halt
 
 
 stack:
 	.fill 64
+last_random_generated:
+	.space 1

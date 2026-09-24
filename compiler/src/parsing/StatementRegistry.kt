@@ -22,6 +22,7 @@ object StatementRegistry {
         "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },
 
         // Macros
+        "nop" to {r, line, col -> MacroNop(line,col)},
         "blt" to { r, line, col -> MacroBlt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "bgt" to { r, line, col -> MacroBgt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
 

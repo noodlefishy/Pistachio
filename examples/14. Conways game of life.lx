@@ -1,58 +1,480 @@
+// =============================================================================
+// Example 14: Conway's Game of Life with Dynamic Rule-Strings (62x62 Inner Grid)
+// Run with: ./lx -i "examples/14. Conways game of life.lx" "program files/lib"
+// =============================================================================
+
 main:
 	movi r6 stack
 	call heap_init
 	call gfx_init
 
-	movi r1 #4096 // 64 * 64
-	movi r2 panel
-	movi r3 0x4000
-	call random_weighted_array
-
+	// Clear canvas to black once at startup
 	clr r1
 	call gfx_clear
+	call gfx_present
 
-	movi r4 panel
-	movi r5 #0
+	// 1. Parse rule string (Change this to any rule you want!)
+	// Try: rule_conway, rule_highlife, rule_day_night, rule_seeds
+	movi r1 rule_conway
+	call parse_rule_string
 
-	.y_loop:
-		movi r1 #64
-		beq r5 r1 .done
+	// r4 = active grid (grid_a), r5 = back buffer (grid_b)
+	movi r4 grid_a
+	movi r5 grid_b
 
-		movi r3 #0
+	// Initialise 62x62 inner grid with 25% alive density
+	call seed_grid
 
-	.x_loop:
-		movi r1 #64
-		beq r3 r1 .row_done
+	// -------------------------------------------------------------------------
+	// Main Simulation Loop
+	// -------------------------------------------------------------------------
+	.sim_loop:
+		// Check if user clicked window 'X'
+		movi r2 0xFF06 // DD_STUS
+		lw r1 [r2 + #0]
+		beq r1 r0 .exit
 
-		lw r1 [r4 + #0]
-		addi r4 r4 #1
-		beq r1 r0 .skip_pixel
+		// Check if user pressed 'R' or 'r' (82 / 114) to re-seed
+		movi r2 0xFF0B // DD_KEY
+		lw r1 [r2 + #0]
+		movi r3 #82 // 'R'
+		beq r1 r3 .do_reseed
+		movi r3 #114 // 'r'
+		beq r1 r3 .do_reseed
+		beq r0 r0 .render_frame
 
-		push r3 // Preserve X
-		push r5 // Preserve Y
-		mov r1 r3 // r1 = X
-		mov r2 r5 // r2 = Y
-		movi r3 0xF800 // r3 = Red
-		call gfx_draw_pixel
-		pop r5 // Restore Y
-		pop r3 // Restore X
+	.do_reseed:
+		movi r4 grid_a
+		movi r5 grid_b
+		call seed_grid
+		beq r0 r0 .render_frame
 
-	.skip_pixel:
-		addi r3 r3 #1 // X++
-		beq r0 r0 .x_loop
+	.render_frame:
+		// 1. Draw 62x62 active generation to screen
+		mov r1 r4
+		call render_grid
 
-	.row_done:
-		call gfx_present
-		addi r5 r5 #1 // Y++
-		beq r0 r0 .y_loop
+		// 2. Compute next generation from r4 (current) into r5 (next)
+		mov r1 r4
+		mov r2 r5
+		call step_generation
 
-	.done:
+		// 3. Double buffer pointer swap (3 CPU cycles!)
+		mov r1 r4
+		mov r4 r5
+		mov r5 r1
+
+		// Loop back
+		movi r7 .sim_loop
+		jalr r0 r7 #0
+
+	.exit:
 		call gfx_wait_until_close
 		halt
 
 
-panel:
+// =============================================================================
+// Subroutine: seed_grid() -> Unit
+// Clears both grids to 0 and seeds ONLY inner 62x62 cells (rows 1..62, cols 1..62)
+// =============================================================================
+seed_grid:
+	push r7
+	push r4
+	push r5
+
+	// 1. Zero out both grids completely so all borders are permanently dead
+	movi r1 grid_a
+	clr r2
+	movi r3 #4096
+	call mem_set
+
+	movi r1 grid_b
+	clr r2
+	movi r3 #4096
+	call mem_set
+
+	// 2. Seed only inner 62x62 cells of grid_a
+	// r4 = row pointer (starts at grid_a + y*64 + 1 = grid_a + 65)
+	movi r4 grid_a
+	addi r4 r4 #32
+	addi r4 r4 #33 // r4 = grid_a + 65 (row 1, col 1)
+
+	movi r5 #1 // r5 = y (from 1 to 62)
+
+	.seed_y_loop:
+		movi r1 #63
+		beq r5 r1 .seed_done
+
+		// Seed 62 cells in current row with 25% alive density
+		movi r1 #62
+		mov r2 r4
+		movi r3 0x2000 // 25% threshold
+		call random_weighted_array
+
+		// Advance r4 by 64 words to next row's col 1 (+32 +32 to avoid 7-bit limit)
+		addi r4 r4 #32
+		addi r4 r4 #32
+		addi r5 r5 #1 // y++
+		beq r0 r0 .seed_y_loop
+
+	.seed_done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+
+// =============================================================================
+// Subroutine: render_grid(r1: ShortArray) -> Unit
+// Renders only the inner 62x62 pixels (x=1..62, y=1..62), leaving border untouched
+// =============================================================================
+render_grid:
+	push r7
+	push r4
+	push r5
+
+	// r4 = grid read pointer (starts at grid + 65)
+	mov r4 r1
+	addi r4 r4 #32
+	addi r4 r4 #33 // r4 = grid + 65 (row 1, col 1)
+
+	movi r5 #1 // r5 = y (from 1 to 62)
+	movi r7 0xFF07 // r7 = MMIO base
+
+	.render_y_loop:
+		movi r1 #63
+		beq r5 r1 .render_done
+
+		// Set row start: X = 1, Y = y
+		movi r1 #1
+		sw r1 [r7 + #0] // DD_X = 1
+		sw r5 [r7 + #1] // DD_Y = y
+
+		movi r3 #62 // r3 = column counter (62 cells)
+
+	.render_x_loop:
+		beq r3 r0 .render_row_done
+		lw r1 [r4 + #0]
+		addi r4 r4 #1
+		beq r1 r0 .draw_black
+
+	.draw_green:
+		movi r2 0x07E0 // Neon Green
+		sw r2 [r7 + #2] // DD_COLR = Green (plots & auto X++!)
+		beq r0 r0 .next_cell
+
+	.draw_black:
+		sw r0 [r7 + #2] // DD_COLR = Black (0x0000)
+
+	.next_cell:
+		subi r3 r3 #1
+		beq r0 r0 .render_x_loop
+
+	.render_row_done:
+		// Skip col 63 of current row and col 0 of next row (2 words)
+		addi r4 r4 #2
+
+		addi r5 r5 #1 // y++
+		beq r0 r0 .render_y_loop
+
+	.render_done:
+		call gfx_present
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+
+// =============================================================================
+// Subroutine: step_generation(r1 = current_grid, r2 = next_grid) -> Unit
+// Evaluates Life-like rules via bitmasks for rows 1..62, cols 1..62
+// =============================================================================
+step_generation:
+	push r7
+	push r4
+	push r5
+
+	// Local frame (4 words):
+	// [r5 + #0]: current_grid
+	// [r5 + #1]: next_grid
+	// [r5 + #2]: r_next write pointer
+	// [r5 + #3]: y coordinate
+	mov r5 r6
+	addi r6 r6 #4
+
+	sw r1 [r5 + #0] // current_grid
+	sw r2 [r5 + #1] // next_grid
+
+	// Row loop: y from 1 to 62
+	movi r1 #1
+	sw r1 [r5 + #3] // y = 1
+
+	.row_loop:
+		lw r1 [r5 + #3] // r1 = y
+		movi r2 #63
+		bne r1 r2 .continue_row
+
+		// y == 63: Finished rows 1..62 (Long jump trampoline)
+		movi r7 .step_done
+		jalr r0 r7 #0
+
+	.continue_row:
+		// Calculate row offset: (y * 64) via 6 bit-shifts
+		mov r3 r1
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64 (r3 = y * 64)
+
+		// r4 = r_mid = current_grid + y*64 + 1
+		lw r1 [r5 + #0]
+		add r4 r1 r3
+		addi r4 r4 #1
+
+		// r7 = r_top = r_mid - 64 (fits in 7-bit signed immediate -64)
+		subi r7 r4 #64
+
+		// r1 = r_bot = r_mid + 64 (two +32 steps to avoid 7-bit overflow)
+		addi r1 r4 #32
+		addi r1 r1 #32
+
+		// r2 = r_next = next_grid + y*64 + 1
+		lw r2 [r5 + #1]
+		add r2 r2 r3
+		addi r2 r2 #1
+		sw r2 [r5 + #2] // Save r_next on stack
+
+		// Push r_bot to stack
+		push r1 // [r6 - 1] = r_bot
+
+		movi r3 #62 // r3 = column counter (x from 1 to 62)
+
+	.col_loop:
+		beq r3 r0 .row_finished
+
+		// ---------------------------------------------------------------------
+		// Sum 8 neighbours into r1
+		// ---------------------------------------------------------------------
+		// Top row: [r_top - 1], [r_top + 0], [r_top + 1]
+		lw r1 [r7 + #-1]
+		lw r2 [r7 + #0]
+		add r1 r1 r2
+		lw r2 [r7 + #1]
+		add r1 r1 r2
+
+		// Middle row: [r_mid - 1], [r_mid + 1]
+		lw r2 [r4 + #-1]
+		add r1 r1 r2
+		lw r2 [r4 + #1]
+		add r1 r1 r2
+
+		// Bottom row: [r_bot - 1], [r_bot + 0], [r_bot + 1]
+		lw r2 [r6 + #-1] // r2 = r_bot pointer
+		lw r2 [r2 + #-1]
+		add r1 r1 r2
+		lw r2 [r6 + #-1]
+		lw r2 [r2 + #0]
+		add r1 r1 r2
+		lw r2 [r6 + #-1]
+		lw r2 [r2 + #1]
+		add r1 r1 r2
+
+		// ---------------------------------------------------------------------
+		// Apply Life-Like Rules via Bitmasks:
+		// ---------------------------------------------------------------------
+		// 1. Get bitmask for neighbour count N: r2 = (1 << N)
+		movi r2 pow2_table
+		add r2 r2 r1
+		lw r2 [r2 + #0]
+
+		// 2. Check if current cell is alive or dead
+		lw r1 [r4 + #0] // r1 = cell state (0 = Dead, 1 = Alive)
+		beq r1 r0 .check_birth
+
+	.check_survival:
+		movi r3 rule_survival
+		lw r1 [r3 + #0]
+		and r1 r1 r2
+		bne r1 r0 .cell_alive
+		beq r0 r0 .cell_dead
+
+	.check_birth:
+		movi r3 rule_birth
+		lw r1 [r3 + #0]
+		and r1 r1 r2
+		bne r1 r0 .cell_alive
+		beq r0 r0 .cell_dead
+
+	.cell_alive:
+		lw r2 [r5 + #2] // r_next write pointer
+		movi r1 #1
+		sw r1 [r2 + #0] // Next state = Alive (1)
+		addi r2 r2 #1
+		sw r2 [r5 + #2]
+		beq r0 r0 .advance_cell
+
+	.cell_dead:
+		lw r2 [r5 + #2] // r_next write pointer
+		sw r0 [r2 + #0] // Next state = Dead (0)
+		addi r2 r2 #1
+		sw r2 [r5 + #2]
+
+	.advance_cell:
+		addi r7 r7 #1 // r_top++
+		addi r4 r4 #1 // r_mid++
+
+		// r_bot++
+		lw r2 [r6 + #-1]
+		addi r2 r2 #1
+		sw r2 [r6 + #-1]
+
+		subi r3 r3 #1 // col_counter--
+		bne r3 r0 .col_loop
+
+	.row_finished:
+		pop r1 // Discard r_bot from stack
+
+		// y++
+		lw r1 [r5 + #3]
+		addi r1 r1 #1
+		sw r1 [r5 + #3]
+
+		// Long jump back to top of row loop
+		movi r7 .row_loop
+		jalr r0 r7 #0
+
+	.step_done:
+		subi r6 r6 #4 // Deallocate frame
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+// =============================================================================
+// Subroutine: parse_rule_string(r1: String) -> Unit
+// Parses an ASCII rule-string (e.g. "B36/S23\0") into 16-bit bitmasks
+// =============================================================================
+parse_rule_string:
+	push r7
+	push r4
+	push r5
+
+	mov r4 r1          // r4 = string pointer
+	movi r5 rule_birth // default to birth mask
+
+	// Clear existing rules to 0
+	movi r2 rule_birth
+	sw r0 [r2 + #0]
+	movi r2 rule_survival
+	sw r0 [r2 + #0]
+
+	.parse_loop:
+		lw r1 [r4 + #0] // Read next character
+
+		// Check for null-terminator (\0)
+		bne r1 r0 .continue_parse
+		movi r7 .parse_done
+		jalr r0 r7 #0
+
+	.continue_parse:
+		addi r4 r4 #1 // string_ptr++
+
+		// Check digits '0' to '8' (48 to 56)
+		// If it's less than '0' (48), it's a letter or '/' -> jump to checks
+		movi r2 #48
+		blt r1 r2 .check_letters
+
+		// If it's greater than '8' (56), it's a letter -> jump to checks
+		movi r2 #56
+		bgt r1 r2 .check_letters
+
+		// --- It is a valid digit [0-8] ---
+		// Convert ASCII character to integer
+		subi r1 r1 #48
+
+		// Look up bitmask (1 << digit)
+		movi r2 pow2_table
+		add r2 r2 r1
+		lw r2 [r2 + #0] // r2 = bitmask
+
+		// OR bitmask into active rule variable [r5]
+		lw r3 [r5 + #0]
+		or r3 r3 r2
+		sw r3 [r5 + #0]
+
+		movi r7 .parse_loop
+		jalr r0 r7 #0
+
+	.check_letters:
+		// Check 'B' or 'b' (66 / 98) -> Switch target to rule_birth
+		movi r2 #66
+		beq r1 r2 .set_mode_birth
+		movi r2 #98
+		beq r1 r2 .set_mode_birth
+
+		// Check 'S' or 's' (83 / 115) -> Switch target to rule_survival
+		movi r2 #83
+		beq r1 r2 .set_mode_survival
+		movi r2 #115
+		beq r1 r2 .set_mode_survival
+
+		// Otherwise, it's a '/' or unknown char -> skip and continue
+		movi r7 .parse_loop
+		jalr r0 r7 #0
+
+	.set_mode_birth:
+		movi r5 rule_birth
+		movi r7 .parse_loop
+		jalr r0 r7 #0
+
+	.set_mode_survival:
+		movi r5 rule_survival
+		movi r7 .parse_loop
+		jalr r0 r7 #0
+
+	.parse_done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+
+// =============================================================================
+// DATA SECTION
+// =============================================================================
+
+// Preset Rule-Strings (Try changing 'movi r1 rule_conway' in main to any of these!)
+rule_conway:
+	.fill "B3/S23\0"
+
+rule_highlife:
+	.fill "B36/S23\0"
+
+rule_day_night:
+	.fill "B3678/S34678\0"
+
+rule_seeds:
+	.fill "B2/S\0"
+
+rule_diamoeba:
+	.fill "B35678/S5678\0"
+
+pow2_table:
+	.fill { 1 2 4 8 16 32 64 128 256 }
+
+rule_birth:
+	.space 1
+
+rule_survival:
+	.space 1
+
+grid_a:
+	.space 4096
+
+grid_b:
 	.space 4096
 
 stack:
-	.space 64
+	.space 100

@@ -1,4 +1,141 @@
 
+// random_noise_array(r1 = size, r2 = array_ptr)
+random_noise_array:
+	push r7
+	push r4
+	push r5
+
+	mov r5 r1 // r5 = remaining count
+	mov r4 r2 // r4 = array destination pointer
+
+	// If size == 0, exit immediately
+	beq r5 r0 .done
+
+	movi r2 .seed
+	lw r1 [r2 + #0] // r1 = seed (Argument 1 for random)
+
+	.noise_loop:
+		call random // r1 = next random number (and new seed!)
+
+		sw r1 [r4 + #0] // Store random word into array[ptr]
+		addi r4 r4 #1 // ptr++
+		subi r5 r5 #1 // count--
+		bne r5 r0 .noise_loop
+
+	movi r2 .seed
+	sw r1 [r2 + #0]
+
+	.done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+	.seed:
+		.fill 1337
+
+
+// random_bool_array(r1 = size, r2 = array_ptr)
+// Calls random_noise_array, then converts elements to 0 or 1 in-place
+random_bool_array:
+	push r7
+	push r4
+	push r5
+
+	mov r4 r1 // r4 = size
+	mov r5 r2 // r5 = array_ptr
+
+	call random_noise_array
+
+	mov r1 r5 // r1 = walker pointer
+	mov r2 r4 // r2 = remaining counter
+	movi r3 $SBIT // r3 = Sign Bit mask (0x8000)
+
+	.convert_loop:
+		beq r2 r0 .done
+		lw r4 [r1 + #0]
+		and r4 r4 r3 // Check MSB (Sign Bit)
+		beq r4 r0 .set_zero
+
+	.set_one:
+		movi r4 #1
+		sw r4 [r1 + #0] // Overwrite with 1 (true)
+		beq r0 r0 .next
+
+	.set_zero:
+		sw r0 [r1 + #0] // Overwrite with 0 (false)
+
+	.next:
+		addi r1 r1 #1
+		subi r2 r2 #1
+		beq r0 r0 .convert_loop
+
+	.done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+
+
+// =============================================================================
+// random_weighted_array(r1 = size, r2 = array_ptr, r3 = chance)
+//
+// 15-Bit Overflow-Free Thresholds:
+//   0x0000 (0)     = 0%   Alive (All Black)
+//   0x1000 (4096)  = 12%  Alive
+//   0x2000 (8192)  = 25%  Alive (Ideal for Game of Life!)
+//   0x4000 (16384) = 50%  Alive
+//   0x6000 (24576) = 75%  Alive
+//   0x7FFF (32767) = 100% Alive (All Red)
+// =============================================================================
+random_weighted_array:
+	push r7
+	push r4
+	push r5
+	push r3
+
+	mov r4 r1 // r4 = size
+	mov r5 r2 // r5 = array_ptr
+
+	// 1. Fill array with raw noise
+	call random_noise_array
+
+	mov r1 r5 // r1 = walker pointer
+	mov r2 r4 // r2 = remaining counter
+	pop r3 // restore threshold into r3
+
+	movi r7 $MXIT // 0x7FFF (masks out sign bit to guarantee NO overflow!)
+
+	.convert_loop:
+		beq r2 r0 .done
+		lw r4 [r1 + #0]
+
+		// Force random number into positive 15-bit range [0 .. 32767]
+		and r4 r4 r7
+
+		// If random > threshold, set to 0 (Dead)
+		bgt r4 r3 .set_zero
+
+	.set_one:
+		movi r4 #1
+		sw r4 [r1 + #0] // 1 (Alive)
+		beq r0 r0 .next
+
+	.set_zero:
+		sw r0 [r1 + #0] // 0 (Dead)
+
+	.next:
+		addi r1 r1 #1
+		subi r2 r2 #1
+		beq r0 r0 .convert_loop
+
+	.done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
 
 // X_{n+1} = (aX_n + c ) (mod m)
 // m = 10, a = 7, c = 7, X_n = 7

@@ -13,7 +13,7 @@ main:
 
 	// set vsync r1 fps
 	movi r2 0xFF0C
-	movi r1 #60
+	movi r1 #10
 	sw r1 [r2 + #0]
 
 	clr r1
@@ -72,6 +72,14 @@ main:
 		movi r2 #32
 		beq r1 r2 .jmp_toggle
 
+		// 'T' (84) -> Stamp active sprite
+		movi r2 #84
+		beq r1 r2 .jmp_stamp
+
+		// 'Y' (89) -> Cycle to next sprite
+		movi r2 #89
+		beq r1 r2 .jmp_cycle_stamp
+
 		// R (82) -> Reseed, C (67) -> Clear, Q (81) -> Age Mode
 		movi r2 #82
 		beq r1 r2 .jmp_reseed
@@ -103,7 +111,12 @@ main:
 	.end_routing:
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
-
+	.jmp_stamp:
+    		movi r7 .do_stamp
+    		jalr r0 r7 #0
+    .jmp_cycle_stamp:
+    	movi r7 .cycle_stamp
+    	jalr r0 r7 #0
 
 	.jmp_toggle:
 		movi r7 .toggle_pause
@@ -396,6 +409,111 @@ main:
     	movi r7 .evaluate_mode
     	jalr r0 r7 #0
 
+
+    .cycle_stamp:
+    	movi r2 current_stamp_idx
+    	lw r1 [r2 + #0]
+    	addi r1 r1 #1
+
+    	movi r3 #4 // NUM_STAMPS
+    	bne r1 r3 .save_stamp_idx
+    	clr r1     // Wrap back to 0!
+
+    .save_stamp_idx:
+    	sw r1 [r2 + #0]
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+
+	.do_stamp:
+		// 1. Resolve current sprite pointer: stamp_roster[current_stamp_idx]
+		movi r2 current_stamp_idx
+		lw r1 [r2 + #0]
+		movi r2 stamp_roster
+		add r2 r2 r1
+		lw r5 [r2 + #0] // r5 = pointer to active 8x8 sprite pattern
+
+		// 2. Iterate 8 rows (dy = 0..7) and 8 cols (dx = 0..7)
+		clr r1 // r1 = dy (row offset)
+
+	.stamp_row_loop:
+		movi r2 #8
+		beq r1 r2 .stamp_finished
+
+		clr r2 // r2 = dx (col offset)
+
+	.stamp_col_loop:
+		movi r3 #8
+		beq r2 r3 .stamp_row_next
+
+		// Read sprite cell: r5[dy * 8 + dx]
+		// (dy * 8 via 3 shifts)
+		mov r3 r1
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r2 // + dx
+		add r3 r5 r3 // address in sprite
+		lw r3 [r3 + #0] // r3 = pixel value (0 or RGB color/1)
+
+		beq r3 r0 .stamp_skip_pixel // Ignore empty pixels!
+
+		// Calculate grid destination: cursor_y + dy, cursor_x + dx
+		push r1
+		push r2
+
+		movi r7 cursor_y
+		lw r7 [r7 + #0]
+		add r1 r7 r1 // target_y = cursor_y + dy
+
+		// Clamp Y to safe grid area (< 62)
+		movi r7 #62
+		bgt r1 r7 .stamp_pop_skip
+
+		movi r7 cursor_x
+		lw r7 [r7 + #0]
+		add r2 r7 r2 // target_x = cursor_x + dx
+
+		// Clamp X to safe grid area (< 62)
+		movi r7 #62
+		bgt r2 r7 .stamp_pop_skip
+
+		// Offset = target_y * 64 + target_x
+		add r1 r1 r1 // * 2
+		add r1 r1 r1 // * 4
+		add r1 r1 r1 // * 8
+		add r1 r1 r1 // * 16
+		add r1 r1 r1 // * 32
+		add r1 r1 r1 // * 64
+		add r1 r1 r2 // r1 = grid offset
+
+		// Write ALIVE (1) to active_grid
+		add r2 r4 r1
+		movi r3 #1
+		sw r3 [r2 + #0]
+
+		// Set age to 1 (Newborn) in age_grid
+		movi r2 age_grid
+		add r2 r2 r1
+		movi r3 #1
+		sw r3 [r2 + #0]
+
+	.stamp_pop_skip:
+		pop r2
+		pop r1
+
+	.stamp_skip_pixel:
+		addi r2 r2 #1 // dx++
+		beq r0 r0 .stamp_col_loop
+
+	.stamp_row_next:
+		addi r1 r1 #1 // dy++
+		beq r0 r0 .stamp_row_loop
+
+	.stamp_finished:
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
     .do_clear:
     	movi r4 grid_a
     	movi r5 grid_b
@@ -467,21 +585,66 @@ main:
 		beq r2 r0 .draw_border_running
 
 	.draw_cursor:
-		movi r3 blink_tick
-		lw r2 [r3 + #0]
-		addi r2 r2 #1
-		sw r2 [r3 + #0]
+			// 1. Draw the Hologram Blueprint in Dark Cyan
+			movi r2 current_stamp_idx
+			lw r1 [r2 + #0]
+			movi r2 stamp_roster
+			add r2 r2 r1
+			lw r5 [r2 + #0] // r5 = active 8x8 sprite
 
-		movi r1 #4
-		and r2 r2 r1
-		beq r2 r0 .draw_border_paused
+			clr r1 // dy
 
-		movi r1 cursor_x
-		lw r1 [r1 + #0]
-		movi r2 cursor_y
-		lw r2 [r2 + #0]
-		movi r3 0xF800
-		call gfx_draw_pixel
+		.ghost_row:
+			movi r2 #8
+			beq r1 r2 .draw_anchor_dot
+			clr r2 // dx
+
+		.ghost_col:
+			movi r3 #8
+			beq r2 r3 .ghost_next_row
+
+			// Read sprite pixel
+			mov r3 r1
+			add r3 r3 r3
+			add r3 r3 r3
+			add r3 r3 r3
+			add r3 r3 r2
+			add r3 r5 r3
+			lw r3 [r3 + #0]
+			beq r3 r0 .ghost_skip
+
+			// Draw preview pixel at (cursor_x + dx, cursor_y + dy)
+			push r1
+			push r2
+			movi r7 cursor_y
+			lw r7 [r7 + #0]
+			add r2 r7 r1 // Y
+
+			movi r7 cursor_x
+			lw r7 [r7 + #0]
+			add r1 r7 r2 // X
+
+			movi r3 0x07FF // Faint Cyan Hologram!
+			call gfx_draw_pixel
+			pop r2
+			pop r1
+
+		.ghost_skip:
+			addi r2 r2 #1
+			beq r0 r0 .ghost_col
+
+		.ghost_next_row:
+			addi r1 r1 #1
+			beq r0 r0 .ghost_row
+
+		.draw_anchor_dot:
+			// 2. Draw the bright red anchor crosshair at the cursor origin
+			movi r1 cursor_x
+			lw r1 [r1 + #0]
+			movi r2 cursor_y
+			lw r2 [r2 + #0]
+			movi r3 0xF800 // Bright Red Anchor
+			call gfx_draw_pixel
 
 	.draw_border_paused:
 		push r4
@@ -576,7 +739,7 @@ seed_grid:
 
 		movi r1 #62
 		mov r2 r4
-		movi r3 0x4000
+		movi r3 0x2000
 		call random_weighted_array
 
 		addi r4 r4 #32
@@ -977,7 +1140,7 @@ parse_rule_string:
 // DATA SECTION
 // =============================================================================
 rule_pointer:
-	.fill rule_diamoeba
+	.fill rule_conway
 
 
 rule_replicator:
@@ -1012,6 +1175,57 @@ age_palette:
 
 	// Indexes 8 to 15 (Alive: White, Yellow, Orange, Green, Cyan, Blue, Purple, Magenta)
 	.fill { 0xFFFF 0xFFE0 0xFD20 0x07E0 0x07FF 0x001F 0x801F 0xF81F }
+
+
+
+// =============================================================================
+// Stamp Roster Table
+// =============================================================================
+current_stamp_idx: .fill 0
+NUM_STAMPS:        .fill 4
+
+// Table of pointers to the 8x8 sprite patterns
+stamp_roster:
+	.fill stamp_glider
+	.fill stamp_lwss
+	.fill stamp_pulsar
+	.fill sprite_alien      // Uses the sprite from assets/sprites.lx!
+
+// Pattern 0: Glider (Flies diagonally down-right)
+stamp_glider:
+	.fill { 0 1 0 0 0 0 0 0 }
+	.fill { 0 0 1 0 0 0 0 0 }
+	.fill { 1 1 1 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+
+// Pattern 1: Lightweight Spaceship / LWSS (Flies horizontally right)
+stamp_lwss:
+	.fill { 0 1 0 0 1 0 0 0 }
+	.fill { 0 0 0 0 0 1 0 0 }
+	.fill { 0 1 0 0 0 1 0 0 }
+	.fill { 0 0 1 1 1 1 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+
+// Pattern 2: Toad (Oscillates back and forth)
+stamp_pulsar:
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 1 1 1 0 0 0 }
+	.fill { 0 1 1 1 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+	.fill { 0 0 0 0 0 0 0 0 }
+
+
+
 
 pow2_table:     .fill { 1 2 4 8 16 32 64 128 256 }
 

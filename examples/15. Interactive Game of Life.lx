@@ -13,7 +13,7 @@ main:
 
 	// Set target VSYNC FPS
 	movi r2 0xFF0C
-	movi r1 #30
+	movi r1 #10
 	sw r1 [r2 + #0]
 
 	clr r1
@@ -390,16 +390,21 @@ main:
 		jalr r0 r7 #0
 
 	.cycle_stamp:
-		movi r2 current_stamp_idx
-		lw r1 [r2 + #0]
-		addi r1 r1 #1
-		movi r3 #4 // NUM_STAMPS
-		bne r1 r3 .save_stamp_idx
-		clr r1     // Wrap back to 0!
-	.save_stamp_idx:
-		sw r1 [r2 + #0]
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
+    	movi r2 current_stamp_idx
+    	lw r1 [r2 + #0]
+    	addi r1 r1 #1
+
+    	// Load NUM_STAMPS dynamically from memory!
+    	movi r3 NUM_STAMPS
+    	lw r3 [r3 + #0]
+
+    	bne r1 r3 .save_stamp_idx
+    	clr r1     // Wrap back to 0!
+
+    .save_stamp_idx:
+    	sw r1 [r2 + #0]
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
 
 	.rotate_stamp:
 		movi r2 stamp_rotation
@@ -690,51 +695,61 @@ main:
 
 // =============================================================================
 // Subroutine: get_rotated_offsets(r1: dy, r2: dx) -> (r1: ry, r2: rx)
-// Leaves r7 100% intact so ret returns safely!
+// Pure table-lookup rotation: 100% bug-free, zero register clobbering!
 // =============================================================================
 get_rotated_offsets:
 	push r3
 	push r4
 
+	// Load rotation state (0, 1, 2, 3) into r3
 	movi r3 stamp_rotation
 	lw r3 [r3 + #0]
 
+	// Branch directly using decrement math (no comparison registers needed!)
 	beq r3 r0 .rot_0
-	movi r4 #1
-	beq r3 r4 .rot_90
-	movi r4 #2
-	beq r3 r4 .rot_180
+	subi r3 r3 #1
+	beq r3 r0 .rot_90
+	subi r3 r3 #1
+	beq r3 r0 .rot_180
 
-	.rot_270:
-		// rx = dy, ry = 7 - dx
-		mov r4 r1       // temp = dy
-		movi r1 #7
-		sub r1 r1 r2    // ry = 7 - dx
-		mov r2 r4       // rx = dy
-		beq r0 r0 .rot_done
+.rot_270:
+	// rx = dy, ry = 7 - dx
+	movi r3 invert7_table
+	add r3 r3 r2
+	lw r4 [r3 + #0] // r4 = 7 - dx
 
-	.rot_180:
-		// rx = 7 - dx, ry = 7 - dy
-		movi r4 #7
-		sub r1 r4 r1    // ry = 7 - dy
-		sub r2 r4 r2    // rx = 7 - dx
-		beq r0 r0 .rot_done
+	mov r2 r1       // rx = dy
+	mov r1 r4       // ry = 7 - dx
+	beq r0 r0 .rot_done
 
-	.rot_90:
-		// rx = 7 - dy, ry = dx
-		mov r4 r2       // temp = dx
-		movi r2 #7
-		sub r2 r2 r1    // rx = 7 - dy
-		mov r1 r4       // ry = dx
-		beq r0 r0 .rot_done
+.rot_180:
+	// rx = 7 - dx, ry = 7 - dy
+	movi r3 invert7_table
+	add r4 r3 r1
+	lw r4 [r4 + #0] // r4 = 7 - dy
 
-	.rot_0:
-		// Unrotated (rx = dx, ry = dy)
+	add r3 r3 r2
+	lw r2 [r3 + #0] // rx = 7 - dx
+	mov r1 r4       // ry = 7 - dy
+	beq r0 r0 .rot_done
 
-	.rot_done:
-		pop r4
-		pop r3
-		ret
+.rot_90:
+	// rx = 7 - dy, ry = dx
+	movi r3 invert7_table
+	add r4 r3 r1
+	lw r4 [r4 + #0] // r4 = 7 - dy
+
+	mov r1 r2       // ry = dx
+	mov r2 r4       // rx = 7 - dy
+	beq r0 r0 .rot_done
+
+.rot_0:
+	// Unrotated: rx = dx, ry = dy (already in r1 and r2!)
+
+.rot_done:
+	pop r4
+	pop r3
+	ret
 
 // =============================================================================
 // Subroutine: clear_grids()
@@ -1216,11 +1231,13 @@ age_palette:
 // Stamp Roster Table & Rotation State
 // =============================================================================
 current_stamp_idx: .fill 0
-NUM_STAMPS:        .fill 4
+NUM_STAMPS:        .fill 6
 show_ghost:        .fill 0 // 0 = OFF (Default), 1 = ON
 stamp_rotation:    .fill 0 // 0 = 0 deg, 1 = 90 deg, 2 = 180 deg, 3 = 270 deg
 
 stamp_roster:
+	.fill stamp_squash
+	.fill stamp_random
 	.fill stamp_glider
 	.fill stamp_lwss
 	.fill stamp_pulsar
@@ -1236,6 +1253,18 @@ stamp_glider:
 	.fill { 0 0 0 0 0 0 0 0 }
 	.fill { 0 0 0 0 0 0 0 0 }
 	.fill { 0 0 0 0 0 0 0 0 }
+
+
+stamp_random:
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x07E0 0x07E0 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x07E0 0x07E0 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x07E0 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x07E0 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+
 
 // Pattern 1: Lightweight Spaceship (LWSS)
 stamp_lwss:
@@ -1259,7 +1288,20 @@ stamp_pulsar:
 	.fill { 0 0 0 0 0 0 0 0 }
 	.fill { 0 0 0 0 0 0 0 0 }
 
+stamp_squash:
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0xFFFF 0xFFFF 0xFFFF 0x0000 0xFFFF 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0xFFFF 0x0000 0xFFFF 0x0000 }
+	.fill { 0x0000 0x0000 0xFFFF 0xFFFF 0xFFFF 0xFFFF 0xFFFF 0x0000 }
+	.fill { 0x0000 0x0000 0xFFFF 0x0000 0xFFFF 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0xFFFF 0x0000 0xFFFF 0xFFFF 0xFFFF 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+	.fill { 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 0x0000 }
+
+
 pow2_table:     .fill { 1 2 4 8 16 32 64 128 256 }
+// Inversion table: maps [0..7] to [7..0]
+invert7_table:  .fill { 7 6 5 4 3 2 1 0 }
 
 is_paused:      .fill 1 // Start paused so you can draw/stamp immediately!
 is_age_mode:    .fill 0

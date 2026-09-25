@@ -112,11 +112,18 @@ class DirectiveFillImmediate(val valueShort: Argument, line: Int, col: Int) : St
     override val size = 1
 
     init {
-        if (valueShort !is ImmArg) throw Exception("Line $line: .space requires an immediate number!")
+        if (valueShort is SymArg) {
+        } else if (valueShort !is ImmArg) throw Exception("Line $line: .fill requires an immediate number!")
     }
 
     override fun generate(context: ParserContext, address: Short): List<Instruction> {
-        val value = resolve(valueShort, context, address, RelocationType.ABS_16)
+
+        val value = if (valueShort is ImmArg) {
+            resolve(valueShort, context, address, RelocationType.ABS_16)
+        } else {
+            resolve(valueShort as SymArg, context, address, RelocationType.ABS_16)
+        }
+
         return listOf(Instruction.DataWord(value))
     }
 }

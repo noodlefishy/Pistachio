@@ -10,6 +10,11 @@ main:
 	call heap_init
 	call gfx_init
 
+	// set vsync r1 fps
+	movi r2 0xFF0C
+	movi r1 #10
+	sw r1 [r2 + #0]
+
 	clr r1
 	call gfx_clear
 	call gfx_present
@@ -386,6 +391,11 @@ main:
 
 	.present:
 		call gfx_present
+
+		// VSYNC DELAY
+		movi r2 0xFF0C
+        lw r0 [r2 + #0]
+
 		movi r7 .sim_loop
 		jalr r0 r7 #0
 

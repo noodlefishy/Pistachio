@@ -3,8 +3,11 @@ package io.cuttlefish.web
 import io.cuttlefish.devices.Device
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.delay
 import org.w3c.dom.*
 import org.w3c.dom.events.KeyboardEvent
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 class WebCanvasDisplay(canvasId: String) : Device {
     override val name: String = "Web Display"
@@ -20,34 +23,39 @@ class WebCanvasDisplay(canvasId: String) : Device {
     private var gamepadState = 0
     private var lastKey = 0
 
+    private var targetFps: Int = 0 // 0 means uncapped
+    private var targetFrameMs: Long = 0L
+    private var lastFrameMark = TimeSource.Monotonic.markNow()
+
     private val canvas = document.getElementById(canvasId) as HTMLCanvasElement
+
     @OptIn(ExperimentalWasmJsInterop::class)
     private val ctx = canvas.getContext("2d") as CanvasRenderingContext2D
 
     init {
         // Keyboard input for 0xFF0A (Gamepad) & 0xFF0B (Key)
-        window.addEventListener("keydown", { event ->
+        window.addEventListener("keydown") { event ->
             val e = event as KeyboardEvent
             when (e.code) {
-                "ArrowUp", "KeyW"     -> gamepadState = gamepadState or 0x0001
-                "ArrowDown", "KeyS"   -> gamepadState = gamepadState or 0x0002
-                "ArrowLeft", "KeyA"   -> gamepadState = gamepadState or 0x0004
-                "ArrowRight", "KeyD"  -> gamepadState = gamepadState or 0x0008
-                "Space", "KeyZ"       -> gamepadState = gamepadState or 0x0010
+                "ArrowUp", "KeyW" -> gamepadState = gamepadState or 0x0001
+                "ArrowDown", "KeyS" -> gamepadState = gamepadState or 0x0002
+                "ArrowLeft", "KeyA" -> gamepadState = gamepadState or 0x0004
+                "ArrowRight", "KeyD" -> gamepadState = gamepadState or 0x0008
+                "Space", "KeyZ" -> gamepadState = gamepadState or 0x0010
             }
             if (e.key.length == 1) lastKey = e.key[0].code and 0xFFFF
-        })
+        }
 
-        window.addEventListener("keyup", { event ->
+        window.addEventListener("keyup") { event ->
             val e = event as KeyboardEvent
             when (e.code) {
-                "ArrowUp", "KeyW"     -> gamepadState = gamepadState and 0x0001.inv()
-                "ArrowDown", "KeyS"   -> gamepadState = gamepadState and 0x0002.inv()
-                "ArrowLeft", "KeyA"   -> gamepadState = gamepadState and 0x0004.inv()
-                "ArrowRight", "KeyD"  -> gamepadState = gamepadState and 0x0008.inv()
-                "Space", "KeyZ"       -> gamepadState = gamepadState and 0x0010.inv()
+                "ArrowUp", "KeyW" -> gamepadState = gamepadState and 0x0001.inv()
+                "ArrowDown", "KeyS" -> gamepadState = gamepadState and 0x0002.inv()
+                "ArrowLeft", "KeyA" -> gamepadState = gamepadState and 0x0004.inv()
+                "ArrowRight", "KeyD" -> gamepadState = gamepadState and 0x0008.inv()
+                "Space", "KeyZ" -> gamepadState = gamepadState and 0x0010.inv()
             }
-        })
+        }
     }
 
     override suspend fun read(address: UShort): Short {
@@ -64,6 +72,19 @@ class WebCanvasDisplay(canvasId: String) : Device {
                 lastKey = 0
                 k
             }
+
+            0xFF0C -> { // VSYNC READ: Block until next frame
+                if (targetFps > 0) {
+                    val elapsed = lastFrameMark.elapsedNow()
+                    val target = targetFrameMs.milliseconds
+                    if (elapsed < target) {
+                        delay(target - elapsed)
+                    }
+                    lastFrameMark = TimeSource.Monotonic.markNow()
+                }
+                targetFps.toShort()
+            }
+
             else -> 0
         }
     }
@@ -79,9 +100,11 @@ class WebCanvasDisplay(canvasId: String) : Device {
                         ctx.fillStyle = "#000000".toJsString()
                         ctx.fillRect(0.0, 0.0, width.toDouble(), height.toDouble())
                     }
+
                     4 -> repaint() // DD_CTRL = 4: Blit to HTML canvas!
                 }
             }
+
             0xFF07 -> cursorX = valInt % width
             0xFF08 -> cursorY = valInt % height
             0xFF09 -> {
@@ -91,6 +114,11 @@ class WebCanvasDisplay(canvasId: String) : Device {
                     cursorX = 0
                     cursorY = (cursorY + 1) % height
                 }
+            }
+
+            0xFF0C -> { // VSYNC WRITE: Set target FPS
+                targetFps = valInt
+                targetFrameMs = if (targetFps > 0) 1000L / targetFps else 0L
             }
         }
     }

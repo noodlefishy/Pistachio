@@ -1,6 +1,7 @@
 package devices
 
 import io.cuttlefish.devices.Device
+import kotlinx.coroutines.delay
 import java.awt.*
 import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
@@ -10,12 +11,14 @@ import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import javax.swing.*
 import kotlin.system.exitProcess
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 class Display : Device {
     override val name: String = "Display"
     override val deviceId: UShort = 2u
 
-    override val memoryUsed: UIntRange = 0xFF03u..0xFF0Bu
+    override val memoryUsed: UIntRange = 0xFF03u..0xFF0Cu
 
     val width = 64
     val height = 64
@@ -27,6 +30,10 @@ class Display : Device {
     @Volatile private var isWindowOpen = false
     @Volatile private var gamepadState = 0
     @Volatile private var lastKey = 0
+
+    private var targetFps: Int = 0 // 0 means uncapped
+    private var targetFrameMs: Long = 0L
+    private var lastFrameMark = TimeSource.Monotonic.markNow()
 
     private var frame: JFrame? = null
     private var grid: GridPanel? = null
@@ -49,6 +56,18 @@ class Display : Device {
                 lastKey = 0
                 k
             }
+            0xFF0C -> { // VSYNC READ: Block until next frame
+                if (targetFps > 0) {
+                    val elapsed = lastFrameMark.elapsedNow()
+                    val target = targetFrameMs.milliseconds
+                    if (elapsed < target) {
+                        delay(target - elapsed)
+                    }
+                    lastFrameMark = TimeSource.Monotonic.markNow()
+                }
+                targetFps.toShort()
+            }
+
             else -> 0
         }
     }
@@ -76,6 +95,10 @@ class Display : Device {
                     cursorX = 0
                     cursorY = (cursorY + 1) % height
                 }
+            }
+            0xFF0C -> { // VSYNC WRITE: Set target FPS
+                targetFps = valInt
+                targetFrameMs = if (targetFps > 0) 1000L / targetFps else 0L
             }
         }
     }

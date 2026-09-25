@@ -9,6 +9,7 @@ import java.awt.event.WindowEvent
 import java.awt.image.BufferedImage
 import java.awt.image.DataBufferInt
 import javax.swing.*
+import kotlin.system.exitProcess
 
 class Display : Device {
     override val name: String = "Display"
@@ -89,8 +90,13 @@ class Display : Device {
             f.background = Color.BLACK
 
             f.addWindowListener(object : WindowAdapter() {
-                override fun windowClosing(e: WindowEvent) { isWindowOpen = false }
-                override fun windowClosed(e: WindowEvent) { isWindowOpen = false }
+                override fun windowClosing(e: WindowEvent) {
+                    isWindowOpen = false
+//                    exitProcess(1)
+                }
+                override fun windowClosed(e: WindowEvent) { isWindowOpen = false
+//                    exitProcess(1)
+                }
             })
 
             f.addKeyListener(object : KeyAdapter() {

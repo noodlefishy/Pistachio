@@ -556,6 +556,7 @@ private suspend fun runCpuSafely(
             printHexDump(memory, dumpBaseAddr, dumpLength)
         }
         onHaltOrCrash?.invoke(null)
+        exitProcess(0)
 
     } catch (e: Exception) {
         crashException = e

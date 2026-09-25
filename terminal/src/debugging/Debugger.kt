@@ -23,7 +23,7 @@ class Debugger(
     }
 
     val addressToLabelMap: Map<UShort, String> = symbolMap.entries.associate { it.value to it.key }
-    val historySize = 200
+    val historySize = 10_000
     val historyX = ArrayDeque<String>(historySize)
     val breakPoints = mutableSetOf<UShort>()
     var lastCommand = "s"

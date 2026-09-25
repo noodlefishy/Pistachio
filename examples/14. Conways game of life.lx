@@ -13,9 +13,8 @@ main:
 	call gfx_clear
 	call gfx_present
 
-	// 1. Parse rule string (Change this to any rule you want!)
-	// Try: rule_conway, rule_highlife, rule_day_night, rule_seeds
-	movi r1 rule_conway
+	// rule_conway, rule_highlife, rule_day_night, rule_seeds
+	movi r1 [rule_anneal]
 	call parse_rule_string
 
 	// r4 = active grid (grid_a), r5 = back buffer (grid_b)
@@ -108,7 +107,7 @@ seed_grid:
 		// Seed 62 cells in current row with 25% alive density
 		movi r1 #62
 		mov r2 r4
-		movi r3 0x2000 // 25% threshold
+		movi r3 0x4000 // 25% threshold
 		call random_weighted_array
 
 		// Advance r4 by 64 words to next row's col 1 (+32 +32 to avoid 7-bit limit)
@@ -251,9 +250,8 @@ step_generation:
 
 		movi r3 #62 // r3 = column counter (x from 1 to 62)
 
-	.col_loop:
-		beq r3 r0 .row_finished
 
+	.col_loop:
 		// ---------------------------------------------------------------------
 		// Sum 8 neighbours into r1
 		// ---------------------------------------------------------------------
@@ -294,15 +292,21 @@ step_generation:
 		beq r1 r0 .check_birth
 
 	.check_survival:
+		push r3               // Save the column counter!
 		movi r3 rule_survival
 		lw r1 [r3 + #0]
+		pop r3                // Restore the column counter!
+
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
 		beq r0 r0 .cell_dead
 
 	.check_birth:
+		push r3               // Save the column counter!
 		movi r3 rule_birth
 		lw r1 [r3 + #0]
+		pop r3                // Restore the column counter!
+
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
 		beq r0 r0 .cell_dead
@@ -331,7 +335,12 @@ step_generation:
 		sw r2 [r6 + #-1]
 
 		subi r3 r3 #1 // col_counter--
-		bne r3 r0 .col_loop
+
+		// Bottom Trampoline: Long jump backwards to loop top
+		beq r3 r0 .row_finished
+		movi r1 .col_loop    // <-- WE USE r1 NOW! NO CLOBBERING r_top!
+		jalr r0 r1 #0
+
 
 	.row_finished:
 		pop r1 // Discard r_bot from stack
@@ -446,6 +455,9 @@ parse_rule_string:
 // =============================================================================
 
 // Preset Rule-Strings (Try changing 'movi r1 rule_conway' in main to any of these!)
+rule_anneal:
+	.fill "B4678/S35678\0"
+
 rule_conway:
 	.fill "B3/S23\0"
 

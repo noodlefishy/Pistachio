@@ -14,7 +14,7 @@ main:
 	call gfx_present
 
 	// rule_conway, rule_highlife, rule_day_night, rule_seeds
-	movi r1 [rule_anneal]
+	movi r1 [rule_diamoeba]
 	call parse_rule_string
 
 	// r4 = active grid (grid_a), r5 = back buffer (grid_b)
@@ -456,22 +456,22 @@ parse_rule_string:
 
 // Preset Rule-Strings (Try changing 'movi r1 rule_conway' in main to any of these!)
 rule_anneal:
-	.fill "B4678/S35678\0"
+	.fill "B4678/S35678"
 
 rule_conway:
-	.fill "B3/S23\0"
+	.fill "B3/S23"
 
 rule_highlife:
-	.fill "B36/S23\0"
+	.fill "B36/S23"
 
 rule_day_night:
-	.fill "B3678/S34678\0"
+	.fill "B3678/S34678"
 
 rule_seeds:
-	.fill "B2/S\0"
+	.fill "B2/S"
 
 rule_diamoeba:
-	.fill "B35678/S5678\0"
+	.fill "B35678/S5678"
 
 pow2_table:
 	.fill { 1 2 4 8 16 32 64 128 256 }

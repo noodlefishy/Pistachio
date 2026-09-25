@@ -36,19 +36,17 @@ class Debugger(
 
         val prePc = cpu.pc
         val preRegisters = cpu.registers.registerData.copyOf()
-        val rawInstruction = memory.read(prePc)
 
         cpu.tick()
 
+        if (GlobalConfig.debug.printHistory) {
+            val postRegisters = cpu.registers.registerData.copyOf()
+            val delta = findRegisterDelta(preRegisters, postRegisters)
+            val traceString = formatTrace(prePc, delta)
 
-        val postRegisters = cpu.registers.registerData.copyOf()
-
-        val delta = findRegisterDelta(preRegisters, postRegisters)
-        val traceString = formatTrace(prePc, delta)
-
-        if (historyX.size >= historySize) historyX.removeFirst()
-        historyX.addFirst(traceString)
-
+            if (historyX.size >= historySize) historyX.removeFirst()
+            historyX.addFirst(traceString)
+        }
     }
 
 

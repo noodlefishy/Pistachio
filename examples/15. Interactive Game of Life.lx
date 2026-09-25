@@ -317,10 +317,9 @@ main:
 		mov r2 r5
 		call step_generation
 
-		// NEW: Update ages based on the newly calculated generation!
-		mov r1 r5
-		movi r2 age_grid
-		call update_age_grid
+//		mov r1 r5
+//		movi r2 age_grid
+//		call update_age_grid
 
 		// Swap double buffers
 		mov r1 r4
@@ -451,87 +450,8 @@ seed_grid:
 		ret
 
 // =============================================================================
-// Subroutine: update_age_grid(r1 = new_generation, r2 = age_grid)
-// Iterates exactly 4096 times. Guarantees ages are bounded between -7 and 8.
-// =============================================================================
-update_age_grid:
-	push r7
-	push r4
-	push r5
-	push r3
-
-	mov r4 r1 // active_grid
-	mov r5 r2 // age_grid
-	movi r3 #4096
-
-	.uag_loop:
-		beq r3 r0 .uag_exit_jump
-		beq r0 r0 .uag_continue
-	.uag_exit_jump:
-		movi r7 .uag_done
-		jalr r0 r7 #0
-
-	.uag_continue:
-		lw r1 [r4 + #0] // cell state (0 or 1)
-		lw r2 [r5 + #0] // age state
-
-		beq r1 r0 .uag_dead
-
-	.uag_alive:
-		movi r7 #0
-		blt r2 r7 .uag_reset_alive
-		beq r2 r0 .uag_reset_alive
-
-		// If already alive, age++
-		addi r2 r2 #1
-		movi r7 #8               // <--- NEW ALIVE CAP (8)
-		bgt r2 r7 .uag_cap_alive
-		beq r0 r0 .uag_write
-
-	.uag_reset_alive:
-		movi r2 #1
-		beq r0 r0 .uag_write
-
-	.uag_cap_alive:
-		movi r2 #8               // <--- NEW ALIVE CAP (8)
-		beq r0 r0 .uag_write
-
-	.uag_dead:
-		movi r7 #0
-		bgt r2 r7 .uag_reset_dead // Just died! -> -1
-		beq r2 r0 .uag_write      // Dead forever -> Stay 0
-
-		// Dying trail: age--
-		subi r2 r2 #1
-		movi r7 #-7               // <--- NEW DEAD CAP (-7)
-		blt r2 r7 .uag_cap_dead
-		beq r0 r0 .uag_write
-
-	.uag_reset_dead:
-		movi r2 #-1
-		beq r0 r0 .uag_write
-
-	.uag_cap_dead:
-		movi r2 #0
-
-	.uag_write:
-		sw r2 [r5 + #0]
-		addi r4 r4 #1
-		addi r5 r5 #1
-		subi r3 r3 #1
-
-		movi r7 .uag_loop
-		jalr r0 r7 #0
-
-	.uag_done:
-		pop r3
-		pop r5
-		pop r4
-		pop r7
-		ret
-
-// =============================================================================
 // Subroutine: render_grid(r1: ShortArray)
+// Updates cell ages AND draws to the screen in a single, hyper-optimised pass!
 // =============================================================================
 render_grid:
 	push r7
@@ -554,7 +474,13 @@ render_grid:
 
 	.render_y_loop_normal:
 		movi r1 #63
-		beq r5 r1 .render_done
+
+		// TRAMPOLINE: If Y != 63, continue. Else jump to end!
+		bne r5 r1 .continue_y_normal
+		movi r1 .render_done
+		jalr r0 r1 #0
+
+	.continue_y_normal:
 		movi r1 #1
 		sw r1 [r7 + #0]
 		sw r5 [r7 + #1]
@@ -579,11 +505,18 @@ render_grid:
 		movi r1 .render_y_loop_normal
 		jalr r0 r1 #0
 
-	// ---- AGE MODE ----
+
+	// ---- AGE MODE (FUSED UPDATER + RENDERER) ----
 	.setup_age_mode:
+		// Push the active grid pointer to the stack so we can read states
+		addi r1 r1 #32
+		addi r1 r1 #33
+		push r1 // [SP] = active_grid pointer
+
 		movi r4 age_grid
 		addi r4 r4 #32
-		addi r4 r4 #33
+		addi r4 r4 #33 // r4 = age_grid pointer
+
 		movi r5 #1
 		movi r7 0xFF07
 		movi r1 .render_y_loop_age
@@ -591,32 +524,97 @@ render_grid:
 
 	.render_y_loop_age:
 		movi r1 #63
-		beq r5 r1 .render_done
+
+		// TRAMPOLINE: If Y != 63, continue. Else jump to end!
+		bne r5 r1 .continue_y_age
+		movi r1 .render_done_age
+		jalr r0 r1 #0
+
+	.continue_y_age:
 		movi r1 #1
 		sw r1 [r7 + #0]
 		sw r5 [r7 + #1]
 		movi r3 #62
-	.render_x_loop_age:
-		beq r3 r0 .render_row_done_age
-		lw r1 [r4 + #0] // Load Age (-7 to 8)
-		addi r4 r4 #1
 
-		// Array Lookup Magic!
-		addi r1 r1 #7   
+	.render_x_loop_age:
+		// 1. Read cell state from active grid
+		lw r2 [r6 + #-1] // load active_grid_ptr from stack
+		lw r1 [r2 + #0]  // r1 = Cell State (0 or 1)
+		addi r2 r2 #1
+		sw r2 [r6 + #-1] // advance active_grid_ptr
+
+		// 2. Read current age
+		lw r2 [r4 + #0]  // r2 = Current Age
+
+		// 3. Inline Age Update Math
+		beq r1 r0 .inline_dead
+
+	.inline_alive:
+		movi r1 #0
+		blt r2 r1 .reset_alive
+		beq r2 r0 .reset_alive
+		addi r2 r2 #1
+		movi r1 #8
+		bgt r2 r1 .cap_alive
+		beq r0 r0 .save_age
+	.reset_alive:
+		movi r2 #1
+		beq r0 r0 .save_age
+	.cap_alive:
+		movi r2 #8
+		beq r0 r0 .save_age
+
+	.inline_dead:
+		movi r1 #0
+		bgt r2 r1 .reset_dead
+		beq r2 r0 .save_age
+		subi r2 r2 #1
+		movi r1 #-7
+		blt r2 r1 .cap_dead
+		beq r0 r0 .save_age
+	.reset_dead:
+		movi r2 #-1
+		beq r0 r0 .save_age
+	.cap_dead:
+		movi r2 #0
+
+	.save_age:
+		sw r2 [r4 + #0] // Save updated age back to age_grid!
+		addi r4 r4 #1   // advance age_grid ptr
+
+		// 4. Look up palette color and draw
+		add r1 r2 r0    // Copy age to r1
+		addi r1 r1 #7   // Shift -7..8 to 0..15 array index
 		movi r2 age_palette
-		add r2 r2 r1    // Find index
-		lw r2 [r2 + #0] // Load Colour!
-		sw r2 [r7 + #2] // Draw Colour!
+		add r2 r2 r1
+		lw r2 [r2 + #0] // r2 = Color
+		sw r2 [r7 + #2] // Draw to MMIO
 
 		subi r3 r3 #1
-		beq r0 r0 .render_x_loop_age
+
+		// Trampoline back to loop top
+		beq r3 r0 .render_row_done_age
+		movi r1 .render_x_loop_age
+		jalr r0 r1 #0
+
 	.render_row_done_age:
 		addi r4 r4 #2
 		addi r5 r5 #1
+
+		// Advance the active_grid_ptr over the borders too!
+		lw r2 [r6 + #-1]
+		addi r2 r2 #2
+		sw r2 [r6 + #-1]
+
 		movi r1 .render_y_loop_age
 		jalr r0 r1 #0
 
+	.render_done_age:
+		pop r1 // Clear active_grid_ptr off the stack
+		beq r0 r0 .render_done_actual
+
 	.render_done:
+	.render_done_actual:
 		pop r5
 		pop r4
 		pop r7
@@ -837,7 +835,7 @@ parse_rule_string:
 // DATA SECTION
 // =============================================================================
 rule_pointer:
-	.fill rule_diamoeba
+	.fill rule_morley
 
 
 rule_replicator:

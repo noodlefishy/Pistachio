@@ -3,7 +3,8 @@ package io.cuttlefish.config
 import kotlinx.serialization.*
 
 @Serializable
-data class EmulatorConfig(
+data class
+EmulatorConfig(
     val clock: ClockConfig = ClockConfig(), val debug: DebugConfig = DebugConfig()
 )
 

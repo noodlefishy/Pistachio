@@ -10,6 +10,7 @@ import io.cuttlefish.debug.*
 import io.cuttlefish.debugging.*
 import io.cuttlefish.linking.*
 import io.cuttlefish.parsing.*
+import io.cuttlefish.profiling.ExecutionProfiler
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.*
 import sun.misc.*
@@ -180,6 +181,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val shouldDump = args.contains("--dump")
     val isDebug = args.contains("--debug")
     val isDebugF = args.contains("--debugf")
+    val isProfile = args.contains("--profile") // <-- ADD THIS FLAG
 
 
     val outIndex = args.indexOf("-o")
@@ -188,7 +190,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     // Safe argument extraction
     val cleanArgs = args.filterIndexed { index, arg ->
-        arg != "--dump" && arg != "--debug" && arg != "--debugf" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
+        arg != "--dump" && arg != "--debug" && arg != "--debugf" && arg != "--profile" && !(outIndex != -1 && (index == outIndex || index == outIndex + 1))
     }
 
     val expandedPaths = expandPaths(cleanArgs)
@@ -218,8 +220,12 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val cpu = Cpu(memory)
     cpu.pc = baseAddr.toUShort()
     val debugger = Debugger(cpu, memory, p1)
-    // Inject callback to grab memory/registers the moment it halts or crashes!
-    runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size) {
+
+
+    val profiler = if (isProfile) ExecutionProfiler(cpu, p1) else null
+
+
+    runCpuSafely(cpu, memory, debugger, isDebug, shouldDump, baseAddr.toUShort(), machineCode.size, profiler) {
         if (isDebug || isDebugF) generateDebugFiles(
             baseName, baseAddr.toUShort(), machineCode.toList(), null, cpu, memory, debugger
         )
@@ -533,11 +539,14 @@ private suspend fun runCpuSafely(
     shouldDump: Boolean,
     dumpBaseAddr: UShort,
     dumpLength: Int,
+    profiler: ExecutionProfiler? = null,
+
     onHaltOrCrash: (suspend (Exception?) -> Unit)? = null
 ) {
     var crashException: Exception? = null
     Signal.handle(Signal("INT")) { _ ->
         runBlocking {
+            profiler?.printReport()
             crashException = Exception("Keyboard Interrupt")
             onHaltOrCrash?.invoke(crashException)
             throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
@@ -548,6 +557,12 @@ private suspend fun runCpuSafely(
         if (isInteractive) {
             println("[lx-dbg] Interactive Debugger attached")
             debugger.interactive()
+        } else if (profiler != null) {
+            while (!cpu.isHalted) {
+                profiler.sample()
+                cpu.tick()
+            }
+            profiler.printReport()
         } else {
             debugger.runContinuously()
         }

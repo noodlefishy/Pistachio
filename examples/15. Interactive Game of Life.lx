@@ -859,9 +859,9 @@ update_age_grid:
 		beq r0 r0 .uag_write
 
 	.uag_dead:
+		beq r2 r0 .uag_write
 		movi r7 #0
 		bgt r2 r7 .uag_reset_dead
-		beq r2 r0 .uag_write
 
 		subi r2 r2 #1
 		movi r7 #-7

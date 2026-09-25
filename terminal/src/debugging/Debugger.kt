@@ -7,6 +7,7 @@ import io.cuttlefish.backend.*
 import io.cuttlefish.components.*
 import io.cuttlefish.config.GlobalConfig
 import io.cuttlefish.debugging.*
+import io.cuttlefish.devices.DMAController
 import io.cuttlefish.devices.PackingAccelerator
 import java.io.File
 
@@ -18,6 +19,7 @@ class Debugger(
         memory.attach(Console())
         memory.attach(Display())
         memory.attach(PackingAccelerator())
+        memory.attach(DMAController(memory))
 //        GlobalConfig.debug. TODO, use global config to set debug dir
         File("Debug/linker").mkdirs()
     }

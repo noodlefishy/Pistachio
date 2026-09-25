@@ -392,24 +392,36 @@ main:
 
 // =============================================================================
 // Subroutine: clear_grids()
+// Uses Hardware DMA to instantly wipe grid_a, grid_b, and age_grid!
 // =============================================================================
 clear_grids:
-	push r7
-	push r4
+	movi r2 0xFF30
+
+	// Set Fill Value to 0 (Black / Dead)
+	sw r0 [r2 + #0]
+
+	// Set Length to 4096 words
+	movi r1 #4096
+	sw r1 [r2 + #2]
+
+	// Trigger Command 2 (MEM_FILL) for grid_a
 	movi r1 grid_a
-	clr r2
-	movi r3 #4096
-	call mem_set
+	sw r1 [r2 + #1]  // Dest = grid_a
+	movi r1 #2
+	sw r1 [r2 + #3]  // Fire!
+
+	// Trigger Command 2 for grid_b
 	movi r1 grid_b
-	clr r2
-	movi r3 #4096
-	call mem_set
+	sw r1 [r2 + #1]  // Dest = grid_b
+	movi r1 #2
+	sw r1 [r2 + #3]  // Fire!
+
+	// Trigger Command 2 for age_grid
 	movi r1 age_grid
-	clr r2
-	movi r3 #4096
-	call mem_set
-	pop r4
-	pop r7
+	sw r1 [r2 + #1]  // Dest = age_grid
+	movi r1 #2
+	sw r1 [r2 + #3]  // Fire!
+
 	ret
 
 // =============================================================================

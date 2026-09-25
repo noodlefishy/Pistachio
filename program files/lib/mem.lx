@@ -22,55 +22,15 @@
 // =============================================================================
 mem_set:
 	push r4
-	mov r4 r1
+	movi r4 0xFF30
+	sw r2 [r4 + #0]  // Source Value
+	sw r1 [r4 + #1]  // Destination Address
+	sw r3 [r4 + #2]  // Length
+	movi r2 #2
+	sw r2 [r4 + #3]  // Fire Command 2 (MEM_FILL)
+	pop r4
+	ret
 
-	.set_loop:
-		beq r3 r0 .set_done
-		sw r2 [r1 + #0]
-		addi r1 r1 #1
-		subi r3 r3 #1
-		beq r0 r0 .set_loop
-
-	.set_done:
-		mov r1 r4
-		pop r4
-		ret
-
-
-// =============================================================================
-// Subroutine: mem_cpy(r1: ShortArray, r2: ShortArray, r3: Short) -> r1: ShortArray
-//
-// Description:
-//   Copies a memory block from source to destination (disjoint buffers only).
-//
-// Inputs:
-//   r1: ShortArray = Destination buffer
-//   r2: ShortArray = Source buffer
-//   r3: Short = Word count
-//
-// Outputs:
-//   r1: ShortArray = Original destination pointer
-// =============================================================================
-mem_cpy:
-	push r4
-	push r5
-	mov r4 r1
-
-	.cpy_loop:
-		beq r3 r0 .cpy_done
-		lw r5 [r2 + #0]
-		sw r5 [r1 + #0]
-
-		addi r1 r1 #1
-		addi r2 r2 #1
-		subi r3 r3 #1
-		beq r0 r0 .cpy_loop
-
-	.cpy_done:
-		mov r1 r4
-		pop r5
-		pop r4
-		ret
 
 
 // =============================================================================
@@ -117,44 +77,14 @@ mem_cmp:
 // Description:
 //   Safely copies a memory block, handling overlapping source and destination regions.
 // =============================================================================
+mem_cpy:
 mem_mov:
-	push r7
 	push r4
-	push r5
-
-	mov r4 r1
-	mov r5 r2
-
-	push r3
-	call lessThan
-	pop r3
-
-	bne r1 r0 .copy_forward
-
-	add r1 r4 r3
-	subi r1 r1 #1
-
-	add r2 r5 r3
-	subi r2 r2 #1
-
-	.backward_loop:
-		beq r3 r0 .mov_done
-		lw r7 [r2 + #0]
-		sw r7 [r1 + #0]
-		subi r1 r1 #1
-		subi r2 r2 #1
-		subi r3 r3 #1
-		bne r3 r0 .backward_loop
-		beq r0 r0 .mov_done
-
-	.copy_forward:
-		mov r1 r4
-		mov r2 r5
-		call mem_cpy
-
-	.mov_done:
-		mov r1 r4
-		pop r5
-		pop r4
-		pop r7
-		ret
+	movi r4 0xFF30
+	sw r2 [r4 + #0]  // Source Address
+	sw r1 [r4 + #1]  // Destination Address
+	sw r3 [r4 + #2]  // Length
+	movi r2 #1
+	sw r2 [r4 + #3]  // Fire Command 1 (MEM_COPY)
+	pop r4
+	ret

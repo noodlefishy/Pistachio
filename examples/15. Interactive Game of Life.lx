@@ -13,7 +13,7 @@ main:
 	call gfx_present
 
 	// 1. Parse rule string
-	movi r1 rule_conway
+	movi r1 rule_day_night // THANK YOU!!!!! RAWRR!!!!!
 	call parse_rule_string
 
 	// r4 = active grid, r5 = back buffer
@@ -33,18 +33,26 @@ main:
 		bne r1 r0 .poll_input
 		halt // Safely shutdown
 
-	.poll_input:
-		// 2. Poll input key (0xFF0B)
+.poll_input:
+		// 1. Poll text input (0xFF0B)
 		movi r2 0xFF0B
 		lw r1 [r2 + #0]
+		bne r1 r0 .handle_key // If an ASCII key was pressed (WASD, E, P, R, C), handle it!
 
-		// If no key, jump to evaluation logic
-		bne r1 r0 .handle_key
+		// 2. If no text key, check Arrow Keys via Gamepad (0xFF0A)
+		movi r2 is_paused
+		lw r2 [r2 + #0]
+		beq r2 r0 .jmp_eval_mode // Only poll arrows if paused
+
+		movi r7 .poll_arrows
+		jalr r0 r7 #0
+
+	.jmp_eval_mode:
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
 
 	.handle_key:
-		// To save branch instructions, convert lowercase to uppercase!
+		// Convert lowercase to uppercase
 		movi r2 #97  // 'a'
 		blt r1 r2 .route_key
 		movi r2 #122 // 'z'
@@ -69,7 +77,7 @@ main:
 		// --- Editor Keys (Only work if paused) ---
 		movi r2 is_paused
 		lw r2 [r2 + #0]
-		beq r2 r0 .end_routing // If not paused, ignore editor keys!
+		beq r2 r0 .end_routing
 
 		// 'W' (87) -> Up
 		movi r2 #87
@@ -84,10 +92,8 @@ main:
 		movi r2 #68
 		beq r1 r2 .jmp_right
 
-		// 'Z' (90) or Enter (10) -> Flip Cell
-		movi r2 #90
-		beq r1 r2 .jmp_flip
-		movi r2 #10
+		// 'E' (69) -> Flip Cell (Replaced Z and Enter!)
+		movi r2 #69
 		beq r1 r2 .jmp_flip
 
 		// 'N' (78) -> Single Step Forward
@@ -130,9 +136,54 @@ main:
 		jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
+    // Arrow Key Handler (Reads 0xFF0A with Edge-Detection)
+    // -------------------------------------------------------------------------
+    .poll_arrows:
+    	movi r2 0xFF0A
+    	lw r1 [r2 + #0] // Read live gamepad state
+
+    	// Edge detection: r1 = current & ~prev_gpad
+    	movi r2 prev_gpad
+    	lw r3 [r2 + #0]
+    	sw r1 [r2 + #0] // prev_gpad = current
+
+    	not r3 r3
+    	and r1 r1 r3 // r1 now only contains NEW button presses!
+
+    	bne r1 r0 .check_arrow_bits
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+    .check_arrow_bits:
+    	// Bit 0 (0x0001): Up Arrow
+    	movi r2 #1
+    	and r3 r1 r2
+    	bne r3 r0 .jmp_up
+
+    	// Bit 1 (0x0002): Down Arrow
+    	movi r2 #2
+    	and r3 r1 r2
+    	bne r3 r0 .jmp_down
+
+    	// Bit 2 (0x0004): Left Arrow
+    	movi r2 #4
+    	and r3 r1 r2
+    	bne r3 r0 .jmp_left
+
+    	// Bit 3 (0x0008): Right Arrow
+    	movi r2 #8
+    	and r3 r1 r2
+    	bne r3 r0 .jmp_right
+
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
 	// Action Handlers
 	// -------------------------------------------------------------------------
 	.do_reseed:
+		movi r4 grid_a
+		movi r5 grid_b
 		call seed_grid
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
@@ -374,7 +425,7 @@ seed_grid:
 
 		movi r1 #62
 		mov r2 r4
-		movi r3 0x2000 // 25% threshold
+		movi r3 0x4000 // 25% threshold
 		call random_weighted_array
 
 		// Advance r4 to next row col 1
@@ -675,6 +726,7 @@ is_paused:      .fill 1
 cursor_x:       .fill 31
 cursor_y:       .fill 31
 blink_tick:     .fill 0
+prev_gpad:      .fill 0
 
 rule_birth:     .space 1
 rule_survival:  .space 1

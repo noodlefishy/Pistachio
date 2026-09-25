@@ -16,7 +16,8 @@ object StatementRegistry {
         "addi" to { r, line, col -> RRIStatement("addi", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "lw" to { r, line, col -> RRIStatement("lw", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "sw" to { r, line, col -> RRIStatement("sw", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
-        "beq" to { r, line, col -> RRIStatement("beq", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
+        // Hopefully magical
+        "beq" to { r, line, col -> SmartBranchStatement(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "jalr" to { r, line, col -> RRIStatement("jalr", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
 
         "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },

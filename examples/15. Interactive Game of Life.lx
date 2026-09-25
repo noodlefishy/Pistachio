@@ -2,8 +2,8 @@
 // Example 15: Interactive Game of Life V2 (Modal Editor)
 // Controls: WASD/Arrows (Move), E (Draw/Erase), Space/P (Pause), N (Step),
 //           R (Reseed), C (Clear), Q (Toggle Age Mode),
-//           H (Toggle Hologram Blueprint), T (Stamp), Y (Cycle Stamp)
-// Run with: 	./lx -i "examples/15. Interactive Game of Life.lx" "program files/lib" "program files/assets"
+//           H (Toggle Hologram), Y (Cycle Stamp), X (Rotate 90 deg), T (Stamp)
+// Run with: ./lx -i "examples/15. Interactive Game of Life.lx" "program files/lib" "program files/assets"
 // =============================================================================
 
 main:
@@ -11,7 +11,7 @@ main:
 	call heap_init
 	call gfx_init
 
-	// Set target VSYNC FPS (30 FPS gives a great natural cursor speed)
+	// Set target VSYNC FPS
 	movi r2 0xFF0C
 	movi r1 #30
 	sw r1 [r2 + #0]
@@ -42,7 +42,6 @@ main:
 	.poll_input:
 		movi r2 0xFF0B
 		lw r1 [r2 + #0]
-
 		bne r1 r0 .handle_key
 
 		// Arrow Key Polling (0xFF0A)
@@ -79,6 +78,10 @@ main:
 		// 'Y' (89) -> Cycle to next sprite
 		movi r2 #89
 		beq r1 r2 .jmp_cycle_stamp
+
+		// 'X' (88) -> Rotate active sprite (90 degrees CW)
+		movi r2 #88
+		beq r1 r2 .jmp_rotate_stamp
 
 		// 'H' (72) -> Toggle Hologram Blueprint
 		movi r2 #72
@@ -126,6 +129,9 @@ main:
 		jalr r0 r7 #0
 	.jmp_cycle_stamp:
 		movi r7 .cycle_stamp
+		jalr r0 r7 #0
+	.jmp_rotate_stamp:
+		movi r7 .rotate_stamp
 		jalr r0 r7 #0
 	.jmp_hologram:
 		movi r7 .toggle_hologram
@@ -188,7 +194,7 @@ main:
 		movi r2 0xFF0A
 		lw r1 [r2 + #0] // r1 = Gamepad state
 
-		// Check Bit 5 (0x0020 = 32): E, X, or Shift
+		// Check Bit 5 (0x0020 = 32): E or Shift
 		movi r2 #32
 		and r3 r1 r2
 
@@ -214,7 +220,6 @@ main:
 		jalr r0 r7 #0
 
 	.fresh_e_press:
-		// Calculate address of cell under cursor
 		movi r2 cursor_y
 		lw r3 [r2 + #0]
 		add r3 r3 r3 // * 2
@@ -228,19 +233,16 @@ main:
 		add r3 r3 r2
 		add r1 r4 r3 // r1 = &active_grid[offset]
 
-		// Check if cell is currently ALIVE or DEAD
 		lw r2 [r1 + #0]
 		movi r1 brush_mode
 		beq r2 r0 .set_mode_paint
 
 	.set_mode_erase:
-		// Cell was alive -> Set mode to ERASE (0)
 		sw r0 [r1 + #0]
 		movi r7 .apply_brush
 		jalr r0 r7 #0
 
 	.set_mode_paint:
-		// Cell was dead -> Set mode to PAINT (1)
 		movi r2 #1
 		sw r2 [r1 + #0]
 
@@ -399,9 +401,20 @@ main:
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
 
+	.rotate_stamp:
+		movi r2 stamp_rotation
+		lw r1 [r2 + #0]
+		addi r1 r1 #1
+		movi r3 #4
+		bne r1 r3 .save_rotation
+		clr r1     // Wrap back to 0 (0, 90, 180, 270 deg)
+	.save_rotation:
+		sw r1 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
 	.do_stamp:
-		// PRESERVE r5 (r5 is grid_b in main!)
-		push r5
+		push r5 // Preserve r5 (grid_b)!
 
 		movi r2 current_stamp_idx
 		lw r1 [r2 + #0]
@@ -419,7 +432,7 @@ main:
 		beq r0 r0 .stamp_col_loop
 
 	.stamp_finished:
-		pop r5 // RESTORE r5! (Buffer pointer intact!)
+		pop r5 // Restore r5!
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
 
@@ -431,6 +444,7 @@ main:
 		movi r3 #8
 		beq r2 r3 .stamp_row_next
 
+		// Read sprite cell: r5[dy * 8 + dx]
 		mov r3 r1
 		add r3 r3 r3 // * 2
 		add r3 r3 r3 // * 4
@@ -444,19 +458,22 @@ main:
 		jalr r0 r7 #0
 
 	.stamp_draw_pixel:
-		push r1
-		push r2
+		push r1 // save original dy
+		push r2 // save original dx
+
+		// Rotate coordinates: (r1: dy, r2: dx) -> (r1: ry, r2: rx)
+		call get_rotated_offsets
 
 		movi r7 cursor_y
 		lw r7 [r7 + #0]
-		add r1 r7 r1 // target_y
+		add r1 r7 r1 // target_y = cursor_y + ry
 
 		movi r7 #62
 		bgt r1 r7 .stamp_pop_skip
 
 		movi r7 cursor_x
 		lw r7 [r7 + #0]
-		add r2 r7 r2 // target_x
+		add r2 r7 r2 // target_x = cursor_x + rx
 
 		movi r7 #62
 		bgt r2 r7 .stamp_pop_skip
@@ -474,15 +491,15 @@ main:
 		movi r3 #1
 		sw r3 [r2 + #0]
 
-		// Set age to 1 (Newborn) in age_grid
+		// Set age to 1 in age_grid
 		movi r2 age_grid
 		add r2 r2 r1
 		movi r3 #1
 		sw r3 [r2 + #0]
 
 	.stamp_pop_skip:
-		pop r2
-		pop r1
+		pop r2 // restore original dx
+		pop r1 // restore original dy
 
 	.stamp_skip_pixel:
 		addi r2 r2 #1 // dx++
@@ -592,26 +609,28 @@ main:
 		lw r3 [r3 + #0]
 		beq r3 r0 .ghost_skip
 
-		// Correct coordinates: target_x = cursor_x + dx, target_y = cursor_y + dy
-		push r1 // save dy
-		push r2 // save dx
+		push r1 // save original dy
+		push r2 // save original dx
 
+		// Rotate coordinates: (r1: dy, r2: dx) -> (r1: ry, r2: rx)
+		call get_rotated_offsets
+
+		// target_y = cursor_y + ry
 		movi r7 cursor_y
 		lw r7 [r7 + #0]
-		add r2 r7 r1 // target_y = cursor_y + dy
+		add r7 r7 r1 // r7 = target_y
 
-		pop r1       // r1 = dx
-		push r1      // balance stack
+		// target_x = cursor_x + rx
+		movi r1 cursor_x
+		lw r1 [r1 + #0]
+		add r1 r1 r2 // r1 = target_x (arg 1)
 
-		movi r7 cursor_x
-		lw r7 [r7 + #0]
-		add r1 r7 r1 // target_x = cursor_x + dx
-
+		mov r2 r7    // r2 = target_y (arg 2)
 		movi r3 0x07FF // Faint Cyan Hologram!
 		call gfx_draw_pixel
 
-		pop r2 // restore dx
-		pop r1 // restore dy
+		pop r2 // restore original dx
+		pop r1 // restore original dy
 
 	.ghost_skip:
 		addi r2 r2 #1
@@ -668,6 +687,54 @@ main:
 
 		movi r7 .sim_loop
 		jalr r0 r7 #0
+
+// =============================================================================
+// Subroutine: get_rotated_offsets(r1: dy, r2: dx) -> (r1: ry, r2: rx)
+// Leaves r7 100% intact so ret returns safely!
+// =============================================================================
+get_rotated_offsets:
+	push r3
+	push r4
+
+	movi r3 stamp_rotation
+	lw r3 [r3 + #0]
+
+	beq r3 r0 .rot_0
+	movi r4 #1
+	beq r3 r4 .rot_90
+	movi r4 #2
+	beq r3 r4 .rot_180
+
+	.rot_270:
+		// rx = dy, ry = 7 - dx
+		mov r4 r1       // temp = dy
+		movi r1 #7
+		sub r1 r1 r2    // ry = 7 - dx
+		mov r2 r4       // rx = dy
+		beq r0 r0 .rot_done
+
+	.rot_180:
+		// rx = 7 - dx, ry = 7 - dy
+		movi r4 #7
+		sub r1 r4 r1    // ry = 7 - dy
+		sub r2 r4 r2    // rx = 7 - dx
+		beq r0 r0 .rot_done
+
+	.rot_90:
+		// rx = 7 - dy, ry = dx
+		mov r4 r2       // temp = dx
+		movi r2 #7
+		sub r2 r2 r1    // rx = 7 - dy
+		mov r1 r4       // ry = dx
+		beq r0 r0 .rot_done
+
+	.rot_0:
+		// Unrotated (rx = dx, ry = dy)
+
+	.rot_done:
+		pop r4
+		pop r3
+		ret
 
 // =============================================================================
 // Subroutine: clear_grids()
@@ -734,7 +801,6 @@ seed_grid:
 
 // =============================================================================
 // Subroutine: update_age_grid(r1 = new_generation, r2 = age_grid)
-// Iterates exactly 4096 times. Guarantees ages are bounded between -7 and 8.
 // =============================================================================
 update_age_grid:
 	push r7
@@ -742,8 +808,8 @@ update_age_grid:
 	push r5
 	push r3
 
-	mov r4 r1 // active_grid
-	mov r5 r2 // age_grid
+	mov r4 r1
+	mov r5 r2
 	movi r3 #4096
 
 	.uag_loop:
@@ -754,8 +820,8 @@ update_age_grid:
 		jalr r0 r7 #0
 
 	.uag_continue:
-		lw r1 [r4 + #0] // cell state (0 or 1)
-		lw r2 [r5 + #0] // age state
+		lw r1 [r4 + #0]
+		lw r2 [r5 + #0]
 
 		beq r1 r0 .uag_dead
 
@@ -764,7 +830,6 @@ update_age_grid:
 		blt r2 r7 .uag_reset_alive
 		beq r2 r0 .uag_reset_alive
 
-		// If already alive, age++
 		addi r2 r2 #1
 		movi r7 #8
 		bgt r2 r7 .uag_cap_alive
@@ -780,10 +845,9 @@ update_age_grid:
 
 	.uag_dead:
 		movi r7 #0
-		bgt r2 r7 .uag_reset_dead // Just died! -> -1
-		beq r2 r0 .uag_write      // Dead forever -> Stay 0
+		bgt r2 r7 .uag_reset_dead
+		beq r2 r0 .uag_write
 
-		// Dying trail: age--
 		subi r2 r2 #1
 		movi r7 #-7
 		blt r2 r7 .uag_cap_dead
@@ -814,7 +878,6 @@ update_age_grid:
 
 // =============================================================================
 // Subroutine: render_grid(r1: ShortArray)
-// Pure read-only rendering: draws classic green or age palette without mutating RAM!
 // =============================================================================
 render_grid:
 	push r7
@@ -866,11 +929,11 @@ render_grid:
 		movi r1 .render_y_loop_normal
 		jalr r0 r1 #0
 
-	// ---- AGE MODE (READ-ONLY, FROZEN WHILE PAUSED) ----
+	// ---- AGE MODE ----
 	.setup_age_mode:
 		movi r4 age_grid
 		addi r4 r4 #32
-		addi r4 r4 #33 // r4 = age_grid pointer
+		addi r4 r4 #33
 
 		movi r5 #1
 		movi r7 0xFF07
@@ -892,16 +955,14 @@ render_grid:
 	.render_x_loop_age:
 		beq r3 r0 .render_row_done_age
 
-		// Load Age (-7 to 8)
 		lw r1 [r4 + #0]
 		addi r4 r4 #1
 
-		// Array Lookup: Shift -7..8 into 0..15
 		addi r1 r1 #7
 		movi r2 age_palette
 		add r2 r2 r1
-		lw r2 [r2 + #0] // r2 = Color
-		sw r2 [r7 + #2] // Draw to screen
+		lw r2 [r2 + #0]
+		sw r2 [r7 + #2]
 
 		subi r3 r3 #1
 		beq r0 r0 .render_x_loop_age
@@ -1152,11 +1213,12 @@ age_palette:
 	.fill { 0xFFFF 0xFFE0 0xFD20 0x07E0 0x07FF 0x001F 0x801F 0xF81F }
 
 // =============================================================================
-// Stamp Roster Table
+// Stamp Roster Table & Rotation State
 // =============================================================================
 current_stamp_idx: .fill 0
 NUM_STAMPS:        .fill 4
 show_ghost:        .fill 0 // 0 = OFF (Default), 1 = ON
+stamp_rotation:    .fill 0 // 0 = 0 deg, 1 = 90 deg, 2 = 180 deg, 3 = 270 deg
 
 stamp_roster:
 	.fill stamp_glider
@@ -1164,7 +1226,7 @@ stamp_roster:
 	.fill stamp_pulsar
 	.fill sprite_alien
 
-// Pattern 0: Glider (Flies diagonally down-right)
+// Pattern 0: Glider
 stamp_glider:
 	.fill { 0 1 0 0 0 0 0 0 }
 	.fill { 0 0 1 0 0 0 0 0 }
@@ -1175,7 +1237,7 @@ stamp_glider:
 	.fill { 0 0 0 0 0 0 0 0 }
 	.fill { 0 0 0 0 0 0 0 0 }
 
-// Pattern 1: Lightweight Spaceship / LWSS (Flies horizontally right)
+// Pattern 1: Lightweight Spaceship (LWSS)
 stamp_lwss:
 	.fill { 0 1 0 0 1 0 0 0 }
 	.fill { 0 0 0 0 0 1 0 0 }

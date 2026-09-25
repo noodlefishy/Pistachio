@@ -4,7 +4,6 @@ import io.cuttlefish.*
 import io.cuttlefish.parsing.syntaxTree.*
 import java.io.*
 
-
 class Parser(val file: File, val baseAddress: Short) {
 
     private val rawSource = file.readText()
@@ -46,11 +45,8 @@ class Parser(val file: File, val baseAddress: Short) {
 
         // Parse each line into Statements
         for (lineTokens in lines) {
-//            var i = 0
-//            val first = lineTokens[i]
             val reader = TokenReader(lineTokens)
             val first = reader.peek() ?: continue
-
 
             // Labels
             if (first is LabelDefToken) {
@@ -65,7 +61,10 @@ class Parser(val file: File, val baseAddress: Short) {
             if (!reader.hasNext()) continue
 
             val opToken = lineTokens[reader.index]
-            if (opToken !is MnemonicToken) throwCompileError("Expected instruction, got '${opToken.lexeme}'", opToken.line)
+            if (opToken !is MnemonicToken) throwCompileError(
+                "Expected instruction, got '${opToken.lexeme}'",
+                opToken.line
+            )
 
             reader.index++
 
@@ -82,20 +81,60 @@ class Parser(val file: File, val baseAddress: Short) {
             }
         }
 
-        var pcCounter = baseAddress
-        ctx.currentGlobalScope = ""
+        // =====================================================================
+        // 3. PASS 1: Iterative Branch Relaxation Loop (THE CHANGE!)
+        // =====================================================================
+        var needsRelaxation = true
+        var iterations = 0
+        val maxIterations = 50
 
-        for (lineTokens in lines) {
-            val first = lineTokens[0]
-            if (first is LabelDefToken) {
-                val labelName = if (first.labelName.startsWith(".")) ctx.currentGlobalScope + first.labelName else {
-                    ctx.currentGlobalScope = first.labelName
-                    first.labelName
-                }
-                ctx.symbolTable[labelName] = pcCounter
+        while (needsRelaxation) {
+            needsRelaxation = false
+            iterations++
+            if (iterations > maxIterations) {
+                throwCompileError("Infinite branch relaxation loop detected! Sizing could not stabilize.", 1)
             }
-            val stmtMatch = statements.find { it.line == first.line }
-            if (stmtMatch != null) pcCounter = (pcCounter + stmtMatch.size).toShort()
+
+            // Step 3a: Assign PCs to labels and statements based on current sizes
+            var pcCounter = baseAddress
+            ctx.currentGlobalScope = ""
+            val stmtAddresses = mutableMapOf<Statement, Short>()
+
+            for (lineTokens in lines) {
+                val first = lineTokens[0]
+                if (first is LabelDefToken) {
+                    val labelName = if (first.labelName.startsWith(".")) {
+                        ctx.currentGlobalScope + first.labelName
+                    } else {
+                        ctx.currentGlobalScope = first.labelName
+                        first.labelName
+                    }
+                    ctx.symbolTable[labelName] = pcCounter
+                }
+                val stmtMatch = statements.find { it.line == first.line }
+                if (stmtMatch != null) {
+                    stmtAddresses[stmtMatch] = pcCounter
+                    pcCounter = (pcCounter + stmtMatch.size).toShort()
+                }
+            }
+
+            // Step 3b: Inspect all SmartBranchStatements. If any target is out of 7-bit range, RELAX IT!
+            for (stmt in statements) {
+                if (stmt is SmartBranchStatement && !stmt.isLong) {
+                    val targetName = stmt.getScopedTargetName()
+                    val targetAddr = ctx.symbolTable[targetName]
+                    val stmtAddr = stmtAddresses[stmt] ?: continue
+
+                    if (targetAddr != null) {
+                        val offset = targetAddr - (stmtAddr + 1)
+                        // If outside [-64, 63], expand to 5-word trampoline!
+                        if (offset !in -64..63) {
+                            stmt.isLong = true
+                            needsRelaxation = true // Size changed! Recompute symbol table!
+                        }
+                    }
+                }
+            }
         }
 
         val finalInstructions = mutableListOf<Instruction>()

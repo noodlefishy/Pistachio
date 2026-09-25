@@ -29,8 +29,10 @@ class Display : Device {
 
     @Volatile
     private var isWindowOpen = false
+
     @Volatile
     private var gamepadState = 0
+
     @Volatile
     private var lastKey = 0
 
@@ -139,7 +141,7 @@ class Display : Device {
                         KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState or 0x0004
                         KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState or 0x0008
                         KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState or 0x0010
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_X, KeyEvent.VK_E -> gamepadState = gamepadState or 0x0020
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_E -> gamepadState = gamepadState or 0x0020
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState or 0x0040
                     }
                     if (e.keyChar != KeyEvent.CHAR_UNDEFINED) {
@@ -154,7 +156,7 @@ class Display : Device {
                         KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState and 0x0004.inv()
                         KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState and 0x0008.inv()
                         KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState and 0x0010.inv()
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_X, KeyEvent.VK_E -> gamepadState = gamepadState and 0x0020.inv()
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_E -> gamepadState = gamepadState and 0x0020.inv()
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState and 0x0040.inv()
                     }
                 }

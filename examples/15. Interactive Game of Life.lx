@@ -2,7 +2,8 @@
 // Example 15: Interactive Game of Life V2 (Modal Editor)
 // Controls: WASD/Arrows (Move), E (Draw), Space/P (Pause), N (Step),
 //           R (Reseed), C (Clear), Q (Toggle Age Mode)
-// Run with: ./lx -i "examples/15. Interactive Game of Life.lx" "program files/lib"
+// Run with: 	./lx -i "examples/15. Interactive Game of Life.lx" "program files/lib" "program files/assets"
+// Build with:	./lx -b "examples/15. Interactive Game of Life.lx" "program files/lib" "program files/assets" -o "Interactive Game of Life.bin"
 // =============================================================================
 
 main:
@@ -12,7 +13,7 @@ main:
 
 	// set vsync r1 fps
 	movi r2 0xFF0C
-	movi r1 #10
+	movi r1 #60
 	sw r1 [r2 + #0]
 
 	clr r1
@@ -94,9 +95,6 @@ main:
 		movi r2 #68
 		beq r1 r2 .jmp_right
 
-		// E (69) -> Edit/Flip
-		movi r2 #69
-		beq r1 r2 .jmp_flip
 
 		// N (78) -> Step
 		movi r2 #78
@@ -140,89 +138,117 @@ main:
 
 
 
-	// -------------------------------------------------------------------------
-	// Arrow Keys
+// -------------------------------------------------------------------------
+	// Arrow Keys (Continuous Polling - NO EDGE DETECTION)
 	// -------------------------------------------------------------------------
 	.poll_arrows:
 		movi r2 0xFF0A
 		lw r1 [r2 + #0]
-		movi r2 prev_gpad
-		lw r3 [r2 + #0]
-		sw r1 [r2 + #0]
 
-		not r3 r3
-		and r1 r1 r3
-
-		bne r1 r0 .check_arrow_bits
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-
-	.check_arrow_bits:
+		// Bit 0 (0x0001): Up
 		movi r2 #1
 		and r3 r1 r2
 		bne r3 r0 .jmp_up
+		// Bit 1 (0x0002): Down
 		movi r2 #2
 		and r3 r1 r2
 		bne r3 r0 .jmp_down
+		// Bit 2 (0x0004): Left
 		movi r2 #4
 		and r3 r1 r2
 		bne r3 r0 .jmp_left
+		// Bit 3 (0x0008): Right
 		movi r2 #8
 		and r3 r1 r2
 		bne r3 r0 .jmp_right
-		movi r7 .evaluate_mode
+
+		// If no movement, fall through to check brush
+		beq r0 r0 .check_brush
+
+	// -------------------------------------------------------------------------
+	// Smart Brush Polling (Tapping/Holding 'E' toggles, paints, or erases)
+	// -------------------------------------------------------------------------
+	.check_brush:
+		movi r2 0xFF0A
+		lw r1 [r2 + #0] // r1 = Gamepad state
+
+		// Check Bit 5 (0x0020 = 32): E, X, or Shift
+		movi r2 #32
+		and r3 r1 r2
+
+		movi r2 prev_e
+		lw r7 [r2 + #0] // r7 = previous state of E
+
+		// If E is not pressed, reset and exit
+		beq r3 r0 .e_is_up
+
+		.e_is_down:
+			movi r1 #1
+			sw r1 [r2 + #0] // prev_e = 1
+
+			// If previous state was 0, this is a FRESH PRESS! Decide brush mode!
+			beq r7 r0 .fresh_e_press
+
+			// Otherwise, E is being HELD/DRAGGED -> apply current mode!
+			movi r7 .apply_brush
+			jalr r0 r7 #0
+
+		.e_is_up:
+			sw r0 [r2 + #0] // prev_e = 0
+			movi r7 .evaluate_mode
+			jalr r0 r7 #0
+
+		.fresh_e_press:
+			// Calculate address of cell under cursor
+			movi r2 cursor_y
+			lw r3 [r2 + #0]
+			add r3 r3 r3 // * 2
+			add r3 r3 r3 // * 4
+			add r3 r3 r3 // * 8
+			add r3 r3 r3 // * 16
+			add r3 r3 r3 // * 32
+			add r3 r3 r3 // * 64
+			movi r2 cursor_x
+			lw r2 [r2 + #0]
+			add r3 r3 r2
+			add r1 r4 r3 // r1 = &active_grid[offset]
+
+			// Check if cell is currently ALIVE or DEAD
+			lw r2 [r1 + #0]
+			movi r1 brush_mode
+			beq r2 r0 .set_mode_paint
+
+		.set_mode_erase:
+			// Cell was alive -> Set mode to ERASE (0)
+			sw r0 [r1 + #0]
+			movi r7 .apply_brush
+			jalr r0 r7 #0
+
+		.set_mode_paint:
+			// Cell was dead -> Set mode to PAINT (1)
+			movi r2 #1
+			sw r2 [r1 + #0]
+			// fall through to .apply_brush
+
+		.apply_brush:
+			movi r2 brush_mode
+			lw r2 [r2 + #0]
+			beq r2 r0 .jmp_erase // If mode == 0 -> Erase
+			movi r7 .jmp_paint   // If mode == 1 -> Paint
+			jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Extra Dispatch Trampolines
+	// -------------------------------------------------------------------------
+	.jmp_paint:
+		movi r7 .paint_cell
+		jalr r0 r7 #0
+	.jmp_erase:
+		movi r7 .erase_cell
 		jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
-	// Dispatch Trampolines
-	// -------------------------------------------------------------------------
-
-
-	// -------------------------------------------------------------------------
-	// Action Handlers
-	// -------------------------------------------------------------------------
-	.do_reseed:
-		movi r4 grid_a
-		movi r5 grid_b
-		call seed_grid
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-
-	.do_clear:
-		movi r4 grid_a
-		movi r5 grid_b
-		call clear_grids
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-
-	.toggle_age:
-		movi r2 is_age_mode
-		lw r3 [r2 + #0]
-		beq r3 r0 .set_age
-		sw r0 [r2 + #0]
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-	.set_age:
-		movi r3 #1
-		sw r3 [r2 + #0]
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-
-	.toggle_pause:
-		movi r2 is_paused
-		lw r3 [r2 + #0]
-		beq r3 r0 .set_paused
-		sw r0 [r2 + #0] // Unpause
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-	.set_paused:
-		movi r3 #1
-		sw r3 [r2 + #0] // Pause
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-
-	// -------------------------------------------------------------------------
-	// Cursor Movement
+	// Cursor Movement (Returns to .check_brush so we can move AND paint!)
 	// -------------------------------------------------------------------------
 	.cursor_up:
 		movi r2 cursor_y
@@ -231,7 +257,7 @@ main:
 		beq r3 r1 .clamp_abort
 		subi r3 r3 #1
 		sw r3 [r2 + #0]
-		movi r7 .evaluate_mode
+		movi r7 .check_brush
 		jalr r0 r7 #0
 
 	.cursor_down:
@@ -241,7 +267,7 @@ main:
 		beq r3 r1 .clamp_abort
 		addi r3 r3 #1
 		sw r3 [r2 + #0]
-		movi r7 .evaluate_mode
+		movi r7 .check_brush
 		jalr r0 r7 #0
 
 	.cursor_left:
@@ -251,7 +277,7 @@ main:
 		beq r3 r1 .clamp_abort
 		subi r3 r3 #1
 		sw r3 [r2 + #0]
-		movi r7 .evaluate_mode
+		movi r7 .check_brush
 		jalr r0 r7 #0
 
 	.cursor_right:
@@ -261,18 +287,18 @@ main:
 		beq r3 r1 .clamp_abort
 		addi r3 r3 #1
 		sw r3 [r2 + #0]
-		movi r7 .evaluate_mode
+		movi r7 .check_brush
 		jalr r0 r7 #0
 
 	.clamp_abort:
-		movi r7 .evaluate_mode
+		movi r7 .check_brush
 		jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
-	// Flip Cell State
+	// Cell Interaction Handlers
 	// -------------------------------------------------------------------------
 	.flip_cell:
-		// Calculate offset into r3 = (y * 64) + x
+		// (Triggered by tapping 'E' - Toggles state)
 		movi r2 cursor_y
 		lw r3 [r2 + #0]
 		add r3 r3 r3 // * 2
@@ -281,15 +307,66 @@ main:
 		add r3 r3 r3 // * 16
 		add r3 r3 r3 // * 32
 		add r3 r3 r3 // * 64
-
 		movi r2 cursor_x
 		lw r2 [r2 + #0]
-		add r3 r3 r2 // r3 = offset
+		add r3 r3 r2
 		add r1 r4 r3 // r1 = &active_grid[offset]
 
-		// Toggle Grid
 		lw r2 [r1 + #0]
-		beq r2 r0 .make_alive
+		beq r2 r0 .paint_cell
+		beq r0 r0 .erase_cell
+
+	.paint_cell:
+		// Calculates offset, forces cell ALIVE
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64
+		movi r2 cursor_x
+		lw r2 [r2 + #0]
+		add r3 r3 r2
+		add r1 r4 r3
+
+		movi r2 #1
+		sw r2 [r1 + #0] // SET ALIVE
+
+		movi r1 age_grid
+		add r1 r1 r3
+		movi r2 #1
+		sw r2 [r1 + #0] // SET AGE = Newborn
+
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.erase_cell:
+		// Calculates offset, forces cell DEAD
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64
+		movi r2 cursor_x
+		lw r2 [r2 + #0]
+		add r3 r3 r2
+		add r1 r4 r3
+
+		sw r0 [r1 + #0] // SET DEAD
+
+		movi r1 age_grid
+		add r1 r1 r3
+		movi r2 #-1
+		sw r2 [r1 + #0] // SET AGE = Just Died
+
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
 	.make_dead:
 		sw r0 [r1 + #0]
 		movi r1 age_grid
@@ -308,6 +385,49 @@ main:
 		sw r2 [r1 + #0]
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+    // Missing Action Handlers (Restored!)
+    // -------------------------------------------------------------------------
+    .do_reseed:
+    	movi r4 grid_a
+    	movi r5 grid_b
+    	call seed_grid
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+    .do_clear:
+    	movi r4 grid_a
+    	movi r5 grid_b
+    	call clear_grids
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+    .toggle_age:
+    	movi r2 is_age_mode
+    	lw r3 [r2 + #0]
+    	beq r3 r0 .set_age
+    	sw r0 [r2 + #0]
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+    .set_age:
+    	movi r3 #1
+    	sw r3 [r2 + #0]
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+
+    .toggle_pause:
+    	movi r2 is_paused
+    	lw r3 [r2 + #0]
+    	beq r3 r0 .set_paused
+    	sw r0 [r2 + #0] // Unpause
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
+    .set_paused:
+    	movi r3 #1
+    	sw r3 [r2 + #0] // Pause
+    	movi r7 .evaluate_mode
+    	jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
 	// Evaluation & Rendering
@@ -857,7 +977,7 @@ parse_rule_string:
 // DATA SECTION
 // =============================================================================
 rule_pointer:
-	.fill rule_morley
+	.fill rule_diamoeba
 
 
 rule_replicator:
@@ -901,6 +1021,9 @@ cursor_x:       .fill 31
 cursor_y:       .fill 31
 blink_tick:     .fill 0
 prev_gpad:      .fill 0
+brush_mode:     .fill 0 // 1 = Painting, 0 = Erasing
+prev_e:         .fill 0
+
 
 rule_birth:     .space 1
 rule_survival:  .space 1

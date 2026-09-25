@@ -27,9 +27,12 @@ class Display : Device {
     private var cursorX = 0
     private var cursorY = 0
 
-    @Volatile private var isWindowOpen = false
-    @Volatile private var gamepadState = 0
-    @Volatile private var lastKey = 0
+    @Volatile
+    private var isWindowOpen = false
+    @Volatile
+    private var gamepadState = 0
+    @Volatile
+    private var lastKey = 0
 
     private var targetFps: Int = 0 // 0 means uncapped
     private var targetFrameMs: Long = 0L
@@ -50,12 +53,14 @@ class Display : Device {
                 val idx = cursorY * width + cursorX
                 if (idx in pixelData.indices) pixelData[idx].toShort() else 0
             }
+
             0xFF0A -> gamepadState.toShort() // Read live held keys!
             0xFF0B -> {                      // Read single key (clears on read)
                 val k = lastKey.toShort()
                 lastKey = 0
                 k
             }
+
             0xFF0C -> { // VSYNC READ: Block until next frame
                 if (targetFps > 0) {
                     val elapsed = lastFrameMark.elapsedNow()
@@ -83,6 +88,7 @@ class Display : Device {
                     4 -> refreshScreen()
                 }
             }
+
             0xFF07 -> cursorX = valInt % width
             0xFF08 -> cursorY = valInt % height
             0xFF09 -> {
@@ -96,6 +102,7 @@ class Display : Device {
                     cursorY = (cursorY + 1) % height
                 }
             }
+
             0xFF0C -> { // VSYNC WRITE: Set target FPS
                 targetFps = valInt
                 targetFrameMs = if (targetFps > 0) 1000L / targetFps else 0L
@@ -117,7 +124,9 @@ class Display : Device {
                     isWindowOpen = false
 //                    exitProcess(1)
                 }
-                override fun windowClosed(e: WindowEvent) { isWindowOpen = false
+
+                override fun windowClosed(e: WindowEvent) {
+                    isWindowOpen = false
 //                    exitProcess(1)
                 }
             })
@@ -125,12 +134,12 @@ class Display : Device {
             f.addKeyListener(object : KeyAdapter() {
                 override fun keyPressed(e: KeyEvent) {
                     when (e.keyCode) {
-                        KeyEvent.VK_UP, KeyEvent.VK_W       -> gamepadState = gamepadState or 0x0001
-                        KeyEvent.VK_DOWN, KeyEvent.VK_S     -> gamepadState = gamepadState or 0x0002
-                        KeyEvent.VK_LEFT, KeyEvent.VK_A     -> gamepadState = gamepadState or 0x0004
-                        KeyEvent.VK_RIGHT, KeyEvent.VK_D    -> gamepadState = gamepadState or 0x0008
-                        KeyEvent.VK_SPACE, KeyEvent.VK_Z    -> gamepadState = gamepadState or 0x0010
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_X    -> gamepadState = gamepadState or 0x0020
+                        KeyEvent.VK_UP, KeyEvent.VK_W -> gamepadState = gamepadState or 0x0001
+                        KeyEvent.VK_DOWN, KeyEvent.VK_S -> gamepadState = gamepadState or 0x0002
+                        KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState or 0x0004
+                        KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState or 0x0008
+                        KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState or 0x0010
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_X, KeyEvent.VK_E -> gamepadState = gamepadState or 0x0020
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState or 0x0040
                     }
                     if (e.keyChar != KeyEvent.CHAR_UNDEFINED) {
@@ -140,12 +149,12 @@ class Display : Device {
 
                 override fun keyReleased(e: KeyEvent) {
                     when (e.keyCode) {
-                        KeyEvent.VK_UP, KeyEvent.VK_W       -> gamepadState = gamepadState and 0x0001.inv()
-                        KeyEvent.VK_DOWN, KeyEvent.VK_S     -> gamepadState = gamepadState and 0x0002.inv()
-                        KeyEvent.VK_LEFT, KeyEvent.VK_A     -> gamepadState = gamepadState and 0x0004.inv()
-                        KeyEvent.VK_RIGHT, KeyEvent.VK_D    -> gamepadState = gamepadState and 0x0008.inv()
-                        KeyEvent.VK_SPACE, KeyEvent.VK_Z    -> gamepadState = gamepadState and 0x0010.inv()
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_X    -> gamepadState = gamepadState and 0x0020.inv()
+                        KeyEvent.VK_UP, KeyEvent.VK_W -> gamepadState = gamepadState and 0x0001.inv()
+                        KeyEvent.VK_DOWN, KeyEvent.VK_S -> gamepadState = gamepadState and 0x0002.inv()
+                        KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState and 0x0004.inv()
+                        KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState and 0x0008.inv()
+                        KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState and 0x0010.inv()
+                        KeyEvent.VK_SHIFT, KeyEvent.VK_X, KeyEvent.VK_E -> gamepadState = gamepadState and 0x0020.inv()
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState and 0x0040.inv()
                     }
                 }

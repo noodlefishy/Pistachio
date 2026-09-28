@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Conways Modules" type="Amper.Run">
+    <option name="command" value="run" />
+    <EXTENSION ID="amper.run.common">
+      <option name="applicationArguments" value="-i &quot;examples/15. Complex Interactive Conways Game of life&quot; &quot;program files/lib&quot; &quot;program files/assets&quot;" />
+      <option name="module" value="terminal" />
+    </EXTENSION>
+    <method v="2" />
+  </configuration>
+</component>

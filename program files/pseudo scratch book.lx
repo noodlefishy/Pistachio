@@ -41,7 +41,7 @@ main:
 		beq r1 r3 .do_reseed
 		movi r3 #114 // 'r'
 		beq r1 r3 .do_reseed
-		beq r0 r0 .render_frame
+		b .render_frame
 
 	.do_reseed:
 		call seed_grid
@@ -112,7 +112,7 @@ seed_grid:
 		addi r4 r4 #32
 		addi r4 r4 #32
 		addi r5 r5 #1 // y++
-		beq r0 r0 .seed_y_loop
+		b .seed_y_loop
 
 	.seed_done:
 		pop r5
@@ -158,21 +158,21 @@ render_grid:
 	.draw_green:
 		movi r2 0x07E0 // Neon Green
 		sw r2 [r7 + #2] // DD_COLR = Green (plots & auto X++!)
-		beq r0 r0 .next_cell
+		b .next_cell
 
 	.draw_black:
 		sw r0 [r7 + #2] // DD_COLR = Black (0x0000)
 
 	.next_cell:
 		subi r3 r3 #1
-		beq r0 r0 .render_x_loop
+		b .render_x_loop
 
 	.render_row_done:
 		// Skip col 63 of current row and col 0 of next row (2 words)
 		addi r4 r4 #2
 
 		addi r5 r5 #1 // y++
-		beq r0 r0 .render_y_loop
+		b .render_y_loop
 
 	.render_done:
 		call gfx_present
@@ -295,14 +295,14 @@ step_generation:
 		lw r1 [r3 + #0]
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
-		beq r0 r0 .cell_dead
+		b .cell_dead
 
 	.check_birth:
 		movi r3 rule_birth
 		lw r1 [r3 + #0]
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
-		beq r0 r0 .cell_dead
+		b .cell_dead
 
 	.cell_alive:
 		lw r2 [r5 + #2] // r_next write pointer
@@ -310,7 +310,7 @@ step_generation:
 		sw r1 [r2 + #0] // Next state = Alive (1)
 		addi r2 r2 #1
 		sw r2 [r5 + #2]
-		beq r0 r0 .advance_cell
+		b .advance_cell
 
 	.cell_dies:
 		lw r2 [r5 + #2] // r_next write pointer
@@ -413,15 +413,15 @@ parse_rule_string:
 		lw r3 [r5 + #0]
 		or r3 r3 r2
 		sw r3 [r5 + #0]
-		beq r0 r0 .parse_loop
+		b .parse_loop
 
 	.set_mode_birth:
 		movi r5 rule_birth
-		beq r0 r0 .parse_loop
+		b .parse_loop
 
 	.set_mode_survival:
 		movi r5 rule_survival
-		beq r0 r0 .parse_loop
+		b .parse_loop
 
 	.parse_done:
 		pop r5

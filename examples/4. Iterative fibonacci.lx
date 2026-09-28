@@ -20,7 +20,7 @@ fib_itr:
 		add r5 r3 r2		// temp (r5) = F_curr + F_prev
 		add r2 r3 r0		// F_prev = F_curr
 		add r3 r5 r0		// F_curr = temp
-		beq r0 r0 .loop
+		b .loop
 
 	.done:
 		add r1 r2 r0		// Return F_prev in r1

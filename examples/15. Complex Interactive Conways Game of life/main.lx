@@ -62,19 +62,19 @@ main:
 	.route_key:
 		// Pause (P or Space)
 		movi r2 #80
-		beq r1 r2 .jmp_toggle
+		beq r1 r2 .toggle_pause
 		movi r2 #32
-		beq r1 r2 .jmp_toggle
+		beq r1 r2 .toggle_pause
 
 		// Stamp (T), Cycle (Y), Rotate (X), Hologram (H)
 		movi r2 #84
-		beq r1 r2 .jmp_stamp
+		beq r1 r2 .do_stamp_action
 		movi r2 #89
 		beq r1 r2 .jmp_cycle_stamp
 		movi r2 #88
 		beq r1 r2 .jmp_rotate_stamp
 		movi r2 #72
-		beq r1 r2 .jmp_hologram
+		beq r1 r2 .toggle_hologram
 
 		// Reseed (R), Clear (C), Age Mode (Q)
 		movi r2 #82
@@ -82,7 +82,7 @@ main:
 		movi r2 #67
 		beq r1 r2 .jmp_clear
 		movi r2 #81
-		beq r1 r2 .jmp_age
+		beq r1 r2 .toggle_age
 
 		// Editor keys only while paused
 		movi r2 is_paused
@@ -91,17 +91,17 @@ main:
 
 		// Movement (WASD)
 		movi r2 #87
-		beq r1 r2 .jmp_up
+		beq r1 r2 .cursor_up
 		movi r2 #83
-		beq r1 r2 .jmp_down
+		beq r1 r2 .cursor_down
 		movi r2 #65
-		beq r1 r2 .jmp_left
+		beq r1 r2 .cursor_left
 		movi r2 #68
-		beq r1 r2 .jmp_right
+		beq r1 r2 .cursor_right
 
 		// Single step (N)
 		movi r2 #78
-		beq r1 r2 .jmp_step
+		beq r1 r2 .do_single_step
 
 	.end_routing:
 		movi r7 .evaluate_mode
@@ -110,12 +110,6 @@ main:
 	// -------------------------------------------------------------------------
 	// Dispatch Trampolines
 	// -------------------------------------------------------------------------
-	.jmp_toggle:
-		movi r7 .toggle_pause
-		jalr r0 r7 #0
-	.jmp_stamp:
-		movi r7 .do_stamp_action
-		jalr r0 r7 #0
 	.jmp_cycle_stamp:
 		call cycle_stamp
 		movi r7 .evaluate_mode
@@ -123,9 +117,6 @@ main:
 	.jmp_rotate_stamp:
 		call rotate_stamp
 		movi r7 .evaluate_mode
-		jalr r0 r7 #0
-	.jmp_hologram:
-		movi r7 .toggle_hologram
 		jalr r0 r7 #0
 	.jmp_reseed:
 		movi r4 grid_a
@@ -139,24 +130,6 @@ main:
 		call clear_grids
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
-	.jmp_age:
-		movi r7 .toggle_age
-		jalr r0 r7 #0
-	.jmp_up:
-		movi r7 .cursor_up
-		jalr r0 r7 #0
-	.jmp_down:
-		movi r7 .cursor_down
-		jalr r0 r7 #0
-	.jmp_left:
-		movi r7 .cursor_left
-		jalr r0 r7 #0
-	.jmp_right:
-		movi r7 .cursor_right
-		jalr r0 r7 #0
-	.jmp_step:
-		movi r7 .do_single_step
-		jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
 	// Arrow Keys
@@ -167,18 +140,18 @@ main:
 
 		movi r2 #1
 		and r3 r1 r2
-		bne r3 r0 .jmp_up
+		bne r3 r0 .cursor_up
 		movi r2 #2
 		and r3 r1 r2
-		bne r3 r0 .jmp_down
+		bne r3 r0 .cursor_down
 		movi r2 #4
 		and r3 r1 r2
-		bne r3 r0 .jmp_left
+		bne r3 r0 .cursor_left
 		movi r2 #8
 		and r3 r1 r2
-		bne r3 r0 .jmp_right
+		bne r3 r0 .cursor_right
 
-		beq r0 r0 .check_brush
+		b .check_brush
 
 	// -------------------------------------------------------------------------
 	// Smart Brush Polling
@@ -239,15 +212,8 @@ main:
 	.apply_brush:
 		movi r2 brush_mode
 		lw r2 [r2 + #0]
-		beq r2 r0 .jmp_erase
-		movi r7 .jmp_paint
-		jalr r0 r7 #0
-
-	.jmp_paint:
+		beq r2 r0 .erase_cell
 		movi r7 .paint_cell
-		jalr r0 r7 #0
-	.jmp_erase:
-		movi r7 .erase_cell
 		jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
@@ -449,7 +415,7 @@ main:
 		lw r2 [r2 + #0]
 		movi r3 0xF800 // Bright Red Anchor
 		call gfx_draw_pixel
-		beq r0 r0 .draw_border_paused
+		b .draw_border_paused
 
 	.draw_border_running:
 		push r4
@@ -462,7 +428,7 @@ main:
 		call gfx_draw_rect
 		pop r5
 		pop r4
-		beq r0 r0 .present
+		b .present
 
 	.draw_border_paused:
 		push r4

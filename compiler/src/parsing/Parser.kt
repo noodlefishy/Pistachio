@@ -126,11 +126,13 @@ class Parser(val file: File, val baseAddress: Short) {
                     val stmtAddr = stmtAddresses[stmt] ?: continue
 
                     if (targetAddr != null) {
-                        val offset = targetAddr - (stmtAddr + 1)
-                        // If outside [-64, 63], expand to 5-word trampoline!
+                        // For beq: origin is stmtAddr + 1. For bne short: origin is stmtAddr + 2.
+                        val branchOrigin = if (stmt.op == "bne") stmtAddr + 2 else stmtAddr + 1
+                        val offset = targetAddr - branchOrigin
+
                         if (offset !in -64..63) {
                             stmt.isLong = true
-                            needsRelaxation = true // Size changed! Recompute symbol table!
+                            needsRelaxation = true // Recalculate layout!
                         }
                     }
                 }

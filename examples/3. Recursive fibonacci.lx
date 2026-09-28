@@ -21,7 +21,7 @@ fib:
 	beq r1 r0 .completeRecursion // Goto L49
 
 	add r1 r4 r0
-	beq r0 r0 .complete
+	b .complete
 
 
 

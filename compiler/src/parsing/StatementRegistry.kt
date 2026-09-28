@@ -1,6 +1,7 @@
 package io.cuttlefish.parsing
 
 import MacroBlt
+import io.cuttlefish.RegisterType
 import io.cuttlefish.parsing.macros.*
 import io.cuttlefish.parsing.syntaxTree.*
 
@@ -17,23 +18,24 @@ object StatementRegistry {
         "lw" to { r, line, col -> RRIStatement("lw", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "sw" to { r, line, col -> RRIStatement("sw", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         // Hopefully magical
-        "beq" to { r, line, col -> SmartBranchStatement(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
+        "beq" to { r, line, col -> SmartBranchStatement("beq", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "jalr" to { r, line, col -> RRIStatement("jalr", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
 
         "lui" to { r, line, col -> RIStatement("lui", r.nextReg(), r.nextArg(), line, col) },
 
         // Macros
-        "nop" to {r, line, col -> MacroNop(line,col)},
+        "nop" to { _, line, col -> MacroNop(line, col) },
         "blt" to { r, line, col -> MacroBlt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "bgt" to { r, line, col -> MacroBgt(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
 
         "or" to { r, line, col -> MacroOr(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
         "and" to { r, line, col -> MacroAnd(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
 
+        "b" to { r, line, col -> SmartBranchStatement("beq", RegisterType.R0, RegisterType.R0, r.nextArg(), line, col) },
         "not" to { r, line, col -> MacroNot(r.nextReg(), r.nextReg(), line, col) },
         "mov" to { r, line, col -> MacroMov(r.nextReg(), r.nextReg(), line, col) },
         "clr" to { r, line, col -> MacroClr(r.nextReg(), line, col) },
-        "bne" to { r, line, col -> MacroBne(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
+        "bne" to { r, line, col -> SmartBranchStatement("bne", r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "subi" to { r, line, col -> MacroSubi(r.nextReg(), r.nextReg(), r.nextArg(), line, col) },
         "sub" to { r, line, col -> MacroSub(r.nextReg(), r.nextReg(), r.nextReg(), line, col) },
         "lli" to { r, line, col -> MacroLli(r.nextReg(), r.nextArg(), line, col) },

@@ -88,7 +88,7 @@ step_generation:
 		pop r3
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
-		beq r0 r0 .cell_dead
+		b .cell_dead
 
 	.check_birth:
 		push r3
@@ -97,7 +97,7 @@ step_generation:
 		pop r3
 		and r1 r1 r2
 		bne r1 r0 .cell_alive
-		beq r0 r0 .cell_dead
+		b .cell_dead
 
 	.cell_alive:
 		lw r2 [r5 + #2]
@@ -105,7 +105,7 @@ step_generation:
 		sw r1 [r2 + #0]
 		addi r2 r2 #1
 		sw r2 [r5 + #2]
-		beq r0 r0 .advance_cell
+		b .advance_cell
 
 	.cell_dead:
 		lw r2 [r5 + #2]
@@ -157,7 +157,7 @@ update_age_grid:
 
 	.uag_loop:
 		beq r3 r0 .uag_exit_jump
-		beq r0 r0 .uag_continue
+		b .uag_continue
 	.uag_exit_jump:
 		movi r7 .uag_done
 		jalr r0 r7 #0
@@ -176,15 +176,15 @@ update_age_grid:
 		addi r2 r2 #1
 		movi r7 #8
 		bgt r2 r7 .uag_cap_alive
-		beq r0 r0 .uag_write
+		b .uag_write
 
 	.uag_reset_alive:
 		movi r2 #1
-		beq r0 r0 .uag_write
+		b .uag_write
 
 	.uag_cap_alive:
 		movi r2 #8
-		beq r0 r0 .uag_write
+		b .uag_write
 
 	.uag_dead:
 		// Optimized Guard: Skip permanently dead cells in 1 cycle!
@@ -196,11 +196,11 @@ update_age_grid:
 		subi r2 r2 #1
 		movi r7 #-7
 		blt r2 r7 .uag_cap_dead
-		beq r0 r0 .uag_write
+		b .uag_write
 
 	.uag_reset_dead:
 		movi r2 #-1
-		beq r0 r0 .uag_write
+		b .uag_write
 
 	.uag_cap_dead:
 		movi r2 #0

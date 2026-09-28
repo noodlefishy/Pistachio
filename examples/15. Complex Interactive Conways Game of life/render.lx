@@ -56,7 +56,7 @@ seed_grid:
 		addi r4 r4 #32
 		addi r4 r4 #32
 		addi r5 r5 #1
-		beq r0 r0 .seed_y_loop
+		b .seed_y_loop
 
 	.seed_done:
 		pop r1
@@ -106,12 +106,12 @@ render_grid:
 	.draw_green_normal:
 		movi r2 0x07E0
 		sw r2 [r7 + #2]
-		beq r0 r0 .next_cell_normal
+		b .next_cell_normal
 	.draw_black_normal:
 		sw r0 [r7 + #2]
 	.next_cell_normal:
 		subi r3 r3 #1
-		beq r0 r0 .render_x_loop_normal
+		b .render_x_loop_normal
 	.render_row_done_normal:
 		addi r4 r4 #2
 		addi r5 r5 #1
@@ -154,7 +154,7 @@ render_grid:
 		sw r2 [r7 + #2]
 
 		subi r3 r3 #1
-		beq r0 r0 .render_x_loop_age
+		b .render_x_loop_age
 
 	.render_row_done_age:
 		addi r4 r4 #2

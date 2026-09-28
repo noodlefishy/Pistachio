@@ -141,8 +141,9 @@ class Display : Device {
                         KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState or 0x0004
                         KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState or 0x0008
                         KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState or 0x0010
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_E -> gamepadState = gamepadState or 0x0020
+                        KeyEvent.VK_SHIFT -> gamepadState = gamepadState or 0x0020 // Bit 5: Shift (Turbo)
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState or 0x0040
+                        KeyEvent.VK_E -> gamepadState = gamepadState or 0x0080 // Bit 7: E (Brush)
                     }
                     if (e.keyChar != KeyEvent.CHAR_UNDEFINED) {
                         lastKey = e.keyChar.code and 0xFFFF
@@ -156,8 +157,9 @@ class Display : Device {
                         KeyEvent.VK_LEFT, KeyEvent.VK_A -> gamepadState = gamepadState and 0x0004.inv()
                         KeyEvent.VK_RIGHT, KeyEvent.VK_D -> gamepadState = gamepadState and 0x0008.inv()
                         KeyEvent.VK_SPACE, KeyEvent.VK_Z -> gamepadState = gamepadState and 0x0010.inv()
-                        KeyEvent.VK_SHIFT, KeyEvent.VK_E -> gamepadState = gamepadState and 0x0020.inv()
+                        KeyEvent.VK_SHIFT -> gamepadState = gamepadState and 0x0020.inv()
                         KeyEvent.VK_ENTER, KeyEvent.VK_ESCAPE -> gamepadState = gamepadState and 0x0040.inv()
+                        KeyEvent.VK_E -> gamepadState = gamepadState and 0x0080.inv()
                     }
                 }
             })

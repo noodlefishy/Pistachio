@@ -1,7 +1,13 @@
 // ===
-rule_pointer:			.fill rule_conway
+rule_pointer:			.fill rule_anneal
 // ===
 
+
+// 0x0000 = 0%    | 0x1000 = 12,5% | 0x2000 = 25%
+// 0x3000 = 37,5% | 0x4000 = 50%   | 0x5000 = 62,5%
+// 0x6000 = 75%   | 0x7000 = 87,5% | 0x8000 = 100%
+initial_starting:
+	.fill 0x4000
 
 rule_replicator:		.fill "B1357/S1357"
 rule_seeds:				.fill "B2/S"

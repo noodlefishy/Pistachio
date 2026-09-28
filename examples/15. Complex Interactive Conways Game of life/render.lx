@@ -50,7 +50,9 @@ seed_grid:
 
 		movi r1 #62
 		mov r2 r4
-		movi r3 0x2000
+
+		movi r3 [initial_starting]
+		lw r3 [r3 + #0]
 		call random_weighted_array
 
 		addi r4 r4 #32

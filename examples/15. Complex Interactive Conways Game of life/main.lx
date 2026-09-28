@@ -9,7 +9,7 @@ main:
 
 	// Target 30 FPS via Hardware VSYNC
 	movi r2 0xFF0C
-	movi r1 #30
+	movi r1 #20
 	sw r1 [r2 + #0]
 
 	clr r1
@@ -131,90 +131,126 @@ main:
 		movi r7 .evaluate_mode
 		jalr r0 r7 #0
 
-	// -------------------------------------------------------------------------
-	// Arrow Keys
-	// -------------------------------------------------------------------------
-	.poll_arrows:
-		movi r2 0xFF0A
-		lw r1 [r2 + #0]
+		// -------------------------------------------------------------------------
+    	// Arrow Keys (Shift = Turbo Sprint, Normal = 300ms Precision Delay)
+    	// -------------------------------------------------------------------------
+    	.poll_arrows:
+    		movi r2 0xFF0A
+    		lw r1 [r2 + #0] // r1 = Gamepad state
 
-		movi r2 #1
-		and r3 r1 r2
-		bne r3 r0 .cursor_up
-		movi r2 #2
-		and r3 r1 r2
-		bne r3 r0 .cursor_down
-		movi r2 #4
-		and r3 r1 r2
-		bne r3 r0 .cursor_left
-		movi r2 #8
-		and r3 r1 r2
-		bne r3 r0 .cursor_right
+    		// Check if any arrow is held (Bits 0..3 = 0x000F = 15)
+    		movi r2 #15
+    		and r3 r1 r2
+    		bne r3 r0 .arrow_held
 
-		b .check_brush
+    		// No arrows held -> reset precision timer and check brush
+    		movi r2 arrow_timer
+    		sw r0 [r2 + #0]
+    		b .check_brush
 
-	// -------------------------------------------------------------------------
-	// Smart Brush Polling
-	// -------------------------------------------------------------------------
-	.check_brush:
-		movi r2 0xFF0A
-		lw r1 [r2 + #0]
+			.arrow_held:
+				// Check SHIFT (Turbo Modifier: Bit 5 = 0x0020 = 32)
+				movi r2 #32
+				and r2 r1 r2
+				bne r2 r0 .do_arrow_move // Shift held -> BYPASS DELAY! SPRINT!
 
-		// Bit 5 (0x0020 = 32): E, X, or Shift
-		movi r2 #32
-		and r3 r1 r2
+				// --- Normal Precision Mode ---
+				movi r2 arrow_timer
+				lw r3 [r2 + #0]
+				beq r3 r0 .arrow_step_ready
 
-		movi r2 prev_e
-		lw r7 [r2 + #0]
+				// Timer counting down: decrement and DO NOT move cursor yet
+				subi r3 r3 #1
+				sw r3 [r2 + #0]
+				b .check_brush
 
-		beq r3 r0 .e_is_up
+			.arrow_step_ready:
+				// Reset precision timer: 10 frames (~300ms at 30 FPS)
+				movi r2 arrow_timer
+				movi r3 #10
+				sw r3 [r2 + #0]
 
-	.e_is_down:
-		movi r1 #1
-		sw r1 [r2 + #0] // prev_e = 1
-		beq r7 r0 .fresh_e_press
+			.do_arrow_move:
+				movi r2 #1
+				and r3 r1 r2
+				bne r3 r0 .cursor_up
 
-		movi r7 .apply_brush
-		jalr r0 r7 #0
+				movi r2 #2
+				and r3 r1 r2
+				bne r3 r0 .cursor_down
 
-	.e_is_up:
-		sw r0 [r2 + #0] // prev_e = 0
-		movi r7 .evaluate_mode
-		jalr r0 r7 #0
+				movi r2 #4
+				and r3 r1 r2
+				bne r3 r0 .cursor_left
 
-	.fresh_e_press:
-		movi r2 cursor_y
-		lw r3 [r2 + #0]
-		add r3 r3 r3 // * 2
-		add r3 r3 r3 // * 4
-		add r3 r3 r3 // * 8
-		add r3 r3 r3 // * 16
-		add r3 r3 r3 // * 32
-		add r3 r3 r3 // * 64
-		movi r2 cursor_x
-		lw r2 [r2 + #0]
-		add r3 r3 r2
-		add r1 r4 r3
+				movi r2 #8
+				and r3 r1 r2
+				bne r3 r0 .cursor_right
 
-		lw r2 [r1 + #0]
-		movi r1 brush_mode
-		beq r2 r0 .set_mode_paint
+				b .check_brush
 
-	.set_mode_erase:
-		sw r0 [r1 + #0]
-		movi r7 .apply_brush
-		jalr r0 r7 #0
+    	// -------------------------------------------------------------------------
+    	// Smart Brush Polling (E on Bit 7 = 0x0080 = 128)
+    	// -------------------------------------------------------------------------
+    	.check_brush:
+    		movi r2 0xFF0A
+    		lw r1 [r2 + #0] // r1 = Gamepad state
 
-	.set_mode_paint:
-		movi r2 #1
-		sw r2 [r1 + #0]
+    		// Check Bit 7 (0x0080 = 128): E Key
+    		movi r2 #128
+    		and r3 r1 r2
 
-	.apply_brush:
-		movi r2 brush_mode
-		lw r2 [r2 + #0]
-		beq r2 r0 .erase_cell
-		movi r7 .paint_cell
-		jalr r0 r7 #0
+    		movi r2 prev_e
+    		lw r7 [r2 + #0] // r7 = previous state of E
+
+    		beq r3 r0 .e_is_up
+
+			.e_is_down:
+				movi r1 #1
+				sw r1 [r2 + #0] // prev_e = 1
+				beq r7 r0 .fresh_e_press
+
+				b .apply_brush
+
+			.e_is_up:
+				sw r0 [r2 + #0] // prev_e = 0
+				movi r7 .evaluate_mode
+				jalr r0 r7 #0
+
+			.fresh_e_press:
+				// Calculate address of cell under cursor
+				movi r2 cursor_y
+				lw r3 [r2 + #0]
+				add r3 r3 r3 // * 2
+				add r3 r3 r3 // * 4
+				add r3 r3 r3 // * 8
+				add r3 r3 r3 // * 16
+				add r3 r3 r3 // * 32
+				add r3 r3 r3 // * 64
+				movi r2 cursor_x
+				lw r2 [r2 + #0]
+				add r3 r3 r2
+				add r1 r4 r3 // r1 = &active_grid[offset]
+
+				// Check if cell is currently ALIVE or DEAD
+				lw r2 [r1 + #0]
+				movi r1 brush_mode
+				beq r2 r0 .set_mode_paint
+
+			.set_mode_erase:
+				sw r0 [r1 + #0] // mode = 0 (Erase)
+				b .apply_brush
+
+			.set_mode_paint:
+				movi r2 #1
+				sw r2 [r1 + #0] // mode = 1 (Paint)
+
+			.apply_brush:
+				movi r2 brush_mode
+				lw r2 [r2 + #0]
+				beq r2 r0 .erase_cell
+				movi r7 .paint_cell
+				jalr r0 r7 #0
 
 	// -------------------------------------------------------------------------
 	// Cursor Movement Handlers
@@ -455,6 +491,8 @@ main:
 // ===
 // DATA SECTION: Main UI State & Stack
 // ===
+arrow_timer:    .fill 0
+prev_arrows:    .fill 0
 is_paused:      .fill 1
 is_age_mode:    .fill 0
 cursor_x:       .fill 31

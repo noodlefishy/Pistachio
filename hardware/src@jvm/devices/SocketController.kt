@@ -93,9 +93,9 @@ class SocketController(private val ram: PhysicalMemory) : Device {
                 udpSocket = DatagramSocket(localPort)
                 sockStat = STAT_UDP_READY.toShort()
                 startUdpReceiver()
-                println("[UDP] Successfully bound to port $localPort")
+//                println("[UDP] Successfully bound to port $localPort")
             } catch (e: Exception) {
-                println("[UDP ERROR] Failed to bind port $localPort: ${e.message}")
+//                println("[UDP ERROR] Failed to bind port $localPort: ${e.message}")
                 sockStat = STAT_CLOSED.toShort()
             }
         } else {
@@ -164,7 +164,7 @@ class SocketController(private val ram: PhysicalMemory) : Device {
                     val addr = InetAddress.getByName(targetHost)
                     val packet = DatagramPacket(payload, payload.size, addr, destPort)
                     sock.send(packet)
-                    println("[UDP TX] $localPort -> $targetHost:$destPort (${payload.size} bytes)")
+//                    println("[UDP TX] $localPort -> $targetHost:$destPort (${payload.size} bytes)")
                 } catch (e: Exception) {
                     println("[UDP TX ERROR] ${e.message}")
                 }
@@ -265,7 +265,7 @@ class SocketController(private val ram: PhysicalMemory) : Device {
                 try {
                     val packet = DatagramPacket(buf, buf.size)
                     sock.receive(packet)
-                    println("[UDP RX] on $localPort from ${packet.address.hostAddress}:${packet.port} (${packet.length} bytes)")
+//                    println("[UDP RX] on $localPort from ${packet.address.hostAddress}:${packet.port} (${packet.length} bytes)")
                     enqueueReceivedBytes(packet.data, packet.length, isWordMode)
                 } catch (e: Exception) {
                     println("[UDP RX ERROR] ${e.message}")

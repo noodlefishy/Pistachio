@@ -1,0 +1,37 @@
+// =============================================================================
+// Subroutine: sleep_ms(r1: Short) -> Unit
+// Suspends execution for the exact number of milliseconds specified in r1.
+// Uses the Hardware Programmable Interval Timer (PIT) at MMIO 0xFF10.
+// =============================================================================
+sleep_ms:
+	push r7
+	push r4
+	push r5
+
+	movi r4 0xFF10
+
+	// 1. Stop timer & Clear Status
+	sw r0 [r4 + #0]       // PIT_CTRL = 0
+	sw r0 [r4 + #3]       // PIT_STUS = 0
+
+	// 2. Set reload value to our desired milliseconds (r1)
+	sw r1 [r4 + #1]       // PIT_RELD = r1
+
+	// 3. Start timer in One-Shot mode (Bit 0 = 1, Bit 1 = 0)
+	movi r5 #1
+	sw r5 [r4 + #0]       // PIT_CTRL = 1
+
+	// 4. Poll PIT_STUS until Bit 0 flips to 1
+	.sleep_poll:
+		lw   r5 [r4 + #3] // Read Status
+		movi r1 #1
+		and  r5 r5 r1     // Isolate Bit 0 (Expired Flag)
+
+		// If 0, it hasn't finished yet. Jump back and keep waiting!
+		beq  r5 r0 .sleep_poll
+
+	// 5. Done!
+	pop r5
+	pop r4
+	pop r7
+	ret

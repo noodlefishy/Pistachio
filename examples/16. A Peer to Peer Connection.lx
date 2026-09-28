@@ -86,6 +86,9 @@ main:
     		b .peer_to_peer_loop
 
 		.receive_packet:
+			movi r1 500
+			call sleep_ms
+
 			movi r1 [msg_rx_header]
 			call prints
 

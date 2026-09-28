@@ -1,0 +1,198 @@
+// =============================================================================
+// MODULE: Network Interface Card (lib/net.lx)
+//
+// Description:
+//   Hardware driver for the Socket Controller (MMIO 0xFF70 - 0xFF78).
+//   Provides high-level routines for UDP/TCP communication, payload streaming,
+//   and connection state management.
+// =============================================================================
+
+// =============================================================================
+// Subroutine: net_open_udp_word(r1: Short) -> Unit
+// Description: Opens a UDP socket in 16-bit Word mode (Proto=3).
+// Inputs:      r1 = Local listening port (e.g. 9000)
+// =============================================================================
+net_open_udp_word:
+	push r4
+	movi r4 0xFF70
+
+	// Set Proto = 3 (UDP Word)
+	movi r2 #3
+	sw   r2 [r4 + #2]
+
+	// Set Local Port
+	sw   r1 [r4 + #3]
+
+	// CMD = 1 (OPEN)
+	movi r2 #1
+	sw   r2 [r4 + #0]
+
+	// Wait until Status == 5 (STAT_UDP_READY)
+	.udp_wait:
+		lw   r2 [r4 + #1]
+		movi r3 #5
+		bne  r2 r3 .udp_wait
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_open_tcp_byte(r1: Short) -> Unit
+// Description: Opens a TCP socket in 8-bit ASCII mode (Proto=0).
+// Inputs:      r1 = Local listening port
+// =============================================================================
+net_open_tcp_byte:
+	push r4
+	movi r4 0xFF70
+
+	// Set Proto = 0 (TCP Byte)
+	sw   r0 [r4 + #2]
+
+	// Set Local Port
+	sw   r1 [r4 + #3]
+
+	// CMD = 1 (OPEN)
+	movi r2 #1
+	sw   r2 [r4 + #0]
+
+	// Wait until Status == 1 (STAT_INIT)
+	.tcp_wait:
+		lw   r2 [r4 + #1]
+		movi r3 #1
+		bne  r2 r3 .tcp_wait
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_set_target(r1: String, r2: Short) -> Unit
+// Description: Sets the destination hostname/IP and port.
+// Inputs:      r1 = Pointer to hostname string (e.g. "wttr.in")
+//              r2 = Destination port
+// =============================================================================
+net_set_target:
+	push r4
+	movi r4 0xFF70
+
+	// DIP_HI = 0 (Enables String Pointer Mode)
+	sw   r0 [r4 + #4]
+
+	// DIP_LO = String Pointer
+	sw   r1 [r4 + #5]
+
+	// DPORT = Dest Port
+	sw   r2 [r4 + #6]
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_tcp_connect() -> Unit
+// Description: Connects TCP socket to target and blocks until established.
+// =============================================================================
+net_tcp_connect:
+	push r4
+	movi r4 0xFF70
+
+	// CMD = 3 (CONNECT)
+	movi r1 #3
+	sw   r1 [r4 + #0]
+
+	// Poll until Status == 3 (ESTABLISHED)
+	.wait_connect:
+		lw   r1 [r4 + #1]
+		movi r2 #3
+		bne  r1 r2 .wait_connect
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_send_array(r1: ShortArray, r2: Short) -> Unit
+// Description: Streams a binary array into the TX FIFO and transmits it.
+// Inputs:      r1 = Pointer to payload data
+//              r2 = Length (number of words)
+// =============================================================================
+net_send_array:
+	push r4
+	movi r4 0xFF70
+
+	.tx_arr_loop:
+		beq  r2 r0 .tx_arr_fire
+		lw   r3 [r1 + #0]
+		sw   r3 [r4 + #7] // Push to NET_DATA
+		addi r1 r1 #1
+		subi r2 r2 #1
+		b    .tx_arr_loop
+
+	.tx_arr_fire:
+		// CMD = 4 (SEND)
+		movi r3 #4
+		sw   r3 [r4 + #0]
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_send_string(r1: String) -> Unit
+// Description: Streams a null-terminated string to TX FIFO and transmits.
+// Inputs:      r1 = Pointer to string
+// =============================================================================
+net_send_string:
+	push r4
+	movi r4 0xFF70
+
+	.tx_str_loop:
+		lw   r2 [r1 + #0]
+		beq  r2 r0 .tx_str_fire
+		sw   r2 [r4 + #7] // Push to NET_DATA
+		addi r1 r1 #1
+		b    .tx_str_loop
+
+	.tx_str_fire:
+		// CMD = 4 (SEND)
+		movi r3 #4
+		sw   r3 [r4 + #0]
+
+	pop r4
+	ret
+
+// =============================================================================
+// Subroutine: net_read_array(r1: ShortArray, r2: Short) -> Unit
+// Description: Blocks until `r2` words arrive, then reads them into `r1`.
+// Inputs:      r1 = Destination array pointer
+//              r2 = Number of words to wait for and read
+// =============================================================================
+net_read_array:
+	push r4
+	movi r4 0xFF70
+
+	// 1. Block until RXLEN (0xFF78) >= requested length
+	.rx_wait:
+		lw   r3 [r4 + #8]
+		blt  r3 r2 .rx_wait // If available < requested, keep spinning!
+
+	// 2. Read 'r2' words from FIFO
+	.rx_arr_loop:
+		beq  r2 r0 .rx_arr_done
+		lw   r3 [r4 + #7] // Pop from NET_DATA
+		sw   r3 [r1 + #0] // Store in memory
+		addi r1 r1 #1
+		subi r2 r2 #1
+		b    .rx_arr_loop
+
+	.rx_arr_done:
+		pop r4
+		ret
+
+// =============================================================================
+// Subroutine: net_close() -> Unit
+// Description: Closes the current socket (Command 6).
+// =============================================================================
+net_close:
+	push r4
+	movi r4 0xFF70
+	movi r1 #6
+	sw   r1 [r4 + #0]
+	pop r4
+	ret

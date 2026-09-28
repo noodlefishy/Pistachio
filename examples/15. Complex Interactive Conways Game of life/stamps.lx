@@ -1,0 +1,259 @@
+// ===
+// Module: Stamp Roster & Rotations
+// ===
+
+// =============================================================================
+// Subroutine: cycle_stamp() -> Unit
+// =============================================================================
+cycle_stamp:
+	movi r2 current_stamp_idx
+	lw r1 [r2 + #0]
+	addi r1 r1 #1
+
+	movi r3 NUM_STAMPS
+	lw r3 [r3 + #0]
+
+	bne r1 r3 .save_stamp_idx
+	clr r1 // Wrap back to 0!
+
+	.save_stamp_idx:
+		sw r1 [r2 + #0]
+		ret
+
+// =============================================================================
+// Subroutine: rotate_stamp() -> Unit
+// =============================================================================
+rotate_stamp:
+	movi r2 stamp_rotation
+	lw r1 [r2 + #0]
+	addi r1 r1 #1
+	movi r3 #4
+	bne r1 r3 .save_rotation
+	clr r1 // Wrap 0, 90, 180, 270 deg
+
+	.save_rotation:
+		sw r1 [r2 + #0]
+		ret
+
+// =============================================================================
+// Subroutine: do_stamp(r4 = active_grid) -> Unit
+// =============================================================================
+do_stamp:
+	push r7
+	push r4
+	push r5
+
+	movi r2 current_stamp_idx
+	lw r1 [r2 + #0]
+	movi r2 stamp_roster
+	add r2 r2 r1
+	lw r5 [r2 + #0] // r5 = sprite pattern
+
+	clr r1 // dy
+
+	.stamp_row_loop:
+		movi r2 #8
+		beq r1 r2 .stamp_finished
+
+		clr r2 // dx
+		beq r0 r0 .stamp_col_loop
+
+	.stamp_finished:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+	.stamp_row_next:
+		addi r1 r1 #1 // dy++
+		beq r0 r0 .stamp_row_loop
+
+	.stamp_col_loop:
+		movi r3 #8
+		beq r2 r3 .stamp_row_next
+
+		mov r3 r1
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r2 // + dx
+		add r3 r5 r3
+		lw r3 [r3 + #0]
+
+		bne r3 r0 .stamp_draw_pixel
+		movi r7 .stamp_skip_pixel
+		jalr r0 r7 #0
+
+	.stamp_draw_pixel:
+		push r1
+		push r2
+
+		call get_rotated_offsets
+
+		movi r7 cursor_y
+		lw r7 [r7 + #0]
+		add r1 r7 r1 // target_y = cursor_y + ry
+
+		movi r7 #62
+		bgt r1 r7 .stamp_pop_skip
+
+		movi r7 cursor_x
+		lw r7 [r7 + #0]
+		add r2 r7 r2 // target_x = cursor_x + rx
+
+		movi r7 #62
+		bgt r2 r7 .stamp_pop_skip
+
+		add r1 r1 r1 // * 2
+		add r1 r1 r1 // * 4
+		add r1 r1 r1 // * 8
+		add r1 r1 r1 // * 16
+		add r1 r1 r1 // * 32
+		add r1 r1 r1 // * 64
+		add r1 r1 r2 // offset
+
+		// Write ALIVE (1) to active_grid
+		add r2 r4 r1
+		movi r3 #1
+		sw r3 [r2 + #0]
+
+		// Set age to 1 in age_grid
+		movi r2 age_grid
+		add r2 r2 r1
+		movi r3 #1
+		sw r3 [r2 + #0]
+
+	.stamp_pop_skip:
+		pop r2
+		pop r1
+
+	.stamp_skip_pixel:
+		addi r2 r2 #1 // dx++
+		movi r7 .stamp_col_loop
+		jalr r0 r7 #0
+
+// =============================================================================
+// Subroutine: draw_stamp_ghost() -> Unit
+// =============================================================================
+draw_stamp_ghost:
+	push r7
+	push r4
+	push r5
+
+	movi r2 current_stamp_idx
+	lw r1 [r2 + #0]
+	movi r2 stamp_roster
+	add r2 r2 r1
+	lw r5 [r2 + #0]
+
+	clr r1 // dy
+
+	.ghost_row:
+		movi r2 #8
+		beq r1 r2 .ghost_done
+		clr r2 // dx
+
+	.ghost_col:
+		movi r3 #8
+		beq r2 r3 .ghost_next_row
+
+		mov r3 r1
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r2
+		add r3 r5 r3
+		lw r3 [r3 + #0]
+		beq r3 r0 .ghost_skip
+
+		push r1
+		push r2
+
+		call get_rotated_offsets
+
+		movi r7 cursor_y
+		lw r7 [r7 + #0]
+		add r7 r7 r1 // target_y
+
+		movi r1 cursor_x
+		lw r1 [r1 + #0]
+		add r1 r1 r2 // target_x
+
+		mov r2 r7
+		movi r3 0x07FF // Faint Cyan Hologram!
+		call gfx_draw_pixel
+
+		pop r2
+		pop r1
+
+	.ghost_skip:
+		addi r2 r2 #1
+		beq r0 r0 .ghost_col
+
+	.ghost_next_row:
+		addi r1 r1 #1
+		beq r0 r0 .ghost_row
+
+	.ghost_done:
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+// =============================================================================
+// Subroutine: get_rotated_offsets(r1: dy, r2: dx) -> (r1: ry, r2: rx)
+// =============================================================================
+get_rotated_offsets:
+	push r3
+	push r4
+
+	movi r3 stamp_rotation
+	lw r3 [r3 + #0]
+
+	beq r3 r0 .rot_0
+	subi r3 r3 #1
+	beq r3 r0 .rot_90
+	subi r3 r3 #1
+	beq r3 r0 .rot_180
+
+	.rot_270:
+		movi r3 invert7_table
+		add r3 r3 r2
+		lw r4 [r3 + #0] // r4 = 7 - dx
+		mov r2 r1       // rx = dy
+		mov r1 r4       // ry = 7 - dx
+		beq r0 r0 .rot_done
+
+	.rot_180:
+		movi r3 invert7_table
+		add r4 r3 r1
+		lw r4 [r4 + #0] // r4 = 7 - dy
+		add r3 r3 r2
+		lw r2 [r3 + #0] // rx = 7 - dx
+		mov r1 r4       // ry = 7 - dy
+		beq r0 r0 .rot_done
+
+	.rot_90:
+		movi r3 invert7_table
+		add r4 r3 r1
+		lw r4 [r4 + #0] // r4 = 7 - dy
+		mov r1 r2       // ry = dx
+		mov r2 r4       // rx = 7 - dy
+		beq r0 r0 .rot_done
+
+	.rot_0:
+		// Unrotated: rx = dx, ry = dy
+
+	.rot_done:
+		pop r4
+		pop r3
+		ret
+
+// ===
+// DATA SECTION: Stamp Roster & Presets
+// ===
+current_stamp_idx: .fill 0
+stamp_rotation:    .fill 0
+
+invert7_table:     .fill { 7 6 5 4 3 2 1 0 }
+

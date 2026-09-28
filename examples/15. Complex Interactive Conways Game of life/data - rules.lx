@@ -1,0 +1,16 @@
+// ===
+rule_pointer:			.fill rule_conway
+// ===
+
+
+rule_replicator:		.fill "B1357/S1357"
+rule_seeds:				.fill "B2/S"
+rule_life_without_death:.fill "B3/S012345678"
+rule_conway:			.fill "B3/S23"
+rule_34_life:			.fill "B34/S34"
+rule_diamoeba:			.fill "B35678/S5678"
+rule_2x2:				.fill "B36/S125"
+rule_highlife:			.fill "B36/S23"
+rule_day_night:			.fill "B3678/S34678"
+rule_morley:			.fill "B368/S245"
+rule_anneal:			.fill "B4678/S35678"

@@ -1,0 +1,6 @@
+// ===
+// Memory Buffers
+// ===
+grid_a:         .space 4096
+grid_b:         .space 4096
+age_grid:       .space 4096

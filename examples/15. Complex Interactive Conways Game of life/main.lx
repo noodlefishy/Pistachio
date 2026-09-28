@@ -1,0 +1,502 @@
+// ===
+// MAIN ENTRYPOINT & INTERACTION LOOP
+// ===
+
+main:
+	movi r6 stack
+	call heap_init
+	call gfx_init
+
+	// Target 30 FPS via Hardware VSYNC
+	movi r2 0xFF0C
+	movi r1 #30
+	sw r1 [r2 + #0]
+
+	clr r1
+	call gfx_clear
+	call gfx_present
+
+	movi r1 rule_pointer
+	lw r1 [r1 + #0]
+	call parse_rule_string
+
+	// Initialize buffer pointers
+	movi r4 grid_a
+	movi r5 grid_b
+
+	call seed_grid
+
+	// =========================================================================
+	// Main Simulation Loop
+	// =========================================================================
+	.sim_loop:
+		movi r2 0xFF06 // DD_STUS
+		lw r1 [r2 + #0]
+		bne r1 r0 .poll_input
+		halt // User clicked 'X'
+
+	.poll_input:
+		movi r2 0xFF0B
+		lw r1 [r2 + #0]
+		bne r1 r0 .handle_key
+
+		movi r2 is_paused
+		lw r2 [r2 + #0]
+		beq r2 r0 .jmp_eval_mode
+
+		movi r7 .poll_arrows
+		jalr r0 r7 #0
+
+	.jmp_eval_mode:
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.handle_key:
+		// Convert to uppercase
+		movi r2 #97  // 'a'
+		blt r1 r2 .route_key
+		movi r2 #122 // 'z'
+		bgt r1 r2 .route_key
+		subi r1 r1 #32
+
+	.route_key:
+		// Pause (P or Space)
+		movi r2 #80
+		beq r1 r2 .jmp_toggle
+		movi r2 #32
+		beq r1 r2 .jmp_toggle
+
+		// Stamp (T), Cycle (Y), Rotate (X), Hologram (H)
+		movi r2 #84
+		beq r1 r2 .jmp_stamp
+		movi r2 #89
+		beq r1 r2 .jmp_cycle_stamp
+		movi r2 #88
+		beq r1 r2 .jmp_rotate_stamp
+		movi r2 #72
+		beq r1 r2 .jmp_hologram
+
+		// Reseed (R), Clear (C), Age Mode (Q)
+		movi r2 #82
+		beq r1 r2 .jmp_reseed
+		movi r2 #67
+		beq r1 r2 .jmp_clear
+		movi r2 #81
+		beq r1 r2 .jmp_age
+
+		// Editor keys only while paused
+		movi r2 is_paused
+		lw r2 [r2 + #0]
+		beq r2 r0 .end_routing
+
+		// Movement (WASD)
+		movi r2 #87
+		beq r1 r2 .jmp_up
+		movi r2 #83
+		beq r1 r2 .jmp_down
+		movi r2 #65
+		beq r1 r2 .jmp_left
+		movi r2 #68
+		beq r1 r2 .jmp_right
+
+		// Single step (N)
+		movi r2 #78
+		beq r1 r2 .jmp_step
+
+	.end_routing:
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Dispatch Trampolines
+	// -------------------------------------------------------------------------
+	.jmp_toggle:
+		movi r7 .toggle_pause
+		jalr r0 r7 #0
+	.jmp_stamp:
+		movi r7 .do_stamp_action
+		jalr r0 r7 #0
+	.jmp_cycle_stamp:
+		call cycle_stamp
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.jmp_rotate_stamp:
+		call rotate_stamp
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.jmp_hologram:
+		movi r7 .toggle_hologram
+		jalr r0 r7 #0
+	.jmp_reseed:
+		movi r4 grid_a
+		movi r5 grid_b
+		call seed_grid
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.jmp_clear:
+		movi r4 grid_a
+		movi r5 grid_b
+		call clear_grids
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.jmp_age:
+		movi r7 .toggle_age
+		jalr r0 r7 #0
+	.jmp_up:
+		movi r7 .cursor_up
+		jalr r0 r7 #0
+	.jmp_down:
+		movi r7 .cursor_down
+		jalr r0 r7 #0
+	.jmp_left:
+		movi r7 .cursor_left
+		jalr r0 r7 #0
+	.jmp_right:
+		movi r7 .cursor_right
+		jalr r0 r7 #0
+	.jmp_step:
+		movi r7 .do_single_step
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Arrow Keys
+	// -------------------------------------------------------------------------
+	.poll_arrows:
+		movi r2 0xFF0A
+		lw r1 [r2 + #0]
+
+		movi r2 #1
+		and r3 r1 r2
+		bne r3 r0 .jmp_up
+		movi r2 #2
+		and r3 r1 r2
+		bne r3 r0 .jmp_down
+		movi r2 #4
+		and r3 r1 r2
+		bne r3 r0 .jmp_left
+		movi r2 #8
+		and r3 r1 r2
+		bne r3 r0 .jmp_right
+
+		beq r0 r0 .check_brush
+
+	// -------------------------------------------------------------------------
+	// Smart Brush Polling
+	// -------------------------------------------------------------------------
+	.check_brush:
+		movi r2 0xFF0A
+		lw r1 [r2 + #0]
+
+		// Bit 5 (0x0020 = 32): E, X, or Shift
+		movi r2 #32
+		and r3 r1 r2
+
+		movi r2 prev_e
+		lw r7 [r2 + #0]
+
+		beq r3 r0 .e_is_up
+
+	.e_is_down:
+		movi r1 #1
+		sw r1 [r2 + #0] // prev_e = 1
+		beq r7 r0 .fresh_e_press
+
+		movi r7 .apply_brush
+		jalr r0 r7 #0
+
+	.e_is_up:
+		sw r0 [r2 + #0] // prev_e = 0
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.fresh_e_press:
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64
+		movi r2 cursor_x
+		lw r2 [r2 + #0]
+		add r3 r3 r2
+		add r1 r4 r3
+
+		lw r2 [r1 + #0]
+		movi r1 brush_mode
+		beq r2 r0 .set_mode_paint
+
+	.set_mode_erase:
+		sw r0 [r1 + #0]
+		movi r7 .apply_brush
+		jalr r0 r7 #0
+
+	.set_mode_paint:
+		movi r2 #1
+		sw r2 [r1 + #0]
+
+	.apply_brush:
+		movi r2 brush_mode
+		lw r2 [r2 + #0]
+		beq r2 r0 .jmp_erase
+		movi r7 .jmp_paint
+		jalr r0 r7 #0
+
+	.jmp_paint:
+		movi r7 .paint_cell
+		jalr r0 r7 #0
+	.jmp_erase:
+		movi r7 .erase_cell
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Cursor Movement Handlers
+	// -------------------------------------------------------------------------
+	.cursor_up:
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		movi r1 #1
+		beq r3 r1 .clamp_abort
+		subi r3 r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .check_brush
+		jalr r0 r7 #0
+
+	.cursor_down:
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		movi r1 #62
+		beq r3 r1 .clamp_abort
+		addi r3 r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .check_brush
+		jalr r0 r7 #0
+
+	.cursor_left:
+		movi r2 cursor_x
+		lw r3 [r2 + #0]
+		movi r1 #1
+		beq r3 r1 .clamp_abort
+		subi r3 r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .check_brush
+		jalr r0 r7 #0
+
+	.cursor_right:
+		movi r2 cursor_x
+		lw r3 [r2 + #0]
+		movi r1 #62
+		beq r3 r1 .clamp_abort
+		addi r3 r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .check_brush
+		jalr r0 r7 #0
+
+	.clamp_abort:
+		movi r7 .check_brush
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Cell Paint / Erase Workers
+	// -------------------------------------------------------------------------
+	.paint_cell:
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64
+		movi r2 cursor_x
+		lw r2 [r2 + #0]
+		add r3 r3 r2
+		add r1 r4 r3
+
+		movi r2 #1
+		sw r2 [r1 + #0] // SET ALIVE
+
+		movi r1 age_grid
+		add r1 r1 r3
+		movi r2 #1
+		sw r2 [r1 + #0] // SET AGE = Newborn
+
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.erase_cell:
+		movi r2 cursor_y
+		lw r3 [r2 + #0]
+		add r3 r3 r3 // * 2
+		add r3 r3 r3 // * 4
+		add r3 r3 r3 // * 8
+		add r3 r3 r3 // * 16
+		add r3 r3 r3 // * 32
+		add r3 r3 r3 // * 64
+		movi r2 cursor_x
+		lw r2 [r2 + #0]
+		add r3 r3 r2
+		add r1 r4 r3
+
+		sw r0 [r1 + #0] // SET DEAD
+
+		movi r1 age_grid
+		add r1 r1 r3
+		movi r2 #-1
+		sw r2 [r1 + #0] // SET AGE = Just Died
+
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// UI Actions
+	// -------------------------------------------------------------------------
+	.do_stamp_action:
+		call do_stamp
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.toggle_hologram:
+		movi r2 show_ghost
+		lw r3 [r2 + #0]
+		beq r3 r0 .enable_ghost
+		sw r0 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.enable_ghost:
+		movi r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.toggle_age:
+		movi r2 is_age_mode
+		lw r3 [r2 + #0]
+		beq r3 r0 .set_age
+		sw r0 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.set_age:
+		movi r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	.toggle_pause:
+		movi r2 is_paused
+		lw r3 [r2 + #0]
+		beq r3 r0 .set_paused
+		sw r0 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+	.set_paused:
+		movi r3 #1
+		sw r3 [r2 + #0]
+		movi r7 .evaluate_mode
+		jalr r0 r7 #0
+
+	// -------------------------------------------------------------------------
+	// Evaluation & Rendering
+	// -------------------------------------------------------------------------
+	.evaluate_mode:
+		movi r2 is_paused
+		lw r2 [r2 + #0]
+		bne r2 r0 .render_only
+
+	.advance_generation:
+		mov r1 r4
+		mov r2 r5
+		call step_generation
+
+		mov r1 r5
+		movi r2 age_grid
+		call update_age_grid
+
+		// Swap double buffers
+		mov r1 r4
+		mov r4 r5
+		mov r5 r1
+
+		movi r7 .render_only
+		jalr r0 r7 #0
+
+	.do_single_step:
+		movi r7 .advance_generation
+		jalr r0 r7 #0
+
+	.render_only:
+		mov r1 r4
+		call render_grid
+
+		movi r2 is_paused
+		lw r2 [r2 + #0]
+		bne r2 r0 .draw_cursor
+		movi r7 .draw_border_running
+		jalr r0 r7 #0
+
+	.draw_cursor:
+		movi r2 show_ghost
+		lw r2 [r2 + #0]
+		beq r2 r0 .draw_anchor_dot
+
+		call draw_stamp_ghost
+
+	.draw_anchor_dot:
+		movi r1 cursor_x
+		lw r1 [r1 + #0]
+		movi r2 cursor_y
+		lw r2 [r2 + #0]
+		movi r3 0xF800 // Bright Red Anchor
+		call gfx_draw_pixel
+		beq r0 r0 .draw_border_paused
+
+	.draw_border_running:
+		push r4
+		push r5
+		movi r1 #0
+		movi r2 #0
+		movi r3 #64
+		movi r4 #64
+		movi r5 0x0000 // Black
+		call gfx_draw_rect
+		pop r5
+		pop r4
+		beq r0 r0 .present
+
+	.draw_border_paused:
+		push r4
+		push r5
+		movi r1 #0
+		movi r2 #0
+		movi r3 #64
+		movi r4 #64
+		movi r5 0xFD20 // Amber
+		call gfx_draw_rect
+		pop r5
+		pop r4
+
+	.present:
+		call gfx_present
+
+		// VSYNC DELAY
+		movi r2 0xFF0C
+		lw r0 [r2 + #0]
+
+		movi r7 .sim_loop
+		jalr r0 r7 #0
+
+// ===
+// DATA SECTION: Main UI State & Stack
+// ===
+is_paused:      .fill 1
+is_age_mode:    .fill 0
+cursor_x:       .fill 31
+cursor_y:       .fill 31
+blink_tick:     .fill 0
+prev_gpad:      .fill 0
+brush_mode:     .fill 0
+prev_e:         .fill 0
+show_ghost:     .fill 0
+
+stack:          .space 100

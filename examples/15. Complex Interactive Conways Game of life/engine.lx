@@ -1,0 +1,227 @@
+// ===
+// Module: Simulation Engine
+// ===
+
+// =============================================================================
+// Subroutine: step_generation(r1 = current, r2 = next) -> Unit
+// =============================================================================
+step_generation:
+	push r7
+	push r4
+	push r5
+
+	mov r5 r6
+	addi r6 r6 #4
+	sw r1 [r5 + #0]
+	sw r2 [r5 + #1]
+	movi r1 #1
+	sw r1 [r5 + #3]
+
+	.row_loop:
+		lw r1 [r5 + #3]
+		movi r2 #63
+		bne r1 r2 .continue_row
+
+		movi r7 .step_done
+		jalr r0 r7 #0
+
+	.continue_row:
+		mov r3 r1
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r3
+		add r3 r3 r3
+
+		lw r1 [r5 + #0]
+		add r4 r1 r3
+		addi r4 r4 #1
+
+		subi r7 r4 #64
+
+		addi r1 r4 #32
+		addi r1 r1 #32
+
+		lw r2 [r5 + #1]
+		add r2 r2 r3
+		addi r2 r2 #1
+		sw r2 [r5 + #2]
+
+		push r1
+
+		movi r3 #62
+
+	.col_loop:
+		lw r1 [r7 + #-1]
+		lw r2 [r7 + #0]
+		add r1 r1 r2
+		lw r2 [r7 + #1]
+		add r1 r1 r2
+
+		lw r2 [r4 + #-1]
+		add r1 r1 r2
+		lw r2 [r4 + #1]
+		add r1 r1 r2
+
+		lw r2 [r6 + #-1]
+		lw r2 [r2 + #-1]
+		add r1 r1 r2
+		lw r2 [r6 + #-1]
+		lw r2 [r2 + #0]
+		add r1 r1 r2
+		lw r2 [r6 + #-1]
+		lw r2 [r2 + #1]
+		add r1 r1 r2
+
+		movi r2 pow2_table
+		add r2 r2 r1
+		lw r2 [r2 + #0]
+
+		lw r1 [r4 + #0]
+		beq r1 r0 .check_birth
+
+	.check_survival:
+		push r3
+		movi r3 rule_survival
+		lw r1 [r3 + #0]
+		pop r3
+		and r1 r1 r2
+		bne r1 r0 .cell_alive
+		beq r0 r0 .cell_dead
+
+	.check_birth:
+		push r3
+		movi r3 rule_birth
+		lw r1 [r3 + #0]
+		pop r3
+		and r1 r1 r2
+		bne r1 r0 .cell_alive
+		beq r0 r0 .cell_dead
+
+	.cell_alive:
+		lw r2 [r5 + #2]
+		movi r1 #1
+		sw r1 [r2 + #0]
+		addi r2 r2 #1
+		sw r2 [r5 + #2]
+		beq r0 r0 .advance_cell
+
+	.cell_dead:
+		lw r2 [r5 + #2]
+		sw r0 [r2 + #0]
+		addi r2 r2 #1
+		sw r2 [r5 + #2]
+
+	.advance_cell:
+		addi r7 r7 #1
+		addi r4 r4 #1
+
+		lw r2 [r6 + #-1]
+		addi r2 r2 #1
+		sw r2 [r6 + #-1]
+
+		subi r3 r3 #1
+
+		beq r3 r0 .row_finished
+		movi r1 .col_loop
+		jalr r0 r1 #0
+
+	.row_finished:
+		pop r1
+		lw r1 [r5 + #3]
+		addi r1 r1 #1
+		sw r1 [r5 + #3]
+		movi r7 .row_loop
+		jalr r0 r7 #0
+
+	.step_done:
+		subi r6 r6 #4
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+// =============================================================================
+// Subroutine: update_age_grid(r1 = new_generation, r2 = age_grid) -> Unit
+// =============================================================================
+update_age_grid:
+	push r7
+	push r4
+	push r5
+	push r3
+
+	mov r4 r1
+	mov r5 r2
+	movi r3 #4096
+
+	.uag_loop:
+		beq r3 r0 .uag_exit_jump
+		beq r0 r0 .uag_continue
+	.uag_exit_jump:
+		movi r7 .uag_done
+		jalr r0 r7 #0
+
+	.uag_continue:
+		lw r1 [r4 + #0]
+		lw r2 [r5 + #0]
+
+		beq r1 r0 .uag_dead
+
+	.uag_alive:
+		movi r7 #0
+		blt r2 r7 .uag_reset_alive
+		beq r2 r0 .uag_reset_alive
+
+		addi r2 r2 #1
+		movi r7 #8
+		bgt r2 r7 .uag_cap_alive
+		beq r0 r0 .uag_write
+
+	.uag_reset_alive:
+		movi r2 #1
+		beq r0 r0 .uag_write
+
+	.uag_cap_alive:
+		movi r2 #8
+		beq r0 r0 .uag_write
+
+	.uag_dead:
+		// Optimized Guard: Skip permanently dead cells in 1 cycle!
+		beq r2 r0 .uag_write
+
+		movi r7 #0
+		bgt r2 r7 .uag_reset_dead
+
+		subi r2 r2 #1
+		movi r7 #-7
+		blt r2 r7 .uag_cap_dead
+		beq r0 r0 .uag_write
+
+	.uag_reset_dead:
+		movi r2 #-1
+		beq r0 r0 .uag_write
+
+	.uag_cap_dead:
+		movi r2 #0
+
+	.uag_write:
+		sw r2 [r5 + #0]
+		addi r4 r4 #1
+		addi r5 r5 #1
+		subi r3 r3 #1
+
+		movi r7 .uag_loop
+		jalr r0 r7 #0
+
+	.uag_done:
+		pop r3
+		pop r5
+		pop r4
+		pop r7
+		ret
+
+// ===
+// DATA SECTION: Math Tables
+// ===
+pow2_table: .fill { 1 2 4 8 16 32 64 128 256 }

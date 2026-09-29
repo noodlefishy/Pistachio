@@ -1,183 +1,172 @@
-
-
+// =============================================================================
+// Example 16: Interactive Localhost P2P Node (Refactored)
+// Description:
+//   Prompts user for local and remote ports via readln and connects peers
+//   over UDP on localhost (127.0.0.1) using the net.lx library.
+// Dependencies:
+//   - lib/io.lx, lib/fmt.lx, lib/maths.lx, lib/net.lx
+// Run with: ./lx -i "examples/16. A Peer to Peer Connection.lx" "program files/lib"
+// =============================================================================
 
 main:
-	movi r6 [stack]
+	movi r6 stack
 	call heap_init
 
-	movi r1 [prompt_banner]
+	// Print banner
+	movi r1 prompt_banner
 	call prints
-	
-	// prompt for local port
-	movi r1 [prompt_local_port]
+
+	// Prompt for LOCAL listening port
+	movi r1 prompt_local_port
 	call prints
-	movi r1 [input_buffer]
+	movi r1 input_buf
 	call readln
 	call str_toi
-	mov r4 r1 // r4 = local port
+	mov  r4 r1              // r4 = local_port
 
-	// prompt for peer port
-	movi r1 [prompt_peer_port]
+	// Prompt for REMOTE peer port
+	movi r1 prompt_peer_port
 	call prints
-	movi r1 [input_buffer]
+	movi r1 input_buf
 	call readln
 	call str_toi
-	mov r5 r1 // r5 = peer port
+	mov  r5 r1              // r5 = peer_port
 
-	// configuring socket controller
-	movi r2 [0xFF70]
+	// -------------------------------------------------------------------------
+	// Abstracted Network Initialization
+	// -------------------------------------------------------------------------
+	// 1. Open UDP Word Socket on local port (r4)
+	mov  r1 r4
+	call net_open_udp_word
 
-	// setting UDP protocol
-	movi r1 #3
-	sw r1 [r2 + #2] // SOCK_PROTO = 3
+	// 2. Set target to "localhost":peer_port (r5)
+	movi r1 localhost_str
+	mov  r2 r5
+	call net_set_target
 
-	sw r4 [r2 + #3] // SOCK_PORT = local port
-
-	movi r1 #1
-	sw r1 [r2 + #0] // SOCK_CMD = 1 (open)
-
-	// set target to 127.0.0.1:peer_port
-	sw r0 [r2 + #4] // SOCK_DIP_HI = 0 (string pointer mode)
-	movi r1 [localhost_str]
-	sw r1 [r2 + #5] // SOCK_DIP_LO = &"127.0.0.1"
-	sw r5 [r2 + #6] // SOCK_DPORT = peer port
-
-	movi r1 [msg_ready]
+	movi r1 msg_ready
 	call prints
 
+	// =========================================================================
+	// Main P2P Event Loop
+	// =========================================================================
+	.p2p_loop:
+		// 1. Check if packet arrived from peer
+		call net_rx_len
+		bne  r1 r0 .receive_packet
 
-	.peer_to_peer_loop:
-		// check if a packet arrived
-		// 0xFF78 = SOCK_RXLEN
-		movi r2 [0xFF78]
-		lw r1 [r2 + #0]
-		bne r1 r0 .receive_packet
-		// TODO FALLBACK
-
+		// 2. Poll keyboard for manual trigger (Press 'S')
 		movi r2 0xFF02 // CONS_STAT
-    	lw r1 [r2 + #0]
-    	beq r1 r0 .peer_to_peer_loop
+		lw   r1 [r2 + #0]
+		beq  r1 r0 .throttle_vsync
 
-    	movi r2 0xFF01 // CONS_IN
-    	lw   r1 [r2 + #0]
+		movi r2 0xFF01 // CONS_IN
+		lw   r1 [r2 + #0]
 
-    	// Check 'S' (83) or 's' (115)
-    	movi r3 #83
-    	beq r1 r3 .manual_send
-    	movi r3 #115
-    	beq r1 r3 .manual_send
+		// Check 'S' (83) or 's' (115)
+		movi r3 #83
+		beq  r1 r3 .manual_send
+		movi r3 #115
+		beq  r1 r3 .manual_send
 
-    	b .peer_to_peer_loop
+		b    .throttle_vsync
 
-    	.manual_send:
-    		movi r1 msg_tx_send
-    		call prints
+	.throttle_vsync:
+		movi r2 0xFF0C
+		lw   r0 [r2 + #0]
+		b    .p2p_loop
 
-    		// Populate 3-word payload: [100, 200, 300]
-    		movi r2 payload
-    		movi r1 #100
-    		sw r1 [r2 + #0]
-    		movi r1 #200
-    		sw r1 [r2 + #1]
-    		movi r1 #300
-    		sw r1 [r2 + #2]
+	// -------------------------------------------------------------------------
+	// Manual Inject
+	// -------------------------------------------------------------------------
+	.manual_send:
+		movi r1 msg_tx_send
+		call prints
 
-    		call send_payload
-    		b .peer_to_peer_loop
+		// Populate 3-word payload: [100, 200, 300]
+		movi r2 payload
+		movi r1 #100
+		sw   r1 [r2 + #0]
+		movi r1 #200
+		sw   r1 [r2 + #1]
+		movi r1 #300
+		sw   r1 [r2 + #2]
 
-		.receive_packet:
-			movi r1 500
-			call sleep_ms
+		// Send array via library!
+		movi r1 payload
+		movi r2 #3
+		call net_send_array
 
-			movi r1 [msg_rx_header]
-			call prints
+		b    .throttle_vsync
 
-			movi r4 [0xFF77] // SOCK_DATA]
-			movi r5 [payload]
-			movi r3 #3
+	// -------------------------------------------------------------------------
+	// Packet Reception & Increment Loop
+	// -------------------------------------------------------------------------
+	.receive_packet:
+		movi r1 msg_rx_header
+		call prints
 
+		// Wait for exactly 3 words and read them into RAM via library!
+		movi r1 payload
+		movi r2 #3
+		call net_read_array
 
-			.rx_stream_loop:
-				lw r1 [r4 + #0] // Pop 16-bit word from network
-        		sw r1 [r5 + #0] // Store in local memory
+		// Print received numbers to console
+		movi r5 payload
+		movi r4 #3
 
-        		// Print received number to console
-        		push r3
-        		movi r2 [itoa_buffer]
-        		call itoa
-        		call prints
-        		movi r1 [str_space]
-        		call prints
-        		pop r3
-
-        		addi r5 r5 1
-        		subi r3 r3 1
-        		bne r3 r0 .rx_stream_loop
-
-        		movi r1 [str_newline]
-        		call prints
-
-        		// Increment every value by +1
-        		movi r2 [payload]
-        		lw r1 [r2 + #0]
-        		addi r1 r1 1
-        		sw r1 [r2 + #0]
-
-        		lw r1 [r2 + #1]
-        		addi r1 r1 1
-        		sw r1 [r2 + #1]
-
-        		lw r1 [r2 + #2]
-        		addi r1 r1 1
-        		sw r1 [r2 + #2]
-
-        		// Return incremented payload back to peer
-        		call send_payload
-        		b .peer_to_peer_loop
-
-
-
-send_payload:
-	push r7
-	push r4
-
-	movi r4 0xFF70
-	movi r5 payload
-	movi r3 #3
-
-	.tx_stream_loop:
+	.print_loop:
 		lw   r1 [r5 + #0]
-		sw   r1 [r4 + #7] // SOCK_DATA
+		movi r2 itoa_buf
+		call itoa
+		call prints
+		movi r1 str_space
+		call prints
+
 		addi r5 r5 1
-		subi r3 r3 1
-		bne  r3 r0 .tx_stream_loop
+		subi r4 r4 1
+		bne  r4 r0 .print_loop
 
-	// Command 4: SEND!
-	movi r1 #4
-	sw   r1 [r4 + #0]     // SOCK_CMD = 4
+		movi r1 str_newline
+		call prints
 
-	pop  r4
-	pop  r7
-	ret
+		// Increment every value by +1
+		movi r2 payload
+		lw   r1 [r2 + #0]
+		addi r1 r1 1
+		sw   r1 [r2 + #0]
 
+		lw   r1 [r2 + #1]
+		addi r1 r1 1
+		sw   r1 [r2 + #1]
 
-//
+		lw   r1 [r2 + #2]
+		addi r1 r1 1
+		sw   r1 [r2 + #2]
 
-// data
+		// Return incremented payload back to peer
+		movi r1 payload
+		movi r2 #3
+		call net_send_array
 
-localhost_str:     .fill "localhost"
+		b    .throttle_vsync
 
-prompt_banner:     .fill "\n=== Pistachio P2P Interactive Node ===\n"
-prompt_local_port: .fill "Enter LOCAL listening port (e.g. 9001): "
-prompt_peer_port:  .fill "Enter TARGET peer port     (e.g. 9002): "
-msg_ready:         .fill "[P2P] Socket bound on localhost! Press 'S' to inject packet.\n\n"
-msg_tx_send:       .fill "[P2P] Sending packet to peer...\n"
-msg_rx_header:     .fill "[P2P] Received packet: "
-str_space:         .fill " "
-str_newline:       .fill "\n"
+// =============================================================================
+// DATA SECTION
+// =============================================================================
+localhost_str:     .fill "localhost\0"
 
-input_buffer:         .space 20
+prompt_banner:     .fill "\n=== Pistachio P2P Interactive Node ===\n\0"
+prompt_local_port: .fill "Enter LOCAL listening port (e.g. 9001): \0"
+prompt_peer_port:  .fill "Enter TARGET peer port     (e.g. 9002): \0"
+msg_ready:         .fill "[P2P] Socket bound on localhost! Press 'S' to inject packet.\n\n\0"
+msg_tx_send:       .fill "[P2P] Sending packet to peer...\n\0"
+msg_rx_header:     .fill "[P2P] Received packet: \0"
+str_space:         .fill " \0"
+str_newline:       .fill "\n\0"
+
+input_buf:         .space 20
 payload:           .space 3
-itoa_buffer:          .space 10
+itoa_buf:          .space 10
 
 stack:             .space 100

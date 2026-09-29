@@ -108,6 +108,43 @@ net_tcp_connect:
 	ret
 
 // =============================================================================
+// Subroutine: net_rx_len() -> r1: Short
+// Description: Returns the number of words currently waiting in the RX buffer.
+// =============================================================================
+net_rx_len:
+	movi r2 0xFF78
+	lw   r1 [r2 + #0]
+	ret
+
+// =============================================================================
+// Subroutine: net_read_array(r1: ShortArray, r2: Short) -> Unit
+// Description: Blocks until `r2` words arrive, then reads them into `r1`.
+// Inputs:      r1 = Destination array pointer
+//              r2 = Number of words to wait for and read
+// =============================================================================
+net_read_array:
+	push r4
+	movi r4 0xFF70
+
+	// 1. Block until RXLEN (0xFF78) >= requested length
+	.rx_wait:
+		lw   r3 [r4 + #8]
+		blt  r3 r2 .rx_wait
+
+	// 2. Read 'r2' words from FIFO
+	.rx_arr_loop:
+		beq  r2 r0 .rx_arr_done
+		lw   r3 [r4 + #7] // Pop from NET_DATA
+		sw   r3 [r1 + #0] // Store in memory
+		addi r1 r1 #1
+		subi r2 r2 #1
+		b    .rx_arr_loop
+
+	.rx_arr_done:
+		pop r4
+		ret
+
+// =============================================================================
 // Subroutine: net_send_array(r1: ShortArray, r2: Short) -> Unit
 // Description: Streams a binary array into the TX FIFO and transmits it.
 // Inputs:      r1 = Pointer to payload data
@@ -156,34 +193,6 @@ net_send_string:
 
 	pop r4
 	ret
-
-// =============================================================================
-// Subroutine: net_read_array(r1: ShortArray, r2: Short) -> Unit
-// Description: Blocks until `r2` words arrive, then reads them into `r1`.
-// Inputs:      r1 = Destination array pointer
-//              r2 = Number of words to wait for and read
-// =============================================================================
-net_read_array:
-	push r4
-	movi r4 0xFF70
-
-	// 1. Block until RXLEN (0xFF78) >= requested length
-	.rx_wait:
-		lw   r3 [r4 + #8]
-		blt  r3 r2 .rx_wait // If available < requested, keep spinning!
-
-	// 2. Read 'r2' words from FIFO
-	.rx_arr_loop:
-		beq  r2 r0 .rx_arr_done
-		lw   r3 [r4 + #7] // Pop from NET_DATA
-		sw   r3 [r1 + #0] // Store in memory
-		addi r1 r1 #1
-		subi r2 r2 #1
-		b    .rx_arr_loop
-
-	.rx_arr_done:
-		pop r4
-		ret
 
 // =============================================================================
 // Subroutine: net_close() -> Unit

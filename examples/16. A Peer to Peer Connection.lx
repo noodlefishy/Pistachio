@@ -51,6 +51,8 @@ main:
 	// Main P2P Event Loop
 	// =========================================================================
 	.p2p_loop:
+		movi r1 #500
+		call sleep_ms
 		// 1. Check if packet arrived from peer
 		call net_rx_len
 		bne  r1 r0 .receive_packet
@@ -154,16 +156,16 @@ main:
 // =============================================================================
 // DATA SECTION
 // =============================================================================
-localhost_str:     .fill "localhost\0"
+localhost_str:     .fill "localhost"
 
-prompt_banner:     .fill "\n=== Pistachio P2P Interactive Node ===\n\0"
-prompt_local_port: .fill "Enter LOCAL listening port (e.g. 9001): \0"
-prompt_peer_port:  .fill "Enter TARGET peer port     (e.g. 9002): \0"
-msg_ready:         .fill "[P2P] Socket bound on localhost! Press 'S' to inject packet.\n\n\0"
-msg_tx_send:       .fill "[P2P] Sending packet to peer...\n\0"
-msg_rx_header:     .fill "[P2P] Received packet: \0"
-str_space:         .fill " \0"
-str_newline:       .fill "\n\0"
+prompt_banner:     .fill "\n=== Pistachio P2P Interactive Node ===\n"
+prompt_local_port: .fill "Enter LOCAL listening port (e.g. 9001): "
+prompt_peer_port:  .fill "Enter TARGET peer port     (e.g. 9002): "
+msg_ready:         .fill "[P2P] Socket bound on localhost! Press 'S' to inject packet.\n"
+msg_tx_send:       .fill "[P2P] Sending packet to peer...\n"
+msg_rx_header:     .fill "[P2P] Received packet: "
+str_space:         .fill " "
+str_newline:       .fill "\n"
 
 input_buf:         .space 20
 payload:           .space 3

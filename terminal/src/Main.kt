@@ -546,10 +546,12 @@ private suspend fun runCpuSafely(
     var crashException: Exception? = null
     Signal.handle(Signal("INT")) { _ ->
         runBlocking {
-            profiler?.printReport()
-            crashException = Exception("Keyboard Interrupt")
-            onHaltOrCrash?.invoke(crashException)
-            throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
+            if (GlobalConfig.debug.printHex16Dump) {
+                profiler?.printReport()
+                crashException = Exception("Keyboard Interrupt")
+                onHaltOrCrash?.invoke(crashException)
+                throwRuntimeError(cpu, crashException!!, dumpBaseAddr, dumpLength)
+            }
         }
     }
 

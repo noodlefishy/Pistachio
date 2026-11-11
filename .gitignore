@@ -49,3 +49,7 @@ bin/
 /gradle/wrapper/gradle-wrapper.jar
 /gradle/wrapper/gradle-wrapper.properties
 /webTest/*
+/.idea/runConfigurations/Examples.xml
+/Game_of_life.bin
+/Interactive Game of Life.bin
+/wiki/.obsidian/

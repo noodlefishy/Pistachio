@@ -10,8 +10,12 @@ suspend fun Cpu.handlerLui(instruction: Instruction.Lui) {
 suspend fun Cpu.handleLw(instruction: Instruction.Lw) {
     val number1 = instruction.register2.read()
     val extendedImmediate = signExtend7(instruction.immediate)
-    val address = alu.add(number1, extendedImmediate)
-    val result = mmu.read(address.toUShort())
+    val address = alu.add(number1, extendedImmediate).toUShort()
+
+    if (address >= plr && !isKernelMode) throw SegmentationFault("Address 0x${address.toString(16)} exceeded limit 0x${plr.toString(16)}")
+    val addressPBR = (if (isKernelMode) address else (address + pbr).toUShort())
+
+    val result = mmu.read(addressPBR)
     instruction.register1.write(result)
 }
 
@@ -19,6 +23,11 @@ suspend fun Cpu.handleLw(instruction: Instruction.Lw) {
 suspend fun Cpu.handleSw(instruction: Instruction.Sw) {
     val extendedImmediate = signExtend7(instruction.immediate)
     val number1 = instruction.register2.read()
-    val address = alu.add(number1, extendedImmediate)
-    mmu.write(address.toUShort(), instruction.register1.read())
+    val address = alu.add(number1, extendedImmediate).toUShort()
+
+    if (address >= plr && !isKernelMode) throw SegmentationFault("Address 0x${address.toString(16)} exceeded limit 0x${plr.toString(16)}")
+    val addressPBR = (if (isKernelMode) address else (address + pbr).toUShort())
+
+    mmu.write(addressPBR, instruction.register1.read())
 }
+class SegmentationFault(override val message: String?): Exception(message)

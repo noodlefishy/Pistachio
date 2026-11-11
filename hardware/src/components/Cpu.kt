@@ -8,17 +8,22 @@ import io.cuttlefish.instructions.*
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
     val alu = Alu()
-    var epc: UShort = 0u // Exception Program Counter
-    var pc: UShort = 0u // Program Counter
+    var epc: UShort = 0u    // Exception Program Counter
+    var pc: UShort = 0u     // Program Counter
+    var pbr: UShort = 0u    // Partition Base Register
+    var plr: UShort = 0u    // Partition Limit Register
     var isHalted = false
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend
 
     suspend fun tick() {
         if (isHalted) return
-        if (pc in MemoryMapRanges.userLandRange) {
-            isKernelMode = false
+        if (!isKernelMode) {
+            if (pc < pbr || pc >= (pbr + plr).toUShort()) {
+                throw SegmentationFault("PC 0x${pc.toString(16)} escaped partition [0x${pbr.toString(16)}..0x${(pbr+plr).toString(16)}]")
+            }
         }
+
 
         if (!isKernelMode && pc !in MemoryMapRanges.userLandRange) {
             val hexAddress = "0x" + pc.toString(16).uppercase().padStart(4, '0')

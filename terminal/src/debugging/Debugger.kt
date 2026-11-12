@@ -12,6 +12,7 @@ import io.cuttlefish.debugging.*
 import io.cuttlefish.devices.DMAController
 import io.cuttlefish.devices.PackingAccelerator
 import io.cuttlefish.devices.ProgrammableIntervalTimer
+import io.cuttlefish.devices.ProgrammableInterruptController
 import java.io.File
 
 class Debugger(
@@ -25,6 +26,7 @@ class Debugger(
         memory.attach(DMAController(memory))
         memory.attach(SocketController(memory.ram))
         memory.attach(ProgrammableIntervalTimer())
+        memory.attach(ProgrammableInterruptController(cpu))
         memory.attach(CpuControlRegisters(cpu))
 //        GlobalConfig.debug. TODO, use global config to set debug dir
         File("Debug/linker").mkdirs()

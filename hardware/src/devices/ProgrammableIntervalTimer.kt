@@ -1,10 +1,12 @@
 package io.cuttlefish.devices
 
-import io.cuttlefish.MemoryManagement
+import io.cuttlefish.backend.InterruptCapableDevice
+import io.cuttlefish.backend.InterruptController
+import io.cuttlefish.backend.IrqLine
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-class ProgrammableIntervalTimer : Device {
+class ProgrammableIntervalTimer : Device, InterruptCapableDevice {
     override val name: String = "Programmable Interval Timer"
     override val deviceId: UShort = 4u
     override val memoryUsed: UIntRange = 0xFF10u..0xFF13u
@@ -14,6 +16,13 @@ class ProgrammableIntervalTimer : Device {
     private var status: Short = 0
 
     private var startTime: TimeMark? = null
+    private var pic: InterruptController? = null
+    private var irqLine: IrqLine? = null
+
+    override fun attachInterruptController(controller: InterruptController) {
+        this.pic = controller
+        this.irqLine = controller.getLine(ProgrammableInterruptController.IRQ_PIT_TIMER)
+    }
 
     override suspend fun read(address: UShort): Short {
         updateState()
@@ -58,6 +67,11 @@ class ProgrammableIntervalTimer : Device {
         if (elapsed >= reload.toLong() && reload > 0) {
             // Set Bit 0 of status to 1 (Timer Expired!)
             status = (status.toInt() or 1).toShort()
+
+            // Bit 2 (0x0004): IRQ Interrupt Enable (wiki/Device-PIT.md)
+            if ((ctrl.toInt() and 4) != 0) {
+                irqLine!!.pulse()
+            }
 
             val isPeriodic = (ctrl.toInt() and 2) != 0
             if (isPeriodic) {

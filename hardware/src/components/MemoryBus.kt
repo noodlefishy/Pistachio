@@ -1,6 +1,8 @@
 package io.cuttlefish.components
 
 import io.cuttlefish.*
+import io.cuttlefish.backend.InterruptCapableDevice
+import io.cuttlefish.backend.InterruptController
 import io.cuttlefish.devices.*
 import io.cuttlefish.instructions.SegmentationFault
 
@@ -8,6 +10,8 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 	val addressMap = mutableMapOf<UShort, Device>()
 	val attachedDevices: MutableSet<Device> = mutableSetOf()
 	var cpuAwareness: Cpu? = null
+	var pic: InterruptController? = null
+		private set
 
 	init {
 //        registerDevice(Console())
@@ -57,7 +61,19 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 
 	fun attach(device: Device) {
 		registerDevice(device)
+		if (device is InterruptController) {
+			this.pic = device
+			for (d in attachedDevices) {
+				if (d is InterruptCapableDevice) {
+					d.attachInterruptController(device)
+				}
+			}
+		} else if (device is InterruptCapableDevice) {
+			pic?.let { device.attachInterruptController(it) }
+		}
 	}
+
+	fun raiseIrq(irq: Int): Boolean = pic?.raiseIrq(irq) ?: false
 
 	fun attachCpu(cpu: Cpu) {
 		cpuAwareness = cpu

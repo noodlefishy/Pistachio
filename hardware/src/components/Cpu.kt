@@ -3,6 +3,7 @@ package io.cuttlefish.components
 import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.config.*
+import io.cuttlefish.devices.ProgrammableInterruptController
 import io.cuttlefish.instructions.*
 
 class Cpu(val mmu: MemoryBus) {
@@ -22,6 +23,13 @@ class Cpu(val mmu: MemoryBus) {
     }
     suspend fun tick() {
         if (isHalted) return
+
+        val pic = mmu.attachedDevices.filterIsInstance<ProgrammableInterruptController>().firstOrNull()
+        if (pic != null && (!isKernelMode || (flags.toInt() and 1) != 0)) {
+            val dispatched = pic.dispatch(this)
+            if (dispatched) return
+        }
+
         if (!isKernelMode) {
             if (pc >= plr) {
                 throw SegmentationFault("PC 0x${pc.toString(16)} exceeded partition limit 0x${plr.toString(16)}")
@@ -89,6 +97,7 @@ class Cpu(val mmu: MemoryBus) {
     private fun handleRti() {
         pc = epc
         this.isKernelMode = false
+        this.flags = (flags.toInt() or 1).toUShort()
     }
 
     suspend fun RegisterType.read(): Short = registers.read(this)

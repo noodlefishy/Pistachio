@@ -1,1 +1,91 @@
-// ????
+v_boot: 	b k_boot
+v_panic: 	.fill k_panic
+v_syscall: 	.fill k_syscall
+v_segv: 	.fill k_segv_handler
+.space 4 	// empty 4 -> 7
+v_timer: 	.fill k_irq_timer // 8
+.space 55 	// space
+
+k_boot:
+	movi r2 [0xff20] // pic mask
+	movi r1 0x00ff
+	sw r1 [r2 0]
+
+
+	// Preemptive scheduling at 50ms
+	movi r2 0xFF10
+	movi r1 #10
+	sw r1 [r2 + #1]
+	movi r1 #7
+	sw r1 [r2 + #0]
+
+	// User boundaries: base = 0x3000, limit = 0x4000
+	movi r2 0xFFE1
+	movi r1 0x3000
+	sw   r1 [r2 + #0]
+
+	movi r2 0xFFE2
+	movi r1 0x4000
+	sw r1 [r2 + #0]
+
+	// Puts user's logical pc (0) into epc for swapping
+	movi r2 0xFFE0
+	sw r0 [r2 + #0]
+
+	// Switch to ring 1
+	jalr r0 r0 #15
+
+
+k_syscall:
+	sw r1 [r0 + #62]
+	sw r2 [r0 + #61]
+
+	// Print 'h', 'i', '\n' to console (0xFF00)
+	movi r1 0xFF00
+	movi r2 #104                  // 'h'
+	sw   r2 [r1 + #0]
+	movi r2 #105                  // 'i'
+	sw   r2 [r1 + #0]
+	movi r2 #10                   // '\n'
+	sw   r2 [r1 + #0]
+
+	lw r1 [r0 + #62]
+	lw r2 [r0 + #61]
+	jalr r0 r0 #15
+
+k_irq_timer:
+	sw r1 [r0 + #62]
+	sw r2 [r0 + #61]
+
+	// Acknowledge IRQ 0. If we dont it loops forever
+	movi r1 0xFF22
+	sw r0 [r1 + #0]
+
+	movi r1 0xFF00
+	movi r2 #33 // '!'
+	sw r2 [r1 + #0]
+
+	lw r1 [r0 + #62]
+	lw r2 [r0 + #61]
+	jalr r0 r0 #15
+
+k_panic:
+	halt
+
+k_segv_handler:
+	movi r7 0xFF00
+
+	movi r2 #83 // 'S'
+	sw r2 [r7 + #0]
+	movi r2 #69 // 'E'
+	sw r2 [r7 + #0]
+	movi r2 #71 // 'G'
+	sw r2 [r7 + #0]
+	movi r2 #86 // 'V'
+	sw r2 [r7 + #0]
+	movi r2 #33 // '!'
+	sw r2 [r7 + #0]
+	movi r2 #10 // '\n'
+	sw r2 [r7 + #0]
+
+	halt

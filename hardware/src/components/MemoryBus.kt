@@ -22,7 +22,8 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 	override suspend fun read(address: UShort): Short {
 		if (!cpuAwareness!!.isKernelMode) {
 			if (address >= cpuAwareness!!.plr) {
-				throw SegmentationFault("Address $address out of bounds")
+				cpuAwareness!!.triggerTrap(3.toShort())
+//			throw SegmentationFault("Address $address out of bounds")
 			}
 			return ram.read((address + cpuAwareness!!.pbr).toUShort())
 		}
@@ -41,7 +42,8 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 		// if in User Mode (Ring 1), block direct MMIO access
 		if (!cpuAwareness!!.isKernelMode) {
 			if (address >= cpuAwareness!!.plr) {
-				throw SegmentationFault("Address $address out of bounds")
+				cpuAwareness!!.triggerTrap(3.toShort())
+//				throw SegmentationFault("Address $address out of bounds")
 			}
 			ram.write((address + cpuAwareness!!.pbr).toUShort(), value)
 			return

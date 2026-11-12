@@ -19,6 +19,10 @@ class ProgrammableIntervalTimer : Device, InterruptCapableDevice {
     private var pic: InterruptController? = null
     private var irqLine: IrqLine? = null
 
+    fun tick() {
+        updateState()
+    }
+
     override fun attachInterruptController(controller: InterruptController) {
         this.pic = controller
         this.irqLine = controller.getLine(ProgrammableInterruptController.IRQ_PIT_TIMER)
@@ -46,15 +50,12 @@ class ProgrammableIntervalTimer : Device, InterruptCapableDevice {
                 val wasEnabled = (ctrl.toInt() and 1) != 0
                 val isEnabled = (value.toInt() and 1) != 0
                 ctrl = value
-
-                // If it was just turned ON, mark the starting time!
                 if (!wasEnabled && isEnabled) {
                     startTime = TimeSource.Monotonic.markNow()
                     status = 0
                 }
             }
             0xFF11 -> reload = value
-            // 0xFF12 is Read-Only (Current Countdown)
             0xFF13 -> status = 0 // Manual clear
         }
     }
@@ -71,8 +72,6 @@ class ProgrammableIntervalTimer : Device, InterruptCapableDevice {
             // Bit 2 (0x0004): IRQ Interrupt Enable (wiki/Device-PIT.md)
             if ((ctrl.toInt() and 4) != 0) {
                 irqLine!!.pulse()
-                println("K - Pulse!")
-                print(status)
             }
 
             val isPeriodic = (ctrl.toInt() and 2) != 0

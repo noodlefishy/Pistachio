@@ -1,55 +1,14 @@
 main:
-	movi r6 stack
-	movi r4 0 // Counter
+	syscall #2
 
-	.loop:
-		// Print current loop iteration
-		movi r1 msg_tick
-		call prints
+//	movi r1 0xFF00
+// 	movi r2 #104
+//	sw   r2 [r1 + #0]
+	movi r1 20000
+	.burn_time:
+		subi r1 r1 1
+		bne  r1 r0 .burn_time
 
-		// Sleep for 500 ms using the hardware timer
-		movi r1 #500
-		call sleep_ms2
-
-		addi r4 r4 1
-		movi r1 #5
-		blt r4 r1 .loop
+	syscall #2
 
 	halt
-
-// -----------------------------------------------------------------------------
-// sleep_ms(r1: Short) -> Unit
-// -----------------------------------------------------------------------------
-sleep_ms2:
-	push r2
-	push r3
-
-	movi r2 0xFF10
-
-	// 1. Stop timer and clear status
-	sw r0 [r2 + #0]       // PIT_CTRL = 0
-	sw r0 [r2 + #3]       // PIT_STUS = 0
-
-	// 2. Set reload value in milliseconds (r1)
-	sw r1 [r2 + #1]       // PIT_RELD = r1
-
-	// 3. Start in One-Shot Mode (Bit 0 = 1)
-	movi r3 #1
-	sw r3 [r2 + #0]       // PIT_CTRL = 1
-
-	// 4. Poll PIT_STUS until Bit 0 is 1
-	.wait:
-		lw r3 [r2 + #3]   // Reads status and auto-clears on read
-		movi r1 #1
-		and r3 r3 r1
-		beq r3 r0 .wait   // If 0, keep waiting
-
-	pop r3
-	pop r2
-	ret
-
-msg_tick:
-	.fill "Tick!\n"
-
-stack:
-	.space 100

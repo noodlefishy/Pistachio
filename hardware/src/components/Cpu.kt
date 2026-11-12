@@ -4,6 +4,7 @@ import io.cuttlefish.*
 import io.cuttlefish.backend.*
 import io.cuttlefish.config.*
 import io.cuttlefish.devices.ProgrammableInterruptController
+import io.cuttlefish.devices.ProgrammableIntervalTimer
 import io.cuttlefish.instructions.*
 
 class Cpu(val mmu: MemoryBus) {
@@ -25,6 +26,8 @@ class Cpu(val mmu: MemoryBus) {
         if (isHalted) return
 
         val pic = mmu.attachedDevices.filterIsInstance<ProgrammableInterruptController>().firstOrNull()
+        mmu.attachedDevices.filterIsInstance<ProgrammableIntervalTimer>().first().tick()
+
         if (pic != null && (!isKernelMode || (flags.toInt() and 1) != 0)) {
             val dispatched = pic.dispatch(this)
             if (dispatched) return
@@ -32,7 +35,8 @@ class Cpu(val mmu: MemoryBus) {
 
         if (!isKernelMode) {
             if (pc >= plr) {
-                throw SegmentationFault("PC 0x${pc.toString(16)} exceeded partition limit 0x${plr.toString(16)}")
+                triggerTrap(3.toShort())
+                return
             }
         }
 
@@ -96,4 +100,13 @@ class Cpu(val mmu: MemoryBus) {
 
     suspend fun RegisterType.read(): Short = registers.read(this)
     suspend fun RegisterType.write(a: Short) = registers.write(this, a)
+
+    suspend fun triggerTrap(trapId: Short) {
+        epc = (pc - 1u).toUShort() // back 1 to the bad instruction
+        isKernelMode = true
+        flags = (flags.toInt() and 1.inv()).toUShort()
+
+        val handlerAddress = mmu.read(trapId.toUShort()).toUShort()
+        pc = if (handlerAddress != 0u.toUShort()) handlerAddress else trapId.toUShort()
+    }
 }

@@ -9,7 +9,6 @@ class ProgrammableInterruptController(var cpu: Cpu? = null) : Device, InterruptC
     override val deviceId: UShort = 5u
     override val memoryUsed: UIntRange = 0xFF20u..0xFF23u
 
-
     var mask: UShort = 0x00FFu
 
     var pending: UShort = 0u

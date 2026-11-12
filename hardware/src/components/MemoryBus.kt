@@ -22,9 +22,6 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 	override suspend fun read(address: UShort): Short {
 		val device = addressMap[address]
 
-		if (device != null) {
-			return device.read(address)
-		}
 		if (!cpuAwareness!!.isKernelMode) { // if in ring 0
 			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
 				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
@@ -32,7 +29,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 				}"
 			)
 
-			return ram.read((address + cpuAwareness!!.pbr).toUShort())
+			return device?.read(address) ?: ram.read((address + cpuAwareness!!.pbr).toUShort())
 		} else {
 			return ram.read(address)
 		}
@@ -42,10 +39,6 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 
 	override suspend fun write(address: UShort, value: Short) {
 		val device = addressMap[address]
-		if (device != null) {
-			device.write(address, value)
-			return
-		}
 		if (!cpuAwareness!!.isKernelMode) {
 			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
 				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
@@ -53,7 +46,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 				}"
 			)
 
-			ram.write((address + cpuAwareness!!.pbr).toUShort(), value)
+			device?.write(address, value) ?:ram.write((address + cpuAwareness!!.pbr).toUShort(), value)
 		} else {
 			ram.write(address, value)
 		}

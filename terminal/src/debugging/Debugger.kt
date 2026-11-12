@@ -1,6 +1,7 @@
 package io.cuttlefish.debug
 
 import devices.Console
+import devices.CpuControlRegisters
 import devices.Display
 import devices.SocketController
 import io.cuttlefish.*
@@ -24,6 +25,7 @@ class Debugger(
         memory.attach(DMAController(memory))
         memory.attach(SocketController(memory.ram))
         memory.attach(ProgrammableIntervalTimer())
+        memory.attach(CpuControlRegisters(cpu))
 //        GlobalConfig.debug. TODO, use global config to set debug dir
         File("Debug/linker").mkdirs()
     }

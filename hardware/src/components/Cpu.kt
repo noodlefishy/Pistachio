@@ -15,6 +15,7 @@ class Cpu(val mmu: MemoryBus) {
         (MemoryMapRanges.userLandRange.last - MemoryMapRanges.userLandRange.first + 1u).toUShort()
     var isHalted = false
     var isKernelMode = false        // Flag to track CPU privilege level
+    var flags: UShort = 0u
     private val backend = Backend
     init {
         mmu.attachCpu(this)

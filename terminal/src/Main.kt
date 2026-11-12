@@ -218,7 +218,8 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     }
 
     val cpu = Cpu(memory)
-    cpu.pc = baseAddr.toUShort()
+    cpu.pbr = baseAddr.toUShort()
+    cpu.pc = 0u
     val debugger = Debugger(cpu, memory, p1)
 
 

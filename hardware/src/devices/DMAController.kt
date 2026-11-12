@@ -32,17 +32,19 @@ class DMAController(private val memoryBus: MemoryBus) : Device {
     }
 
     private suspend fun executeCommand(command: Int) {
-        val destIdx = destination.toInt() and 0xFFFF
         val len = length.toInt() and 0xFFFF
-
-        // Hardware safety bounds check
-        if (destIdx + len > ram.internals.size) return
+        val pbrOffset = if (memoryBus.cpuAwareness != null && !memoryBus.cpuAwareness!!.isKernelMode) {
+            memoryBus.cpuAwareness!!.pbr.toInt()
+        } else {
+            0
+        }
 
         when (command) {
             1 -> {
                 // COMMAND 1: MEM_COPY via Kotlin stdlib copyInto
-                val srcIdx = sourceOrValue.toInt() and 0xFFFF
-                if (srcIdx + len > ram.internals.size) return
+                val destIdx = (destination.toInt() and 0xFFFF) + pbrOffset
+                val srcIdx = (sourceOrValue.toInt() and 0xFFFF) + pbrOffset
+                if (destIdx + len > ram.internals.size || srcIdx + len > ram.internals.size) return
 
                 ram.internals.copyInto(
                     destination = ram.internals,
@@ -54,11 +56,13 @@ class DMAController(private val memoryBus: MemoryBus) : Device {
 
             2 -> {
                 // COMMAND 2: MEM_FILL via Kotlin stdlib fill
+                val destIdx = (destination.toInt() and 0xFFFF) + pbrOffset
+                if (destIdx + len > ram.internals.size) return
                 ram.internals.fill(sourceOrValue, destIdx, destIdx + len)
             }
 
             3 -> {
-                val srcIdx = sourceOrValue.toInt() and 0xFFFF
+                val srcIdx = (sourceOrValue.toInt() and 0xFFFF) + pbrOffset
                 val port = destination.toUShort()
                 if (srcIdx + len > ram.internals.size) return
                 for (i in 0 until len) {

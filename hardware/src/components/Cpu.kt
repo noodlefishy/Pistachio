@@ -12,7 +12,7 @@ class Cpu(val mmu: MemoryBus) {
     var pc: UShort = 0u         // Program Counter
     var pbr: UShort = 0x3000u   // Partition Base Register
     var plr: UShort =           // Partition Limit Register
-        MemoryMapRanges.userLandRange.last.toUShort()
+        (MemoryMapRanges.userLandRange.last - MemoryMapRanges.userLandRange.first + 1u).toUShort()
     var isHalted = false
     var isKernelMode = false        // Flag to track CPU privilege level
     private val backend = Backend
@@ -22,15 +22,9 @@ class Cpu(val mmu: MemoryBus) {
     suspend fun tick() {
         if (isHalted) return
         if (!isKernelMode) {
-            if (pc < pbr || pc >= (pbr + plr).toUShort()) {
-                throw SegmentationFault("PC 0x${pc.toString(16)} escaped partition [0x${pbr.toString(16)}..0x${(pbr+plr).toString(16)}]")
+            if (pc >= plr) {
+                throw SegmentationFault("PC 0x${pc.toString(16)} exceeded partition limit 0x${plr.toString(16)}")
             }
-        }
-
-
-        if (!isKernelMode && pc !in MemoryMapRanges.userLandRange) {
-            val hexAddress = "0x" + pc.toString(16).uppercase().padStart(4, '0')
-            throw IllegalStateException("Segmentation Fault!! User-mode programme attempted to execute instruction at protected address $hexAddress")
         }
 
         // 1. FETCH

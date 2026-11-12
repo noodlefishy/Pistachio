@@ -25,7 +25,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 		if (device != null) {
 			return device.read(address)
 		}
-		if (!cpuAwareness!!.isKernelMode) {
+		if (!cpuAwareness!!.isKernelMode) { // if in ring 0
 			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
 				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
 					(address + cpuAwareness!!.pbr).toString(16)

@@ -15,7 +15,9 @@ class Cpu(val mmu: MemoryBus) {
     var isHalted = false
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend
-
+    init {
+        mmu.attachCpu(this)
+    }
     suspend fun tick() {
         if (isHalted) return
         if (!isKernelMode) {

@@ -165,7 +165,7 @@ private suspend fun handleBuild(args: List<String>) {
 
     val baseAddr = MemoryMapRanges.userLandRange.first // 0x3000
 
-    val linker = Linker(*objects.toTypedArray(), baseAddress = baseAddr.toUShort())
+    val linker = Linker(*objects.toTypedArray(), baseAddressUnsedRightNow = baseAddr.toUShort())
     val p1 = linker.passOne()
     val finalBinary = linker.passTwo(p1)
 
@@ -198,7 +198,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
 
     val baseAddr = MemoryMapRanges.userLandRange.first // 0x3000
 
-    val linker = Linker(*objects.toTypedArray(), baseAddress = baseAddr.toUShort())
+    val linker = Linker(*objects.toTypedArray(), baseAddressUnsedRightNow = baseAddr.toUShort())
     val p1 = linker.passOne()
     val machineCode = linker.passTwo(p1)
 

@@ -7,7 +7,8 @@ import io.cuttlefish.config.GlobalConfig
 import kotlinx.serialization.json.*
 import java.io.*
 
-class Linker(vararg objectFiles: ObjectFile, baseAddress: UShort = 0x3000u) {
+class Linker(vararg objectFiles: ObjectFile, baseAddressUnsedRightNow: UShort = 0x3000u) {
+    val baseAddress: UShort = 0u
     private val objects = objectFiles.toList()
     private var currentAddress = baseAddress
     private val startAddress = baseAddress
@@ -172,7 +173,7 @@ suspend fun main() {
     File("${mainFsL.absolutePath}.json").writeText(j.encodeToString(mainO))
     File("${mathsFsL.absolutePath}.json").writeText(j.encodeToString(mathsO))
 
-    val linker = Linker(mainO, mathsO, baseAddress = 0u)
+    val linker = Linker(mainO, mathsO, baseAddressUnsedRightNow = 0u)
     val p1 = linker.passOne()
     println(p1)
     val p2 = linker.passTwo(p1)

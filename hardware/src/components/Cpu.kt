@@ -8,13 +8,13 @@ import io.cuttlefish.instructions.*
 class Cpu(val mmu: MemoryBus) {
     val registers = Registers()
     val alu = Alu()
-    var epc: UShort = 0u    // Exception Program Counter
-    var pc: UShort = 0u     // Program Counter
-    var pbr: UShort = 0u    // Partition Base Register
-    var plr: UShort =       // Partition Limit Register
+    var epc: UShort = 0u        // Exception Program Counter
+    var pc: UShort = 0u         // Program Counter
+    var pbr: UShort = 0x3000u   // Partition Base Register
+    var plr: UShort =           // Partition Limit Register
         MemoryMapRanges.userLandRange.last.toUShort()
     var isHalted = false
-    var isKernelMode = true        // Flag to track CPU privilege level
+    var isKernelMode = false        // Flag to track CPU privilege level
     private val backend = Backend
     init {
         mmu.attachCpu(this)

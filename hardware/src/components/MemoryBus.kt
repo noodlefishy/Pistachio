@@ -23,6 +23,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 		if (!cpuAwareness!!.isKernelMode) {
 			if (address >= cpuAwareness!!.plr) {
 				cpuAwareness!!.triggerTrap(3.toShort())
+				return 0
 //			throw SegmentationFault("Address $address out of bounds")
 			}
 			return ram.read((address + cpuAwareness!!.pbr).toUShort())
@@ -43,6 +44,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 		if (!cpuAwareness!!.isKernelMode) {
 			if (address >= cpuAwareness!!.plr) {
 				cpuAwareness!!.triggerTrap(3.toShort())
+				return
 //				throw SegmentationFault("Address $address out of bounds")
 			}
 			ram.write((address + cpuAwareness!!.pbr).toUShort(), value)

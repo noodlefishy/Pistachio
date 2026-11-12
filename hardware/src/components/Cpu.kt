@@ -88,6 +88,7 @@ class Cpu(val mmu: MemoryBus) {
     private suspend fun handleTrap(trapId: Short) {
         epc = pc
         isKernelMode = true
+        flags = (flags.toInt() and 1.inv()).toUShort()
         val newAddress = mmu.read(trapId.toUShort())
         pc = newAddress.toUShort()
     }

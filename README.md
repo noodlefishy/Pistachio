@@ -162,29 +162,10 @@ stack:
   (`maths.lx`), 2D graphics engine (`gfx.lx`), string manipulation (`string.lx`), and formatted `printf` (`fmt.lx`).
 - [x] **Hardware Peripherals:** Swing & Canvas display, timer, DMA controller, and TCP/UDP sockets.
 
----
-
-## What’s Working Today
-
-- [x] **Full 8-instruction CPU Core** with microsecond-accurate instruction and bus timings.
-- [x] **Lexer & Multi-Pass AST Parser** with automatic iterative branch relaxation.
-- [x] **Two-Pass Relocating Linker** with symbol imports, exports, and relocation patching.
-- [x] **Smart Disassembler (`xvon`)** that reconstructs high-level macros from raw machine words.
-- [x] **Interactive Debugger (`lx-dbg`)** with breakpoints, single-stepping, and register deltas.
-- [x] **Execution Profiler** tracking execution cycles, hotspot subroutines, and kIPS metrics.
-- [x] **Comprehensive Standard Library:** First-fit dynamic heap allocator (`alloc.lx`), 16-cycle binary long division
-  (`maths.lx`), 2D graphics engine (`gfx.lx`), string manipulation (`string.lx`), and formatted `printf` (`fmt.lx`).
-- [x] **Hardware Peripherals:** Swing & Canvas display, timer, DMA controller, and TCP/UDP sockets.
-
----
 
 ## Plans: Pistachio-μK (Operating System)
 
-With the processor, toolchain, and standard libraries fully working, the current focus is architecting
-**Pistachio-μK** a minimalist, synchronous L4-style microkernel designed to bring preemptive multitasking, memory
-isolation, and a command shell to the platform
 
-- **Base & Limit Memory Isolation:** Zero-origin logical addressing protecting private task partitions.
 - **Preemptive Round-Robin Scheduling:** 100 Hz timer tick preemption with 16-word Process Control Blocks.
 - **Synchronous Direct Register IPC:** Zero-copy message passing transferred directly within CPU registers.
 - **Filesystem-as-a-Service (`fs_srv`):** An isolated userland server managing on-disk Inodes and DMA sectors.

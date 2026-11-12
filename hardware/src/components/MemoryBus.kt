@@ -20,36 +20,40 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 	}
 
 	override suspend fun read(address: UShort): Short {
-		val device = addressMap[address]
-
-		if (!cpuAwareness!!.isKernelMode) { // if in ring 1
-			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
-				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
-					(address + cpuAwareness!!.pbr).toString(16)
-				}"
-			)
-
-			return device?.read(address) ?: ram.read((address + cpuAwareness!!.pbr).toUShort())
-		} else {
-			return ram.read(address)
+		if (!cpuAwareness!!.isKernelMode) {
+			if (address >= cpuAwareness!!.plr) {
+				throw SegmentationFault("Address $address out of bounds")
+			}
+			return ram.read((address + cpuAwareness!!.pbr).toUShort())
 		}
+
+		val device = addressMap[address]
+		if (device != null) {
+			return device.read(address)
+		}
+
+		return ram.read(address)
 
 
 	}
 
 	override suspend fun write(address: UShort, value: Short) {
-		val device = addressMap[address]
+		// if in User Mode (Ring 1), block direct MMIO access
 		if (!cpuAwareness!!.isKernelMode) {
-			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
-				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
-					(address + cpuAwareness!!.pbr).toString(16)
-				}"
-			)
-
-			device?.write(address, value) ?:ram.write((address + cpuAwareness!!.pbr).toUShort(), value)
-		} else {
-			ram.write(address, value)
+			if (address >= cpuAwareness!!.plr) {
+				throw SegmentationFault("Address $address out of bounds")
+			}
+			ram.write((address + cpuAwareness!!.pbr).toUShort(), value)
+			return
 		}
+
+		val device = addressMap[address]
+		if (device != null) {
+			device.write(address, value)
+			return
+		}
+
+		ram.write(address, value)
 	}
 
 	fun attach(device: Device) {

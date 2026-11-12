@@ -269,30 +269,86 @@ private suspend fun handleRun(args: List<String>) {
 }
 
 private suspend fun handleRunOs(args: List<String>) {
-    if (args.size < 2) throw IllegalArgumentException("Missing kernel or main file.\nUsage: lx -os <kernel.lx> <main.lx>")
+    if (args.size < 2) {
+        throw IllegalArgumentException(
+            "Missing kernel or main file.\nUsage: lx -os <kernel.lx|bin> <main.lx|bin> [user_libs...] [options]"
+        )
+    }
+
     val shouldDump = args.contains("--dump")
-    val cleanArgs = args.filter { it != "--dump" }
+    val isDebug = args.contains("--debug")
+//    val isDebugF = args.contains("--debugf")
+    val isProfile = args.contains("--profile")
 
-    val kernelFile = getFileOrThrow(cleanArgs[0])
-    val mainFile = getFileOrThrow(cleanArgs[1])
+    val cleanArgs = args.filter {
+        it != "--dump" && it != "--debug" && it != "--debugf" && it != "--profile"
+    }
 
-    val kernelCode = Backend.encode(Parser(kernelFile, MemoryMapRanges.vectorRange.first.toShort()).decode())
-    val mainCode = Backend.encode(Parser(mainFile, MemoryMapRanges.userLandRange.first.toShort()).decode())
+    val kernelPath = cleanArgs[0]
+    val userArgs = cleanArgs.drop(1)
+
+    val kernelFile = getFileOrThrow(kernelPath)
+    val (kernelCode, kernelSymbols) = if (kernelFile.name.endsWith(".bin")) {
+        val lines = kernelFile.readLines().filter { it.isNotBlank() }
+        val words = (if (lines[0].startsWith("@")) lines.drop(1) else lines).map { it.trim().toUShort() }
+        words to emptyMap<String, UShort>()
+    } else {
+        // Compile and patch kernel.lx in memory on the fly
+        assembleAndLinkKernel(kernelFile)
+    }
+
+    val (userCode, userSymbols) = if (userArgs.size == 1 && userArgs[0].endsWith(".bin")) {
+        val userFile = getFileOrThrow(userArgs[0])
+        val lines = userFile.readLines().filter { it.isNotBlank() }
+        val words = (if (lines[0].startsWith("@")) lines.drop(1) else lines).map { it.trim().toUShort() }
+        words to emptyMap<String, UShort>()
+    } else {
+        // Expand userland sources + libraries and link with 3-word bootstrap
+        val expandedPaths = expandPaths(userArgs)
+        val objects = expandedPaths.map { path -> ObjectExcreter(getFileOrThrow(path)).generate() }
+        val linker = Linker(*objects.toTypedArray(), baseAddressUnsedRightNow = 0u)
+        val p1 = linker.passOne()
+        val machineCode = linker.passTwo(p1).toList()
+        machineCode to p1
+    }
 
     val memory = MemoryBus(PhysicalMemory(65536))
 
-    kernelCode.forEachIndexed { i, word ->
-        memory.write(i.toUShort(), word.toShort())
+    for ((index, word) in kernelCode.withIndex()) {
+        memory.ram.internals[index] = word.toShort()
     }
-    mainCode.forEachIndexed { i, word ->
-        memory.write((MemoryMapRanges.userLandRange.first + i.toUInt()).toUShort(), word.toShort())
+
+    val userBase = MemoryMapRanges.userLandRange.first.toInt() // 0x3000
+    for ((index, word) in userCode.withIndex()) {
+        memory.ram.internals[userBase + index] = word.toShort()
     }
 
     val cpu = Cpu(memory)
-    TODO("Run Cpu Safety is not yet implemented for enviroments with such little context")
-//    runCpuSafely(cpu, memory, shouldDump, MemoryMapRanges.userLandRange.first.toUShort(), mainCode.size)
-}
+    cpu.isKernelMode = true      // Boot into Ring 0
+    cpu.pc = 0u                  // Begin at Vector 0x0000
+    cpu.pbr = userBase.toUShort() // Partition Base = 0x3000
+    cpu.plr = (MemoryMapRanges.userLandRange.last - MemoryMapRanges.userLandRange.first + 1u).toUShort()
+    cpu.flags = 0u               // Mask external interrupts until kernel drops to userland
 
+    // Merge symbol tables so debugger (lx-dbg) and stack traces can resolve both spaces
+    val combinedSymbols = mutableMapOf<String, UShort>()
+    kernelSymbols.forEach { (k, v) -> combinedSymbols["k.$k"] = v; combinedSymbols[k] = v }
+    userSymbols.forEach { (k, v) -> if (!combinedSymbols.containsKey(k)) combinedSymbols[k] = v else combinedSymbols["u.$k"] = v }
+
+    val debugger = Debugger(cpu, memory, combinedSymbols)
+    val profiler = if (isProfile) ExecutionProfiler(cpu, combinedSymbols) else null
+
+    runCpuSafely(
+        cpu = cpu,
+        memory = memory,
+        debugger = debugger,
+        isInteractive = isDebug,
+        shouldDump = shouldDump,
+        dumpBaseAddr = 0u,
+        dumpLength = kernelCode.size + userCode.size + userBase,
+        profiler = profiler
+    )
+}
 private fun handleDecode(args: List<String>) {
     if (args.isEmpty()) throw IllegalArgumentException("Missing input file for -d")
     val file = getFileOrThrow(args[0])
@@ -581,4 +637,40 @@ private suspend fun runCpuSafely(
         onHaltOrCrash?.invoke(crashException)
         throwRuntimeError(cpu, e, dumpBaseAddr, dumpLength)
     }
+}
+
+private fun assembleAndLinkKernel(kernelFile: File): Pair<List<UShort>, Map<String, UShort>> {
+    val parser = Parser(kernelFile, 0.toShort())
+    val instructions = parser.decode()
+    val words = Backend.encode(instructions).toMutableList()
+
+    for ((offset1, name, type) in parser.relocations) {
+        val targetAddr = parser.symbolTable[name]?.toUShort()
+            ?: throw LinkerException(kernelFile.absolutePath, name, "Unresolved symbol in kernel")
+        val offset = offset1.toInt()
+        val currentWord = words[offset]
+
+        val patched = when (type) {
+            RelocationType.ABS_16 -> targetAddr
+            RelocationType.ABS_LUI -> {
+                val top10 = ((targetAddr.toInt() ushr 6) and 0x3FF).toUShort()
+                currentWord or top10
+            }
+            RelocationType.ABS_LLI -> {
+                val bottom6 = (targetAddr.toInt() and 0x3F).toUShort()
+                currentWord or bottom6
+            }
+            RelocationType.REL_7 -> {
+                val offsetVal = targetAddr.toInt() - (offset + 1)
+                if (offsetVal !in -64..63) {
+                    throw IllegalStateException("Kernel branch target '$name' out of range: $offsetVal")
+                }
+                (currentWord.toInt() or (offsetVal and 0x7F)).toUShort()
+            }
+        }
+        words[offset] = patched
+    }
+
+    val symbolMap = parser.symbolTable.mapValues { it.value.toUShort() }
+    return words to symbolMap
 }

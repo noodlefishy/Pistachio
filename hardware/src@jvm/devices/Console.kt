@@ -35,6 +35,7 @@ class Console : Device {
         delay(Clock.DEVICE_CONSOLE_WRITE_TIME.milliseconds)
         if (address == 0xFF00u.toUShort()) {
             System.err.print(value.toInt().toChar())
+            System.err.flush()
         }
 
     }

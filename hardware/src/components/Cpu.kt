@@ -46,12 +46,6 @@ class Cpu(val mmu: MemoryBus) {
         // Trap Handling
         if (instruction is Instruction.Jalr && instruction.immediate != 0.toShort()) {
             val trapId = instruction.immediate
-            @Suppress("UnusedVariable", "unused")
-            val trapName = when (trapId.toInt()) { // for the OS
-                1 -> "HALT"
-                15 -> "RTI"
-                else -> "SYSCALL $trapId"
-            }
 
             // Log the Trap to history before returning!
 

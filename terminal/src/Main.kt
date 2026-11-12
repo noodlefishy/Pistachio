@@ -181,7 +181,7 @@ private suspend fun handleCompileAndRun(args: List<String>) {
     val shouldDump = args.contains("--dump")
     val isDebug = args.contains("--debug")
     val isDebugF = args.contains("--debugf")
-    val isProfile = args.contains("--profile") // <-- ADD THIS FLAG
+    val isProfile = args.contains("--profile")
 
 
     val outIndex = args.indexOf("-o")

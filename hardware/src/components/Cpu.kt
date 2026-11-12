@@ -11,7 +11,8 @@ class Cpu(val mmu: MemoryBus) {
     var epc: UShort = 0u    // Exception Program Counter
     var pc: UShort = 0u     // Program Counter
     var pbr: UShort = 0u    // Partition Base Register
-    var plr: UShort = 0u    // Partition Limit Register
+    var plr: UShort =       // Partition Limit Register
+        MemoryMapRanges.userLandRange.last.toUShort()
     var isHalted = false
     var isKernelMode = true        // Flag to track CPU privilege level
     private val backend = Backend

@@ -71,6 +71,8 @@ class ProgrammableIntervalTimer : Device, InterruptCapableDevice {
             // Bit 2 (0x0004): IRQ Interrupt Enable (wiki/Device-PIT.md)
             if ((ctrl.toInt() and 4) != 0) {
                 irqLine!!.pulse()
+                println("K - Pulse!")
+                print(status)
             }
 
             val isPeriodic = (ctrl.toInt() and 2) != 0

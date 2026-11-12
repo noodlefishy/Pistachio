@@ -22,7 +22,7 @@ class MemoryBus(val ram: PhysicalMemory) : MemoryManagement {
 	override suspend fun read(address: UShort): Short {
 		val device = addressMap[address]
 
-		if (!cpuAwareness!!.isKernelMode) { // if in ring 0
+		if (!cpuAwareness!!.isKernelMode) { // if in ring 1
 			if (address >= cpuAwareness!!.plr) throw SegmentationFault(
 				"Address $address out of bounds" + "(${address + cpuAwareness!!.pbr}/0x$${
 					(address + cpuAwareness!!.pbr).toString(16)
